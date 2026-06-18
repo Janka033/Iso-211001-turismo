@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>ColAdventure · Tarjeta de documento</title>
+    <style>
+      body { font-family: Inter, system-ui, sans-serif; margin: 0; padding: 28px; background: #f8fafc; color: #0f172a; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p.sub { margin: 0 0 24px; color: #64748b; font-size: 13px; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 720px; }
+      .card { border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; padding: 20px;
+        box-shadow: 0 8px 24px -12px rgba(7,56,44,.12); display: flex; flex-direction: column; }
+      .top { display: flex; justify-content: space-between; align-items: flex-start; }
+      .badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: 11px; font-weight: 500; }
+      .b-slate { background: #f1f5f9; color: #64748b; }
+      .b-generated { background: #EAF7F2; color: #0B5742; }
+      .b-pending { background: #f1f5f9; color: #64748b; }
+      h3 { font-size: 16px; margin: 12px 0 4px; }
+      .desc { font-size: 13px; color: #64748b; margin: 0 0 14px; flex: 1; }
+      .bar { height: 8px; border-radius: 999px; background: #f1f5f9; overflow: hidden; margin-top: 4px; }
+      .fill { height: 100%; }
+      .pend { background: #FFF7ED; color: #b45309; font-size: 12px; border-radius: 8px; padding: 8px 10px; margin-top: 12px; }
+      .actions { display: flex; gap: 8px; margin-top: 16px; }
+      .btn { border-radius: 8px; padding: 8px 16px; font-size: 14px; font-weight: 500; border: 0; cursor: pointer; flex: 1; }
+      .primary { background: #0E6E52; color: #fff; }
+      .secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; flex: 0; }
+      .small { font-size: 11px; color: #94a3b8; text-align: center; margin-top: 8px; }
+      .meta { display: flex; gap: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>Tarjeta de documento</h1>
+    <p class="sub">Componente central del panel: estado, completitud, pendientes y acciones.</p>
+
+    <div class="grid">
+      <!-- Generado, completo -->
+      <article class="card">
+        <div class="top">
+          <div class="meta"><span class="badge b-slate">5.2</span><span class="badge b-slate">.DOCX</span></div>
+          <span class="badge b-generated">Generado</span>
+        </div>
+        <h3>Política de seguridad</h3>
+        <p class="desc">Compromiso de la dirección con la seguridad en las actividades de aventura.</p>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#64748b">
+          <span>Completitud</span><span style="color:#334155;font-weight:600">100%</span>
+        </div>
+        <div class="bar"><div class="fill" style="width:100%;background:#138A66"></div></div>
+        <div class="actions">
+          <button class="btn primary">Regenerar</button>
+          <button class="btn secondary">Descargar</button>
+        </div>
+        <p class="small">versión 2</p>
+      </article>
+
+      <!-- Pendiente / con faltantes -->
+      <article class="card">
+        <div class="top">
+          <div class="meta"><span class="badge b-slate">6.1.1</span><span class="badge b-slate">.XLSX</span></div>
+          <span class="badge b-pending">Pendiente</span>
+        </div>
+        <h3>Matriz de riesgos y oportunidades</h3>
+        <p class="desc">Valoración de peligros por actividad, controles y oportunidades.</p>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#64748b">
+          <span>Completitud</span><span style="color:#334155;font-weight:600">60%</span>
+        </div>
+        <div class="bar"><div class="fill" style="width:60%;background:#F59E0B"></div></div>
+        <div class="pend">3 campo(s) marcados como <b>[PENDIENTE]</b> por falta de datos.</div>
+        <div class="actions"><button class="btn primary">Generar</button></div>
+      </article>
+    </div>
+  </body>
+</html>

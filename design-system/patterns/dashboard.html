@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>ColAdventure · Patrón Dashboard</title>
+    <style>
+      body { font-family: Inter, system-ui, sans-serif; margin: 0; background: #f8fafc; color: #0f172a; }
+      header { background: #fff; border-bottom: 1px solid #e2e8f0; }
+      .bar { max-width: 880px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; }
+      .logo { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+      .mark { width: 28px; height: 28px; border-radius: 8px; color:#fff; display:inline-flex; align-items:center; justify-content:center;
+        background: linear-gradient(135deg,#0B5742,#138A66); }
+      .who { text-align: right; font-size: 12px; }
+      .who b { font-size: 13px; }
+      .who span { color: #94a3b8; }
+      .logout { border:1px solid #cbd5e1; background:#fff; border-radius:8px; padding:6px 12px; font-size:13px; color:#334155; }
+      main { max-width: 880px; margin: 0 auto; padding: 28px 24px; }
+      .head { display:flex; justify-content:space-between; align-items:flex-end; }
+      h1 { font-size: 22px; margin: 0 0 4px; }
+      .sub { color:#64748b; font-size:13px; margin:0; }
+      .pill { background:#EAF7F2; color:#0B5742; border-radius:999px; padding:4px 12px; font-size:12px; font-weight:500; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 22px; }
+      .card { border:1px solid #e2e8f0; border-radius:16px; background:#fff; padding:18px; box-shadow:0 8px 24px -14px rgba(7,56,44,.12); }
+      .top { display:flex; justify-content:space-between; }
+      .b { border-radius:999px; padding:2px 9px; font-size:11px; font-weight:500; }
+      .b-slate { background:#f1f5f9; color:#64748b; }
+      .b-gen { background:#EAF7F2; color:#0B5742; }
+      h3 { font-size: 15px; margin: 10px 0 4px; }
+      .d { font-size:12px; color:#64748b; margin:0 0 12px; }
+      .bar2 { height:7px; border-radius:999px; background:#f1f5f9; overflow:hidden; }
+      .fill { height:100%; }
+      .btn { width:100%; margin-top:14px; background:#0E6E52; color:#fff; border:0; border-radius:8px; padding:8px; font-size:13px; font-weight:500; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="bar">
+        <div class="logo"><span class="mark">⛰</span> Col<span style="color:#0E6E52">Adventure</span></div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="who"><b>Aventura Andina SAS</b><br /><span>maria@aventura.co</span></div>
+          <button class="logout">Cerrar sesión</button>
+        </div>
+      </div>
+    </header>
+    <main>
+      <div class="head">
+        <div>
+          <h1>Documentos de cumplimiento</h1>
+          <p class="sub">Set núcleo NTC-ISO 21101. Lo que falte aparecerá como [PENDIENTE].</p>
+        </div>
+        <span class="pill">2 / 4 iniciados</span>
+      </div>
+      <div class="grid">
+        <article class="card">
+          <div class="top"><span class="b b-slate">5.2</span><span class="b b-gen">Generado</span></div>
+          <h3>Política de seguridad</h3><p class="d">Compromiso de la dirección con la seguridad.</p>
+          <div class="bar2"><div class="fill" style="width:100%;background:#138A66"></div></div>
+          <button class="btn">Regenerar</button>
+        </article>
+        <article class="card">
+          <div class="top"><span class="b b-slate">6.1.1</span><span class="b b-gen">Generado</span></div>
+          <h3>Matriz de riesgos</h3><p class="d">Peligros por actividad, controles y oportunidades.</p>
+          <div class="bar2"><div class="fill" style="width:80%;background:#138A66"></div></div>
+          <button class="btn">Regenerar</button>
+        </article>
+        <article class="card">
+          <div class="top"><span class="b b-slate">8.2</span><span class="b b-slate">Pendiente</span></div>
+          <h3>Plan de emergencias</h3><p class="d">Escenarios, comunicación y respuesta.</p>
+          <div class="bar2"><div class="fill" style="width:0%;background:#138A66"></div></div>
+          <button class="btn">Generar</button>
+        </article>
+        <article class="card">
+          <div class="top"><span class="b b-slate">8.3</span><span class="b b-slate">Pendiente</span></div>
+          <h3>Gestión de incidentes</h3><p class="d">Procedimiento y formato de reporte.</p>
+          <div class="bar2"><div class="fill" style="width:0%;background:#138A66"></div></div>
+          <button class="btn">Generar</button>
+        </article>
+      </div>
+    </main>
+  </body>
+</html>

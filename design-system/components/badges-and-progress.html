@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>ColAdventure · Badges y completitud</title>
+    <style>
+      body { font-family: Inter, system-ui, sans-serif; margin: 0; padding: 28px; background: #f8fafc; color: #0f172a; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p.sub { margin: 0 0 24px; color: #64748b; font-size: 13px; }
+      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: #64748b; margin: 22px 0 10px; }
+      .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+      .badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 500; }
+      .b-pending { background: #f1f5f9; color: #64748b; }
+      .b-generating { background: #e0f2fe; color: #0369a1; }
+      .b-generated { background: #EAF7F2; color: #0B5742; }
+      .b-approved { background: #ecfdf5; color: #047857; }
+      .b-rejected { background: #fff1f2; color: #be123c; }
+      .bar { height: 8px; width: 220px; border-radius: 999px; background: #f1f5f9; overflow: hidden; }
+      .fill { height: 100%; border-radius: 999px; }
+      .line { display: flex; align-items: center; gap: 12px; margin: 8px 0; font-size: 12px; color: #475569; }
+    </style>
+  </head>
+  <body>
+    <h1>Badges de estado y barra de completitud</h1>
+    <p class="sub">Estados del ciclo de un documento y % de campos con dato.</p>
+
+    <h2>Estados</h2>
+    <div class="row">
+      <span class="badge b-pending">Pendiente</span>
+      <span class="badge b-generating">Generando</span>
+      <span class="badge b-generated">Generado</span>
+      <span class="badge b-approved">Aprobado</span>
+      <span class="badge b-rejected">Rechazado</span>
+    </div>
+
+    <h2>Completitud</h2>
+    <div class="line"><div class="bar"><div class="fill" style="width:100%;background:#138A66"></div></div> 100% — completo</div>
+    <div class="line"><div class="bar"><div class="fill" style="width:60%;background:#F59E0B"></div></div> 60% — con pendientes</div>
+    <div class="line"><div class="bar"><div class="fill" style="width:25%;background:#fb7185"></div></div> 25% — faltan datos</div>
+  </body>
+</html>

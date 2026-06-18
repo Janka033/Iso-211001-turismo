@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>ColAdventure · Botones</title>
+    <style>
+      body { font-family: Inter, system-ui, sans-serif; margin: 0; padding: 28px; background: #f8fafc; color: #0f172a; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p.sub { margin: 0 0 24px; color: #64748b; font-size: 13px; }
+      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: #64748b; margin: 22px 0 10px; }
+      .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+      .btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 8px; padding: 8px 16px;
+        font-size: 14px; font-weight: 500; border: 0; cursor: pointer; }
+      .primary { background: #0E6E52; color: #fff; }
+      .secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+      .ghost { background: transparent; color: #0B5742; }
+      .sm { padding: 6px 12px; font-size: 13px; }
+      .lg { padding: 11px 20px; font-size: 15px; }
+      .disabled { opacity: .5; cursor: not-allowed; }
+    </style>
+  </head>
+  <body>
+    <h1>Botones</h1>
+    <p class="sub">Primario, secundario y ghost. Tres tamaños y estado deshabilitado.</p>
+
+    <h2>Variantes</h2>
+    <div class="row">
+      <button class="btn primary">Generar</button>
+      <button class="btn secondary">Descargar</button>
+      <button class="btn ghost">Ver detalle</button>
+    </div>
+
+    <h2>Tamaños</h2>
+    <div class="row">
+      <button class="btn primary sm">Pequeño</button>
+      <button class="btn primary">Mediano</button>
+      <button class="btn primary lg">Grande</button>
+    </div>
+
+    <h2>Estados</h2>
+    <div class="row">
+      <button class="btn primary disabled">Generando…</button>
+      <button class="btn secondary disabled">No disponible</button>
+    </div>
+  </body>
+</html>

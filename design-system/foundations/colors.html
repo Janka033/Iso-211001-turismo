@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>ColAdventure · Colores</title>
+    <style>
+      body {
+        font-family: Inter, system-ui, sans-serif;
+        margin: 0;
+        padding: 28px;
+        background: #f8fafc;
+        color: #0f172a;
+      }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p.sub { margin: 0 0 24px; color: #64748b; font-size: 13px; }
+      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin: 24px 0 10px; }
+      .row { display: flex; flex-wrap: wrap; gap: 10px; }
+      .sw { width: 96px; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(7,56,44,.08); }
+      .chip { height: 56px; }
+      .meta { padding: 6px 8px; background: #fff; font-size: 11px; }
+      .meta b { display: block; font-weight: 600; }
+      .meta span { color: #94a3b8; }
+    </style>
+  </head>
+  <body>
+    <h1>Colores</h1>
+    <p class="sub">Paleta de marca ColAdventure — verde-teal "pino" y ámbar "atardecer".</p>
+
+    <h2>Brand (primario)</h2>
+    <div class="row" id="brand"></div>
+
+    <h2>Accent</h2>
+    <div class="row" id="accent"></div>
+
+    <h2>Semánticos</h2>
+    <div class="row" id="sem"></div>
+
+    <script>
+      const brand = {
+        50: "#EAF7F2", 100: "#CDEBE0", 200: "#9FD8C4", 300: "#6BC1A2",
+        400: "#38A37E", 500: "#138A66", 600: "#0E6E52", 700: "#0B5742",
+        800: "#094636", 900: "#07382C",
+      };
+      const accent = { 50: "#FFF7ED", 400: "#FBBF24", 500: "#F59E0B", 600: "#D97706" };
+      const sem = { success: "#16A34A", warning: "#D97706", danger: "#E11D48", slate: "#475569" };
+      const draw = (id, obj) => {
+        const el = document.getElementById(id);
+        for (const [k, v] of Object.entries(obj)) {
+          el.insertAdjacentHTML("beforeend",
+            `<div class="sw"><div class="chip" style="background:${v}"></div>
+             <div class="meta"><b>${k}</b><span>${v}</span></div></div>`);
+        }
+      };
+      draw("brand", brand); draw("accent", accent); draw("sem", sem);
+    </script>
+  </body>
+</html>

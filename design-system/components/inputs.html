@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>ColAdventure · Inputs</title>
+    <style>
+      body { font-family: Inter, system-ui, sans-serif; margin: 0; padding: 28px; background: #f8fafc; color: #0f172a; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p.sub { margin: 0 0 24px; color: #64748b; font-size: 13px; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 560px; }
+      label { display: block; font-size: 12px; font-weight: 500; color: #475569; margin-bottom: 6px; }
+      .input { width: 100%; box-sizing: border-box; border-radius: 8px; border: 1px solid #cbd5e1;
+        padding: 9px 12px; font-size: 14px; background: #fff; }
+      .input::placeholder { color: #94a3b8; }
+      .input.focus { border-color: #138A66; box-shadow: 0 0 0 3px rgba(19,138,102,.25); outline: none; }
+      .input.err { border-color: #e11d48; box-shadow: 0 0 0 3px rgba(225,29,72,.2); }
+      .hint { font-size: 12px; color: #e11d48; margin-top: 6px; }
+    </style>
+  </head>
+  <body>
+    <h1>Campos de formulario</h1>
+    <p class="sub">Default, foco y error.</p>
+    <div class="grid">
+      <div><label>Correo</label><input class="input" placeholder="tu@empresa.co" /></div>
+      <div><label>Empresa</label><input class="input focus" value="Aventura Andina SAS" /></div>
+      <div>
+        <label>Contraseña</label>
+        <input class="input err" type="password" value="123" />
+        <p class="hint">Mínimo 8 caracteres.</p>
+      </div>
+      <div><label>NIT (opcional)</label><input class="input" placeholder="900.123.456-7" /></div>
+    </div>
+  </body>
+</html>
