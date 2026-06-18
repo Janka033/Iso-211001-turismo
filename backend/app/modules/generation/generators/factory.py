@@ -12,9 +12,18 @@ from dataclasses import dataclass
 from pydantic import BaseModel
 
 from app.modules.generation.generators.base import DocumentGenerator
+from app.modules.generation.generators.emergency_plan import EmergencyPlanGenerator
+from app.modules.generation.generators.incident_management import (
+    IncidentManagementGenerator,
+)
 from app.modules.generation.generators.risk_matrix import RiskMatrixGenerator
 from app.modules.generation.generators.security_policy import SecurityPolicyGenerator
-from app.modules.generation.schemas import RiskMatrixVariables, SecurityPolicyVariables
+from app.modules.generation.schemas import (
+    EmergencyPlanVariables,
+    IncidentManagementVariables,
+    RiskMatrixVariables,
+    SecurityPolicyVariables,
+)
 
 
 @dataclass(frozen=True)
@@ -40,6 +49,20 @@ _REGISTRY: dict[str, DocumentSpec] = {
         numeral="6.1.1",
         variables_model=RiskMatrixVariables,
         generator=RiskMatrixGenerator(),
+    ),
+    "plan_emergencias": DocumentSpec(
+        document_type="plan_emergencias",
+        title="Plan de respuesta a emergencias",
+        numeral="8.2",
+        variables_model=EmergencyPlanVariables,
+        generator=EmergencyPlanGenerator(),
+    ),
+    "gestion_incidentes": DocumentSpec(
+        document_type="gestion_incidentes",
+        title="Procedimiento de gestión de incidentes",
+        numeral="8.3",
+        variables_model=IncidentManagementVariables,
+        generator=IncidentManagementGenerator(),
     ),
 }
 

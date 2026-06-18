@@ -152,3 +152,115 @@ class RiskMatrixVariables(BaseModel):
         default_factory=list,
         description="Oportunidades de mejora identificadas (6.1.1).",
     )
+
+
+class EmergencyScenario(BaseModel):
+    """Un escenario de emergencia y su respuesta (fila del plan)."""
+
+    scenario: str | None = Field(
+        default=None, description="Tipo de emergencia (p.ej. accidente en rafting)."
+    )
+    activity: str | None = Field(
+        default=None, description="Actividad asociada al escenario."
+    )
+    response_steps: str | None = Field(
+        default=None, description="Pasos de respuesta ante la emergencia."
+    )
+    responsible: str | None = Field(
+        default=None, description="Responsable de coordinar la respuesta."
+    )
+    resources: str | None = Field(
+        default=None, description="Recursos/equipos necesarios para la respuesta."
+    )
+
+
+class EmergencyPlanVariables(BaseModel):
+    """Variables del Plan de respuesta a emergencias (numeral 8.2).
+
+    ``emergency_scenarios`` es estructurado; el resto son campos planos.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    scope: str | None = Field(
+        default=None, description="Alcance del plan: actividades y ubicaciones cubiertas."
+    )
+    general_objective: str | None = Field(
+        default=None, description="Objetivo general del plan de emergencias."
+    )
+    emergency_scenarios: list[EmergencyScenario] = Field(
+        default_factory=list,
+        description="Escenarios de emergencia identificados y su respuesta.",
+    )
+    communication_protocol: str | None = Field(
+        default=None,
+        description="Protocolo de comunicación y cadena de notificación en emergencia.",
+    )
+    emergency_contacts: list[str] = Field(
+        default_factory=list,
+        description="Contactos de emergencia (bomberos, ambulancia, rescate, ARL).",
+    )
+    evacuation_resources: str | None = Field(
+        default=None, description="Rutas de evacuación y recursos disponibles."
+    )
+    external_coordination: str | None = Field(
+        default=None,
+        description="Coordinación con servicios externos (hospitales, defensa civil).",
+    )
+    training_drills: str | None = Field(
+        default=None, description="Capacitación del personal y simulacros."
+    )
+    review_frequency: str | None = Field(
+        default=None, description="Frecuencia de revisión y actualización del plan."
+    )
+    legal_representative: str | None = Field(
+        default=None, description="Representante legal que aprueba el plan."
+    )
+    approval_date: str | None = Field(
+        default=None, description="Fecha de aprobación (YYYY-MM-DD)."
+    )
+
+
+class IncidentManagementVariables(BaseModel):
+    """Variables del Procedimiento de gestión de incidentes (numeral 8.3).
+
+    El documento incluye el procedimiento (contenido inteligente) y un FORMATO
+    de reporte de incidentes (estructura fija, en blanco para diligenciar)."""
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    scope: str | None = Field(
+        default=None, description="Alcance del procedimiento de gestión de incidentes."
+    )
+    objective: str | None = Field(
+        default=None, description="Objetivo del procedimiento."
+    )
+    incident_classification: list[str] = Field(
+        default_factory=list,
+        description="Clasificación de eventos (casi-accidente, incidente, accidente).",
+    )
+    procedure_steps: list[str] = Field(
+        default_factory=list,
+        description="Pasos del procedimiento (reportar, registrar, investigar, etc.).",
+    )
+    responsible: str | None = Field(
+        default=None, description="Responsable de la gestión de incidentes."
+    )
+    corrective_actions_process: str | None = Field(
+        default=None,
+        description="Cómo se definen y siguen las acciones correctivas.",
+    )
+    record_retention: str | None = Field(
+        default=None, description="Conservación y custodia de los registros."
+    )
+    review_frequency: str | None = Field(
+        default=None, description="Frecuencia de revisión del procedimiento."
+    )
+    legal_representative: str | None = Field(
+        default=None, description="Representante legal que aprueba el procedimiento."
+    )
+    approval_date: str | None = Field(
+        default=None, description="Fecha de aprobación (YYYY-MM-DD)."
+    )
