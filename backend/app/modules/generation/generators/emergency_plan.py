@@ -35,9 +35,15 @@ class EmergencyPlanGenerator(DocumentGenerator):
     engine = "docx"
     custom_fields = frozenset({"emergency_scenarios"})
 
-    def _extra_pending(self, variables: BaseModel) -> list[str]:
+    def _extra_pending(
+        self, variables: BaseModel, required_fields: set[str] | None
+    ) -> list[str]:
         assert isinstance(variables, EmergencyPlanVariables)
-        return [] if variables.emergency_scenarios else ["emergency_scenarios"]
+        if variables.emergency_scenarios or not self._is_required(
+            "emergency_scenarios", required_fields
+        ):
+            return []
+        return ["emergency_scenarios"]
 
     def _render(
         self, resolved: dict[str, ResolvedField], variables: BaseModel

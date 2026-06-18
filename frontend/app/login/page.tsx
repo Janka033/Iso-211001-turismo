@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { apiBase } from "@/lib/api";
 import { Logo } from "@/components/logo";
 import { createClient } from "@/lib/supabase/client";
 
@@ -24,7 +25,7 @@ export default function LoginPage() {
     try {
       if (mode === "signup") {
         // El backend provisiona tenant + company + perfil (vía service role).
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
+        const res = await fetch(`${apiBase()}/auth/signup`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password, company_name: companyName }),
@@ -52,7 +53,7 @@ export default function LoginPage() {
     <main className="grid min-h-screen lg:grid-cols-2">
       {/* Panel de marca */}
       <aside className="relative hidden flex-col justify-between overflow-hidden bg-brand-gradient p-12 text-white lg:flex">
-        <Logo className="[&_span:last-child]:text-white [&_.text-brand-600]:text-accent-400" />
+        <Logo variant="onDark" />
         <div className="relative z-10 max-w-md">
           <h2 className="text-3xl font-semibold leading-tight">
             Certifícate en la NTC-ISO 21101 sin perderte en el papeleo.

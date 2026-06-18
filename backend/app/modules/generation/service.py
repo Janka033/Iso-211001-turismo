@@ -6,13 +6,21 @@
 Llama al repository para todo acceso a DB y a la IA SOLO vía ``AIProvider``.
 La IA nunca redacta el documento: solo devuelve JSON estricto que se valida
 antes de inyectarlo en una plantilla fija.
+
+Las llamadas al repository (supabase-py es síncrono) se ejecutan en un hilo
+(``anyio.to_thread``) para no bloquear el event loop.
 """
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
+import logging
+from collections.abc import Callable
+from typing import TypeVar
 
+import anyio
 from fastapi import HTTPException, status
 from pydantic import BaseModel, ValidationError
 
@@ -21,6 +29,15 @@ from app.core.ai.factory import get_ai_provider
 from app.modules.generation import repository
 from app.modules.generation.generators.factory import get_spec
 from app.modules.generation.schemas import GeneratedDocument, GenerateRequest
+
+logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+
+async def _run(fn: Callable[..., T], *args: object, **kwargs: object) -> T:
+    """Ejecuta una llamada bloqueante (repository) en un hilo."""
+    return await anyio.to_thread.run_sync(functools.partial(fn, *args, **kwargs))
 
 
 async def generate(
@@ -36,17 +53,23 @@ async def generate(
             detail=f"Tipo de documento no soportado: {document_type}",
         )
 
-    prompt_row = repository.get_active_prompt(document_type, token)
+    prompt_row = await _run(repository.get_active_prompt, document_type, token)
     if prompt_row is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"No hay prompt activo para {document_type} (config faltante).",
         )
 
-    company = repository.get_company(tenant_id, token) or {}
-    onboarding = repository.get_onboarding_data(tenant_id, token)
-    checklist = repository.get_checklist(document_type, token)
-    patterns = repository.get_generation_patterns(document_type, token)
+    company = (await _run(repository.get_company, tenant_id, token)) or {}
+    onboarding = await _run(repository.get_onboarding_data, tenant_id, token)
+    checklist = await _run(repository.get_checklist, document_type, token)
+    patterns = await _run(repository.get_generation_patterns, document_type, token)
+
+    if not checklist:
+        logger.warning(
+            "Sin extraction_checklist para %s: no se puede medir completitud.",
+            document_type,
+        )
 
     provider = get_ai_provider()
 
@@ -55,8 +78,17 @@ async def generate(
         f"{spec.title} (numeral {spec.numeral}) NTC-ISO 21101 "
         f"para una empresa de turismo de aventura"
     )
-    embedding = await provider.embed(query)
-    chunks = repository.match_knowledge_chunks(embedding, spec.numeral, token)
+    try:
+        embedding = await provider.embed(query)
+        chunks = await _run(repository.match_knowledge_chunks, embedding, spec.numeral, token)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 - upstream IA/RAG
+        logger.exception("Fallo en el paso RAG para %s", document_type)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No se pudo recuperar el contexto normativo (RAG/IA no disponible).",
+        ) from exc
 
     # 2. Ensamblar el prompt desde la versión activa (datos, no código).
     prompt = _assemble_prompt(
@@ -70,7 +102,14 @@ async def generate(
     )
 
     # 3. IA → JSON estricto.
-    raw = await provider.generate_json(prompt)
+    try:
+        raw = await provider.generate_json(prompt)
+    except Exception as exc:  # noqa: BLE001 - upstream IA
+        logger.exception("Fallo al invocar la IA para %s", document_type)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="La IA no devolvió una respuesta válida.",
+        ) from exc
 
     # 4. Validación Pydantic ANTES de tocar la plantilla.
     try:
@@ -81,14 +120,23 @@ async def generate(
             detail=f"La IA devolvió un JSON que no cumple el schema: {exc.errors()}",
         ) from exc
 
-    # 5. Generar el documento (estructura fija; faltantes => [PENDIENTE]).
-    result = spec.generator.generate(variables)
+    # 5. Generar el documento (estructura fija; obligatorios faltantes => [PENDIENTE]).
+    #    Qué es obligatorio lo dice la checklist (datos). Sin checklist => conservador.
+    required_fields = (
+        {c["field_key"] for c in checklist if c.get("required")} if checklist else None
+    )
+    result = spec.generator.generate(variables, required_fields)
 
     # 6. Persistir: snapshot de reproducibilidad + estado.
     completeness = _completeness(checklist, result.pending_fields)
-    version = repository.next_version(tenant_id, document_type, token)
-    storage_path = repository.upload_document(
-        tenant_id, document_type, version, result.content, token,
+    version = await _run(repository.next_version, tenant_id, document_type, token)
+    storage_path = await _run(
+        repository.upload_document,
+        tenant_id,
+        document_type,
+        version,
+        result.content,
+        token,
         engine=spec.generator.engine,
     )
 
@@ -105,10 +153,15 @@ async def generate(
         "model_version": settings.gemini_model,
         "variables_snapshot": variables.model_dump(),
     }
-    document = repository.insert_document(record, token)
+    document = await _run(repository.insert_document, record, token)
 
-    repository.upsert_document_status(
-        tenant_id, document_type, "generated", completeness, token
+    await _run(
+        repository.upsert_document_status,
+        tenant_id,
+        document_type,
+        "generated",
+        completeness,
+        token,
     )
 
     return GeneratedDocument(

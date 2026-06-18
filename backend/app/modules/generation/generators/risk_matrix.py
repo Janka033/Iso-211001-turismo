@@ -17,7 +17,6 @@ from pydantic import BaseModel
 from app.modules.generation.generators.base import (
     DocumentGenerator,
     ResolvedField,
-    pending_marker,
     resolve_text,
 )
 from app.modules.generation.schemas import RiskEntry, RiskMatrixVariables
@@ -49,9 +48,13 @@ class RiskMatrixGenerator(DocumentGenerator):
     engine = "xlsx"
     custom_fields = frozenset({"risks"})
 
-    def _extra_pending(self, variables: BaseModel) -> list[str]:
+    def _extra_pending(
+        self, variables: BaseModel, required_fields: set[str] | None
+    ) -> list[str]:
         assert isinstance(variables, RiskMatrixVariables)
-        return [] if variables.risks else ["risks"]
+        if variables.risks or not self._is_required("risks", required_fields):
+            return []
+        return ["risks"]
 
     def _render(
         self, resolved: dict[str, ResolvedField], variables: BaseModel
@@ -106,12 +109,10 @@ class RiskMatrixGenerator(DocumentGenerator):
             bold=True, size=12
         )
         ws_opp.column_dimensions["A"].width = 80
-        opportunities = variables.opportunities or [
-            pending_marker(
-                RiskMatrixVariables.model_fields["opportunities"].description
-                or "opportunities"
-            )
-        ]
+        opp_field = resolved["opportunities"]
+        opportunities = (
+            opp_field.value if isinstance(opp_field.value, list) else [opp_field.value]
+        )
         for i, opp in enumerate(opportunities, start=3):
             ws_opp.cell(row=i, column=1, value=f"• {opp}").alignment = _WRAP
 

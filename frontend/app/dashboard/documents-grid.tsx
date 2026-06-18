@@ -1,7 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { apiBase } from "@/lib/api";
 import {
   DOCUMENTS,
   DocStatus,
@@ -10,6 +12,9 @@ import {
   STATUS_LABEL,
 } from "@/lib/documents";
 import { createClient } from "@/lib/supabase/client";
+
+// Un único cliente del navegador para todo el grid (no uno por tarjeta).
+const supabase = createClient();
 
 export interface DocState {
   status: DocStatus;
@@ -42,7 +47,7 @@ export function DocumentsGrid({
 }
 
 function DocumentCard({ meta, initial }: { meta: DocumentMeta; initial: DocState }) {
-  const supabase = createClient();
+  const router = useRouter();
   const [state, setState] = useState<DocState>(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,17 +61,14 @@ function DocumentCard({ meta, initial }: { meta: DocumentMeta; initial: DocState
       } = await supabase.auth.getSession();
       if (!session) throw new Error("Sesión expirada, vuelve a entrar.");
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/generation/${meta.type}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({}),
+      const res = await fetch(`${apiBase()}/generation/${meta.type}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
-      );
+        body: JSON.stringify({}),
+      });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.detail ?? "No se pudo generar el documento");
 
@@ -77,6 +79,8 @@ function DocumentCard({ meta, initial }: { meta: DocumentMeta; initial: DocState
         storagePath: body.storage_path ?? null,
         pendingFields: body.pending_fields ?? [],
       });
+      // Refresca el server component (contador "X/4", estado persistido).
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error inesperado");
     } finally {
@@ -108,7 +112,7 @@ function DocumentCard({ meta, initial }: { meta: DocumentMeta; initial: DocState
             .{meta.engine}
           </span>
         </div>
-        <StatusBadge status={state.status} />
+        <StatusBadge status={busy ? "generating" : state.status} />
       </div>
 
       <h3 className="mt-3 text-base font-semibold text-slate-900">{meta.title}</h3>

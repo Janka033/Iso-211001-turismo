@@ -59,6 +59,41 @@ def test_blank_string_counts_as_pending():
     assert "scope" in result.pending_fields
 
 
+def test_optional_missing_is_neutral_not_pendiente():
+    # Todos los obligatorios presentes; los opcionales vacíos NO deben gritar
+    # [PENDIENTE], sino quedar como "No especificado".
+    variables = SecurityPolicyVariables(
+        company_name="X SAS",
+        scope="s",
+        activities=["a"],
+        management_commitment="m",
+        safety_objectives=["o"],
+        legal_commitment="l",
+        continuous_improvement="c",
+    )
+    required = {
+        "company_name", "scope", "activities", "management_commitment",
+        "safety_objectives", "legal_commitment", "continuous_improvement",
+    }
+    result = SecurityPolicyGenerator().generate(variables, required)
+
+    assert result.pending_fields == []
+    text = _text_of(result.content)
+    assert "[PENDIENTE" not in text
+    assert "No especificado" in text  # nit / communication / approval_date opcionales
+
+
+def test_required_missing_is_pendiente_optional_neutral():
+    variables = SecurityPolicyVariables(company_name="X SAS")
+    required = {"scope", "activities"}  # solo estos obligatorios
+    result = SecurityPolicyGenerator().generate(variables, required)
+
+    assert set(result.pending_fields) == {"scope", "activities"}
+    text = _text_of(result.content)
+    assert "[PENDIENTE: Alcance" in text
+    assert "No especificado" in text  # management_commitment, etc. opcionales => neutro
+
+
 def test_generates_valid_docx_bytes():
     variables = SecurityPolicyVariables(company_name="X SAS")
     result = SecurityPolicyGenerator().generate(variables)
