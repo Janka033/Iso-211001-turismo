@@ -12,6 +12,7 @@ import io
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt
+from pydantic import BaseModel
 
 from app.modules.generation.generators.base import DocumentGenerator, ResolvedField
 
@@ -20,7 +21,9 @@ class SecurityPolicyGenerator(DocumentGenerator):
     template_version = "politica-seguridad-docx-v1"
     engine = "docx"
 
-    def _render(self, resolved: dict[str, ResolvedField]) -> bytes:
+    def _render(
+        self, resolved: dict[str, ResolvedField], variables: BaseModel
+    ) -> bytes:
         def val(key: str) -> str:
             field = resolved[key]
             return field.value if isinstance(field.value, str) else "\n".join(field.value)

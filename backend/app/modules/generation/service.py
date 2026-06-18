@@ -88,7 +88,8 @@ async def generate(
     completeness = _completeness(checklist, result.pending_fields)
     version = repository.next_version(tenant_id, document_type, token)
     storage_path = repository.upload_document(
-        tenant_id, document_type, version, result.content, token
+        tenant_id, document_type, version, result.content, token,
+        engine=spec.generator.engine,
     )
 
     settings = get_settings()

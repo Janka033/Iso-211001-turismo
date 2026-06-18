@@ -12,8 +12,9 @@ from dataclasses import dataclass
 from pydantic import BaseModel
 
 from app.modules.generation.generators.base import DocumentGenerator
+from app.modules.generation.generators.risk_matrix import RiskMatrixGenerator
 from app.modules.generation.generators.security_policy import SecurityPolicyGenerator
-from app.modules.generation.schemas import SecurityPolicyVariables
+from app.modules.generation.schemas import RiskMatrixVariables, SecurityPolicyVariables
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,13 @@ _REGISTRY: dict[str, DocumentSpec] = {
         numeral="5.2",
         variables_model=SecurityPolicyVariables,
         generator=SecurityPolicyGenerator(),
+    ),
+    "matriz_riesgos": DocumentSpec(
+        document_type="matriz_riesgos",
+        title="Matriz de riesgos y oportunidades",
+        numeral="6.1.1",
+        variables_model=RiskMatrixVariables,
+        generator=RiskMatrixGenerator(),
     ),
 }
 

@@ -89,3 +89,66 @@ class SecurityPolicyVariables(BaseModel):
     approval_date: str | None = Field(
         default=None, description="Fecha de aprobación (YYYY-MM-DD)."
     )
+
+
+class RiskEntry(BaseModel):
+    """Una fila de la matriz de riesgos (un peligro de una actividad)."""
+
+    activity: str | None = Field(default=None, description="Actividad de aventura.")
+    hazard: str | None = Field(
+        default=None, description="Peligro o amenaza identificada."
+    )
+    risk_description: str | None = Field(
+        default=None, description="Descripción del riesgo (qué puede pasar)."
+    )
+    affected: str | None = Field(
+        default=None, description="Quién/qué se ve afectado (turistas, guías, equipos)."
+    )
+    probability: str | None = Field(
+        default=None, description="Probabilidad (Baja / Media / Alta)."
+    )
+    severity: str | None = Field(
+        default=None, description="Severidad de la consecuencia (Leve / Moderada / Grave)."
+    )
+    risk_level: str | None = Field(
+        default=None, description="Nivel de riesgo resultante (Bajo / Medio / Alto)."
+    )
+    existing_controls: str | None = Field(
+        default=None, description="Controles existentes."
+    )
+    proposed_actions: str | None = Field(
+        default=None, description="Acciones de tratamiento propuestas."
+    )
+    responsible: str | None = Field(
+        default=None, description="Responsable de la acción."
+    )
+    residual_risk: str | None = Field(
+        default=None, description="Riesgo residual tras los controles."
+    )
+
+
+class RiskMatrixVariables(BaseModel):
+    """Variables de la Matriz de riesgos y oportunidades (numeral 6.1.1 + Anexo A).
+
+    ``risks`` es estructurado (filas de la matriz); el generador lo resuelve por
+    su cuenta. El resto son campos planos.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    scope: str | None = Field(
+        default=None, description="Alcance de la valoración de riesgos."
+    )
+    methodology: str | None = Field(
+        default=None,
+        description="Metodología de valoración (cómo se cruzan probabilidad y severidad).",
+    )
+    risks: list[RiskEntry] = Field(
+        default_factory=list,
+        description="Filas de la matriz: un peligro por fila.",
+    )
+    opportunities: list[str] = Field(
+        default_factory=list,
+        description="Oportunidades de mejora identificadas (6.1.1).",
+    )

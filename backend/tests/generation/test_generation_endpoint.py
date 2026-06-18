@@ -93,7 +93,7 @@ def wire(monkeypatch):
         monkeypatch.setattr(repository, "next_version", lambda tid, dt, token: 1)
         monkeypatch.setattr(
             repository, "upload_document",
-            lambda tid, dt, v, content, token: f"{tid}/{dt}/v{v}.docx",
+            lambda tid, dt, v, content, token, engine="docx": f"{tid}/{dt}/v{v}.{engine}",
         )
 
         def fake_insert(record, token):

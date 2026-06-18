@@ -129,27 +129,33 @@ def next_version(tenant_id: str, document_type: str, token: str) -> int:
     return (res.data[0]["version"] + 1) if res.data else 1
 
 
+_CONTENT_TYPE = {
+    "docx": (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ),
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
+
 def upload_document(
     tenant_id: str,
     document_type: str,
     version: int,
     content: bytes,
     token: str,
+    engine: str = "docx",
 ) -> str | None:
-    """Sube el .docx a Storage. Best-effort: si el bucket/policies no están
-    configurados, devolvemos None y seguimos. El snapshot reproducible queda
-    igual en ``documents``, así que el archivo es regenerable."""
-    path = f"{tenant_id}/{document_type}/v{version}.docx"
+    """Sube el documento a Storage según su motor (docx/xlsx). Best-effort: si
+    el bucket/policies no están configurados, devolvemos None y seguimos. El
+    snapshot reproducible queda igual en ``documents``, así que es regenerable."""
+    path = f"{tenant_id}/{document_type}/v{version}.{engine}"
     try:
         client = get_user_client(token)
         client.storage.from_(STORAGE_BUCKET).upload(
             path=path,
             file=content,
             file_options={
-                "content-type": (
-                    "application/vnd.openxmlformats-officedocument."
-                    "wordprocessingml.document"
-                ),
+                "content-type": _CONTENT_TYPE.get(engine, "application/octet-stream"),
                 "upsert": "true",
             },
         )
