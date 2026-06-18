@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+*.tsbuildinfo
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.vercel/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Base de conocimiento (PDFs con copyright ICONTEC — no se versionan)
+knowledge-base/*.pdf
+knowledge-base/*.PDF
+
+# Supabase local
+supabase/.branches/
+supabase/.temp/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Config local de Claude Code / Codex (permisos por máquina, no compartir)
+.claude/settings.local.json
+.agents/settings.local.json
