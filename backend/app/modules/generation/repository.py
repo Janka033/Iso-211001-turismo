@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from app.core.supabase import get_user_client
+from app.core.supabase import get_service_client, get_user_client
 
 logger = logging.getLogger(__name__)
 
@@ -145,12 +145,15 @@ def upload_document(
     token: str,
     engine: str = "docx",
 ) -> str | None:
-    """Sube el documento a Storage según su motor (docx/xlsx). Best-effort: si
-    el bucket/policies no están configurados, devolvemos None y seguimos. El
-    snapshot reproducible queda igual en ``documents``, así que es regenerable."""
+    """Sube el documento a Storage. Usa el service client (Storage en cloud no
+    aplica bien las policies SQL sobre storage.objects). El aislamiento por
+    tenant lo garantiza la RUTA ``{tenant_id}/...``: ``tenant_id`` viene del JWT
+    (get_tenant_id), nunca del cliente, así que un tenant nunca escribe en la
+    carpeta de otro. Best-effort: si falla, None (el doc es regenerable).
+    ``token`` se conserva por compatibilidad de firma."""
     path = f"{tenant_id}/{document_type}/v{version}.{engine}"
     try:
-        client = get_user_client(token)
+        client = get_service_client()
         client.storage.from_(STORAGE_BUCKET).upload(
             path=path,
             file=content,
@@ -189,3 +192,23 @@ def upsert_document_status(
         },
         on_conflict="tenant_id,document_type",
     ).execute()
+
+
+def create_signed_url(
+    tenant_id: str,
+    document_type: str,
+    version: int,
+    engine: str,
+    expires_in: int = 300,
+) -> str | None:
+    """URL firmada y temporal para descargar el documento. Service client; la
+    ruta se arma con el tenant_id del JWT, así que solo firma docs del propio
+    tenant. None si el archivo no existe en Storage."""
+    path = f"{tenant_id}/{document_type}/v{version}.{engine}"
+    try:
+        client = get_service_client()
+        res = client.storage.from_(STORAGE_BUCKET).create_signed_url(path, expires_in)
+        return res.get("signedURL") or res.get("signedUrl")
+    except Exception as exc:  # noqa: BLE001 - storage opcional
+        logger.warning("No se pudo firmar la URL de %s: %s", path, exc)
+        return None

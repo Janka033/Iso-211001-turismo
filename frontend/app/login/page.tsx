@@ -5,7 +5,11 @@ import { useState } from "react";
 
 import { apiBase } from "@/lib/api";
 import { Logo } from "@/components/logo";
+import { Scene } from "@/components/landing/scenes";
+import { getDepartment } from "@/lib/departments";
 import { createClient } from "@/lib/supabase/client";
+
+const HERO = getDepartment("santander");
 
 export default function LoginPage() {
   const router = useRouter();
@@ -51,39 +55,47 @@ export default function LoginPage() {
 
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
-      {/* Panel de marca */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden bg-brand-gradient p-12 text-white lg:flex">
-        <Logo variant="onDark" />
-        <div className="relative z-10 max-w-md">
-          <h2 className="text-3xl font-semibold leading-tight">
-            Certifícate en la NTC-ISO 21101 sin perderte en el papeleo.
-          </h2>
-          <p className="mt-4 text-brand-50/90">
-            ColAdventure genera tu árbol documental de seguridad para turismo de
-            aventura: política, matriz de riesgos, plan de emergencias y gestión
-            de incidentes. Auditable, sin alucinaciones.
+      {/* Panel de marca con paisaje */}
+      <aside className="relative hidden overflow-hidden lg:block">
+        <Scene
+          scene={HERO.scene}
+          sky={HERO.sky}
+          accent={HERO.accent}
+          uid="login-hero"
+          className="absolute inset-0 h-full w-full"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-brand-900 via-brand-900/80 to-brand-900/40" />
+
+        <div className="relative z-10 flex h-full flex-col justify-between p-12 text-white">
+          <Logo variant="onDark" />
+          <div className="max-w-md">
+            <h2 className="text-3xl font-semibold leading-tight">
+              Eleva el estándar de seguridad en turismo de aventura.
+            </h2>
+            <p className="mt-4 text-brand-50/90">
+              ColAdventure genera tu árbol documental NTC-ISO 21101: política,
+              matriz de riesgos, plan de emergencias y gestión de incidentes.
+              Auditable, sin alucinaciones.
+            </p>
+            <ul className="mt-8 space-y-3 text-sm text-brand-50/90">
+              {[
+                "Documentos listos para auditoría ONAC",
+                "Sin inventar datos: lo que falta se marca [PENDIENTE]",
+                "Cada documento con su trazabilidad",
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/15">
+                    ✓
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <p className="text-xs text-brand-50/70">
+            NTC-ISO 21101 · Sistema de gestión de seguridad para turismo de aventura
           </p>
-          <ul className="mt-8 space-y-3 text-sm text-brand-50/90">
-            {[
-              "Documentos listos para auditoría ONAC",
-              "Sin inventar datos: lo que falta se marca [PENDIENTE]",
-              "Cada documento con su trazabilidad",
-            ].map((item) => (
-              <li key={item} className="flex items-center gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/15">
-                  ✓
-                </span>
-                {item}
-              </li>
-            ))}
-          </ul>
         </div>
-        <p className="relative z-10 text-xs text-brand-50/70">
-          NTC-ISO 21101 · Sistema de gestión de seguridad para turismo de aventura
-        </p>
-        {/* halo decorativo */}
-        <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-white/10 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-accent-500/20 blur-3xl" />
       </aside>
 
       {/* Formulario */}

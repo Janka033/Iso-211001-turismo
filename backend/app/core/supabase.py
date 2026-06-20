@@ -22,6 +22,9 @@ def get_user_client(access_token: str) -> Client:
     client = create_client(settings.supabase_url, settings.supabase_anon_key)
     # PostgREST usará este token => las policies ven el claim tenant_id.
     client.postgrest.auth(access_token)
+    # Storage NO hereda el token automáticamente: sin esto sus operaciones van
+    # como anon y la RLS de storage.objects las rechaza (subir/descargar docs).
+    client.storage._client.headers["Authorization"] = f"Bearer {access_token}"
     return client
 
 

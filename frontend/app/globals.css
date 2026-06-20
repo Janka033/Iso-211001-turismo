@@ -27,6 +27,13 @@
   .btn-ghost {
     @apply btn text-brand-700 hover:bg-brand-50;
   }
+  .btn-accent {
+    @apply btn bg-accent-500 text-white hover:bg-accent-600;
+    box-shadow: 0 12px 28px -10px rgba(249, 115, 22, 0.5);
+  }
+  .btn-lg {
+    @apply rounded-xl px-5 py-3 text-base;
+  }
 
   .input {
     @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900
@@ -43,5 +50,15 @@
 
   .badge {
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1
+      text-sm font-medium text-slate-700;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.14em] text-brand-600;
+  }
+  .section {
+    @apply mx-auto w-full max-w-6xl px-6;
   }
 }

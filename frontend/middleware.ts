@@ -32,7 +32,7 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  if (!user && path.startsWith("/dashboard")) {
+  if (!user && (path.startsWith("/dashboard") || path.startsWith("/onboarding"))) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
   if (user && path === "/login") {

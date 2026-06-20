@@ -38,6 +38,12 @@ class GeneratedDocument(BaseModel):
     template_version: str | None = None
 
 
+class DownloadResponse(BaseModel):
+    """URL firmada y temporal para descargar un documento generado."""
+
+    url: str
+
+
 # ---------------------------------------------------------------------------
 # Variables de documento (salida de la IA, validada por Pydantic)
 # ---------------------------------------------------------------------------

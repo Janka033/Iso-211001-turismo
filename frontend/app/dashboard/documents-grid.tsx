@@ -89,15 +89,24 @@ function DocumentCard({ meta, initial }: { meta: DocumentMeta; initial: DocState
   }
 
   async function download() {
-    if (!state.storagePath) return;
+    if (state.version === null) return;
+    setError(null);
     try {
-      const { data, error: e } = await supabase.storage
-        .from("documents")
-        .createSignedUrl(state.storagePath, 60);
-      if (e || !data) throw e ?? new Error("Sin URL");
-      window.open(data.signedUrl, "_blank");
-    } catch {
-      setError("La descarga no está disponible (Storage no configurado).");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("Sesión expirada, vuelve a entrar.");
+      const res = await fetch(
+        `${apiBase()}/generation/${meta.type}/download?version=${state.version}`,
+        { headers: { Authorization: `Bearer ${session.access_token}` } },
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body.url) {
+        throw new Error(body.detail ?? "Descarga no disponible");
+      }
+      window.open(body.url, "_blank");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "La descarga no está disponible.");
     }
   }
 
@@ -145,7 +154,7 @@ function DocumentCard({ meta, initial }: { meta: DocumentMeta; initial: DocState
         <button onClick={generate} disabled={busy} className="btn-primary flex-1">
           {busy ? "Generando…" : generatedOnce ? "Regenerar" : "Generar"}
         </button>
-        {state.storagePath && (
+        {state.version !== null && (
           <button onClick={download} className="btn-secondary" title="Descargar">
             Descargar
           </button>

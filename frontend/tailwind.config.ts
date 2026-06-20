@@ -2,8 +2,8 @@ import type { Config } from "tailwindcss";
 
 /**
  * Tokens de marca ColAdventure.
- * - brand: verde-teal "pino" — confianza + naturaleza/aventura.
- * - accent: ámbar "atardecer" — energía/acento.
+ * - brand: azul océano/cielo — confianza + agua/cielo (rafting, parapente, mar).
+ * - accent: naranja atardecer — energía/aventura (complementario del azul).
  * Semánticos (success/warning/danger) y neutros se apoyan en slate de Tailwind.
  */
 const config: Config = {
@@ -12,22 +12,23 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          50: "#EAF7F2",
-          100: "#CDEBE0",
-          200: "#9FD8C4",
-          300: "#6BC1A2",
-          400: "#38A37E",
-          500: "#138A66",
-          600: "#0E6E52",
-          700: "#0B5742",
-          800: "#094636",
-          900: "#07382C",
+          50: "#ECF5FF",
+          100: "#D5E9FF",
+          200: "#AED4FF",
+          300: "#7BB8FF",
+          400: "#4593F5",
+          500: "#1E72E6",
+          600: "#1359C4",
+          700: "#11479B",
+          800: "#133D7C",
+          900: "#0E2A52",
         },
         accent: {
-          50: "#FFF7ED",
-          400: "#FBBF24",
-          500: "#F59E0B",
-          600: "#D97706",
+          50: "#FFF6ED",
+          100: "#FFE9D5",
+          400: "#FB923C",
+          500: "#F97316",
+          600: "#EA580C",
         },
       },
       fontFamily: {
@@ -36,14 +37,26 @@ const config: Config = {
       borderRadius: {
         xl: "0.875rem",
         "2xl": "1.25rem",
+        "3xl": "1.75rem",
       },
       boxShadow: {
-        card: "0 1px 2px rgba(7, 56, 44, 0.04), 0 8px 24px -12px rgba(7, 56, 44, 0.12)",
+        card: "0 1px 2px rgba(14, 42, 82, 0.05), 0 8px 24px -12px rgba(14, 42, 82, 0.14)",
         "card-hover":
-          "0 2px 4px rgba(7, 56, 44, 0.06), 0 16px 40px -16px rgba(7, 56, 44, 0.20)",
+          "0 2px 4px rgba(14, 42, 82, 0.07), 0 18px 44px -16px rgba(14, 42, 82, 0.24)",
+        glow: "0 10px 30px -8px rgba(30, 114, 230, 0.45)",
       },
       backgroundImage: {
-        "brand-gradient": "linear-gradient(135deg, #0B5742 0%, #138A66 60%, #38A37E 100%)",
+        "brand-gradient":
+          "linear-gradient(135deg, #0E2A52 0%, #1359C4 45%, #1E72E6 70%, #38BDF8 100%)",
+      },
+      keyframes: {
+        "fade-up": {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        "fade-up": "fade-up 0.5s ease-out both",
       },
     },
   },
