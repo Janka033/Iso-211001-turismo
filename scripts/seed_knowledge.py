@@ -45,8 +45,10 @@ KNOWLEDGE_DIR = ROOT / "knowledge-base"
 NUMERAL_RE = re.compile(r"^(\d+(?:\.\d+)*)\s+(\S.*)$")
 # Línea que es solo un número de página.
 PAGE_NUMBER_RE = re.compile(r"^\s*\d{1,4}\s*$")
-# Línea de TOC: termina en líder de puntos + número  ("Política .......... 12").
-TOC_LINE_RE = re.compile(r".+\.{3,}\s*\d+\s*$")
+# Línea de TOC: contiene un líder de puntos largo ("Política .......... 12").
+# El número de página a veces sale como carácter ilegible (fuente del PDF), así
+# que basta con detectar la fila de puntos.
+TOC_LINE_RE = re.compile(r"\.{4,}")
 
 MAX_CHARS = 1500
 OVERLAP = 200
@@ -130,7 +132,7 @@ def chunk_norma(pdf_path: Path, skip_definitions: bool) -> list[Chunk]:
     flat: list[str] = []
     for lines in pages_lines:
         for line in clean_lines(lines, boilerplate):
-            if TOC_LINE_RE.match(line):
+            if TOC_LINE_RE.search(line):
                 continue  # excluir el índice
             flat.append(line)
 
@@ -150,18 +152,26 @@ def chunk_norma(pdf_path: Path, skip_definitions: bool) -> list[Chunk]:
         sections.append(current)
 
     chunks: list[Chunk] = []
+    index_por_numeral: Counter[str] = Counter()
     for numeral, title, body_lines in sections:
+        # Saltar preliminares/índice (0.x) y encabezados sin cuerpo (TOC residual).
+        if numeral.startswith("0"):
+            continue
         is_definition = numeral.startswith("3.")
         if is_definition and skip_definitions:
             continue
         body = " ".join(body_lines).strip()
+        if not body:
+            continue
         text = f"{numeral} {title}\n{body}".strip()
         meta = {"titulo": title}
         if is_definition:
             meta["section_type"] = "definicion"
-        for i, piece in enumerate(_split(text)):
+        for piece in _split(text):
+            idx = index_por_numeral[numeral]
+            index_por_numeral[numeral] += 1
             chunks.append(
-                Chunk("norma", numeral, piece, i, dict(meta, part=i)),
+                Chunk("norma", numeral, piece, idx, dict(meta, part=idx)),
             )
     return chunks
 

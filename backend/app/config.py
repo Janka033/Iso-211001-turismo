@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
     gemini_embedding_model: str = "text-embedding-004"
+    # Timeout (ms) de las llamadas a Gemini. Evita que un upstream colgado
+    # cuelgue la request indefinidamente.
+    gemini_timeout_ms: int = 60000
 
     # App
     environment: str = "development"

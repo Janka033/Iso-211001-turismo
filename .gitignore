@@ -28,6 +28,9 @@ knowledge-base/*.PDF
 supabase/.branches/
 supabase/.temp/
 
+# Muestras de documentos generadas localmente (artefactos)
+samples/
+
 # OS / editor
 .DS_Store
 Thumbs.db

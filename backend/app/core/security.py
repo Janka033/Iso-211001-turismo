@@ -43,6 +43,13 @@ def _decode(token: str) -> dict:
                 algorithms=["ES256", "RS256"],
                 audience=audience,
             )
+        # Fallback HS256: exige un secreto robusto. NUNCA validar con un
+        # secreto vacío/débil (haría falsificable cualquier token HS256).
+        if len(settings.supabase_jwt_secret) < 32:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Configuración de auth insegura: falta JWKS o un secreto JWT válido.",
+            )
         return jwt.decode(
             token,
             settings.supabase_jwt_secret,

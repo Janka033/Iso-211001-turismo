@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>ColAdventure · Patrón Login</title>
+    <style>
+      body { font-family: Inter, system-ui, sans-serif; margin: 0; background: #f8fafc; color: #0f172a; }
+      .wrap { display: grid; grid-template-columns: 1fr 1fr; min-height: 460px; }
+      .brand { position: relative; overflow: hidden; padding: 40px;
+        background: linear-gradient(135deg,#0B5742 0%,#138A66 60%,#38A37E 100%); color: #fff; }
+      .logo { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 18px; }
+      .mark { width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.15);
+        display: inline-flex; align-items: center; justify-content: center; }
+      .brand h2 { font-size: 26px; line-height: 1.2; margin: 60px 0 14px; max-width: 320px; }
+      .brand p { color: rgba(234,247,242,.9); font-size: 14px; max-width: 340px; }
+      ul { list-style: none; padding: 0; margin: 28px 0 0; font-size: 13px; color: rgba(234,247,242,.9); }
+      li { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+      .tick { width: 20px; height: 20px; border-radius: 999px; background: rgba(255,255,255,.15);
+        display: inline-flex; align-items: center; justify-content: center; }
+      .halo { position: absolute; border-radius: 999px; filter: blur(40px); }
+      .form { display: flex; align-items: center; justify-content: center; padding: 40px; }
+      .box { width: 280px; }
+      .box h1 { font-size: 22px; margin: 0 0 4px; }
+      .box .s { color: #64748b; font-size: 13px; margin: 0 0 22px; }
+      label { display:block; font-size:12px; font-weight:500; color:#475569; margin: 14px 0 6px; }
+      .input { width:100%; box-sizing:border-box; border:1px solid #cbd5e1; border-radius:8px; padding:9px 12px; font-size:14px; }
+      .btn { width:100%; margin-top:18px; background:#0E6E52; color:#fff; border:0; border-radius:8px; padding:10px; font-size:14px; font-weight:500; }
+      .alt { text-align:center; font-size:13px; color:#64748b; margin-top:16px; }
+      .alt b { color:#0B5742; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="brand">
+        <div class="halo" style="width:240px;height:240px;background:rgba(255,255,255,.1);right:-60px;top:-60px"></div>
+        <div class="halo" style="width:240px;height:240px;background:rgba(245,158,11,.2);left:-40px;bottom:-80px"></div>
+        <div class="logo"><span class="mark">⛰</span> Col<span style="color:#FBBF24">Adventure</span></div>
+        <h2>Certifícate en la NTC-ISO 21101 sin perderte en el papeleo.</h2>
+        <p>Generamos tu árbol documental de seguridad para turismo de aventura. Auditable, sin alucinaciones.</p>
+        <ul>
+          <li><span class="tick">✓</span> Documentos listos para auditoría ONAC</li>
+          <li><span class="tick">✓</span> Lo que falta se marca [PENDIENTE]</li>
+          <li><span class="tick">✓</span> Cada documento con su trazabilidad</li>
+        </ul>
+      </div>
+      <div class="form">
+        <div class="box">
+          <h1>Inicia sesión</h1>
+          <p class="s">Accede a tu panel de cumplimiento.</p>
+          <label>Correo</label>
+          <input class="input" value="tu@empresa.co" />
+          <label>Contraseña</label>
+          <input class="input" type="password" value="12345678" />
+          <button class="btn">Entrar</button>
+          <p class="alt">¿No tienes cuenta? <b>Regístrate</b></p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

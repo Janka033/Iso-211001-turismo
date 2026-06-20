@@ -15,10 +15,7 @@ export function LogoutButton() {
   }
 
   return (
-    <button
-      onClick={handleLogout}
-      className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
-    >
+    <button onClick={handleLogout} className="btn-secondary">
       Cerrar sesión
     </button>
   );

@@ -9,7 +9,11 @@ from fastapi import APIRouter, Depends, status
 from app.core.security import CurrentUser, get_current_user, get_tenant_id
 from app.modules.generation import service
 from app.modules.generation.generators.factory import supported_types
-from app.modules.generation.schemas import GeneratedDocument, GenerateRequest
+from app.modules.generation.schemas import (
+    DownloadResponse,
+    GeneratedDocument,
+    GenerateRequest,
+)
 
 router = APIRouter(prefix="/generation", tags=["generation"])
 
@@ -34,3 +38,14 @@ async def generate_document(
     tenant_id: str = Depends(get_tenant_id),  # 401 si el JWT no trae el claim
 ) -> GeneratedDocument:
     return await service.generate(document_type, tenant_id, user.token, payload)
+
+
+@router.get("/{document_type}/download", response_model=DownloadResponse)
+async def download_document(
+    document_type: str,
+    version: int,
+    _user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),  # 401 si el JWT no trae el claim
+) -> DownloadResponse:
+    """Devuelve una URL firmada y temporal para descargar el documento."""
+    return await service.download_url(document_type, version, tenant_id)
