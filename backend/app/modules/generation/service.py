@@ -28,7 +28,12 @@ from app.config import get_settings
 from app.core.ai.factory import get_ai_provider
 from app.modules.generation import repository
 from app.modules.generation.generators.factory import get_spec
-from app.modules.generation.schemas import GeneratedDocument, GenerateRequest
+from app.modules.inventory import service as inventory_service
+from app.modules.generation.schemas import (
+    DownloadResponse,
+    GeneratedDocument,
+    GenerateRequest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +70,11 @@ async def generate(
     checklist = await _run(repository.get_checklist, document_type, token)
     patterns = await _run(repository.get_generation_patterns, document_type, token)
 
+    # Inventario operativo del tenant (trazabilidad → listas dinámicas).
+    # Regla: un módulo no importa el repository de otro; se llama vía service.
+    items = await inventory_service.list_items(tenant_id, token)
+    inventory = _group_inventory(items)
+
     if not checklist:
         logger.warning(
             "Sin extraction_checklist para %s: no se puede medir completitud.",
@@ -98,6 +108,7 @@ async def generate(
         chunks=chunks,
         checklist=checklist,
         patterns=patterns,
+        inventory=inventory,
         variables_model=spec.variables_model,
     )
 
@@ -177,6 +188,34 @@ async def generate(
     )
 
 
+async def download_url(
+    document_type: str, version: int, tenant_id: str
+) -> DownloadResponse:
+    """URL firmada y temporal para descargar un documento del tenant.
+
+    ``tenant_id`` sale del JWT, así que solo se firman documentos propios.
+    """
+    spec = get_spec(document_type)
+    if spec is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tipo de documento no soportado: {document_type}",
+        )
+    url = await _run(
+        repository.create_signed_url,
+        tenant_id,
+        document_type,
+        version,
+        spec.generator.engine,
+    )
+    if not url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El documento no está disponible para descargar.",
+        )
+    return DownloadResponse(url=url)
+
+
 # ---------------------------------------------------------------------------
 # Helpers de ensamblado de prompt y métricas
 # ---------------------------------------------------------------------------
@@ -190,18 +229,32 @@ def _assemble_prompt(
     chunks: list[dict],
     checklist: list[dict],
     patterns: list[dict],
+    inventory: dict[str, list[dict]],
     variables_model: type[BaseModel],
 ) -> str:
     """Rellena los marcadores del prompt activo con el contexto dinámico.
 
     Usamos marcadores ``<<...>>`` (no str.format) para no chocar con las
     llaves del JSON del schema.
+
+    El ``inventario`` (operación real del tenant) se presenta como una sección
+    PROMINENTE y legible al frente del contexto —no como JSON enterrado— y la
+    precedencia sobre ``onboarding_data`` se aplica EN CÓDIGO: cuando hay ítems
+    de inventario, esa es la fuente y el ``onboarding_data`` pasa a secundario.
+    Así la IA no tiene que "decidir" la fuente (no lo hace de forma fiable);
+    el sistema controla la estructura y la IA solo estructura el contenido.
     """
-    company_context = json.dumps(
-        {"company": company, "onboarding_data": onboarding},
+    inventory_block = _render_inventory(inventory)
+    onboarding_for_prompt, onboarding_note = _apply_inventory_precedence(
+        onboarding, inventory
+    )
+
+    company_json = json.dumps(
+        {"company": company, "onboarding_data": onboarding_for_prompt},
         ensure_ascii=False,
         indent=2,
     )
+    company_context = f"{inventory_block}\n\n{onboarding_note}{company_json}"
 
     if chunks:
         norm_context = "\n\n".join(
@@ -237,6 +290,89 @@ def _assemble_prompt(
         .replace("<<PATTERNS>>", patterns_lines)
         .replace("<<JSON_SCHEMA>>", json_schema)
     )
+
+
+_CAT_LABELS = {
+    "salida_emergencia": "Salidas / rutas de evacuación",
+    "vehiculo": "Vehículos",
+    "equipo": "Equipos",
+    "actividad": "Actividades",
+    "riesgo": "Riesgos identificados por el cliente",
+    "contacto_emergencia": "Contactos de emergencia",
+    "guia": "Guías",
+    "otro": "Otros",
+}
+
+
+def _render_inventory(inventory: dict[str, list[dict]]) -> str:
+    """Inventario como bloque legible y prominente (no JSON enterrado).
+
+    La IA ignora datos sepultados en un JSON anidado; presentado como lista
+    encabezada y obligatoria, sí los usa. Cada ítem muestra nombre + atributos.
+    """
+    if not inventory:
+        return (
+            "=== INVENTARIO OPERATIVO REAL ===\n"
+            "(El cliente aún no ha registrado inventario operativo.)"
+        )
+    lines = [
+        "=== INVENTARIO OPERATIVO REAL DEL CLIENTE "
+        "(FUENTE PRINCIPAL Y OBLIGATORIA) ===",
+        "Genera el documento a partir de ESTOS ítems reales. Inclúyelos TODOS, "
+        "uno por uno. NO inventes ítems que no estén aquí.",
+        "",
+    ]
+    for cat, items in inventory.items():
+        lines.append(f"## {_CAT_LABELS.get(cat, cat)} ({len(items)}):")
+        for it in items:
+            attrs = it.get("attributes") or {}
+            attr_str = "; ".join(
+                f"{k}: {v}" for k, v in attrs.items() if v not in (None, "", [])
+            )
+            line = f"  - {it['name']}"
+            if attr_str:
+                line += f" ({attr_str})"
+            lines.append(line)
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
+def _apply_inventory_precedence(
+    onboarding: dict, inventory: dict[str, list[dict]]
+) -> tuple[dict, str]:
+    """Precedencia en CÓDIGO: si el inventario tiene actividades, se quitan las
+    actividades del onboarding del contexto para que la IA no ancle en ellas.
+
+    Devuelve (onboarding_para_prompt, nota_aclaratoria).
+    """
+    if not inventory.get("actividad"):
+        return onboarding, ""
+    filtered = {
+        k: v
+        for k, v in (onboarding or {}).items()
+        if k not in ("activities", "actividades")
+    }
+    note = (
+        "NOTA: el inventario operativo de arriba ya contiene las actividades "
+        "reales del cliente; úsalo como fuente. Los datos de onboarding de abajo "
+        "son SECUNDARIOS (contexto general de la empresa), no una lista de "
+        "actividades para generar el documento.\n\n"
+    )
+    return filtered, note
+
+
+def _group_inventory(items: list) -> dict[str, list[dict]]:
+    """Agrupa los ítems del inventario por categoría → ``{cat: [{name, attributes}]}``.
+
+    Solo se exponen ``name`` y ``attributes`` (lo operativo); IDs y metadatos no
+    aportan a la generación. Las categorías vacías no aparecen.
+    """
+    grouped: dict[str, list[dict]] = {}
+    for item in items:
+        grouped.setdefault(item.category, []).append(
+            {"name": item.name, "attributes": item.attributes}
+        )
+    return grouped
 
 
 def _completeness(checklist: list[dict], pending_fields: list[str]) -> float:

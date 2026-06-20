@@ -6,6 +6,7 @@ from openpyxl import load_workbook
 
 from app.modules.generation import repository, service
 from app.modules.generation.generators.risk_matrix import RiskMatrixGenerator
+from app.modules.inventory import service as inventory_service
 from app.modules.generation.schemas import RiskEntry, RiskMatrixVariables
 
 TENANT_A = "11111111-1111-1111-1111-111111111111"
@@ -123,6 +124,10 @@ def test_matrix_endpoint_uses_xlsx_engine(client, make_token, monkeypatch):
     monkeypatch.setattr(
         repository, "match_knowledge_chunks", lambda emb, n, token, **kw: []
     )
+    async def fake_list_items(tid, token, category=None):
+        return []
+
+    monkeypatch.setattr(inventory_service, "list_items", fake_list_items)
     monkeypatch.setattr(repository, "next_version", lambda tid, dt, token: 1)
 
     def fake_upload(tid, dt, v, content, token, engine="docx"):

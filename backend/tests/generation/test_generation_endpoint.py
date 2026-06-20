@@ -8,6 +8,7 @@ generador → snapshot.
 import pytest
 
 from app.modules.generation import repository, service
+from app.modules.inventory import service as inventory_service
 
 TENANT_A = "11111111-1111-1111-1111-111111111111"
 
@@ -90,6 +91,11 @@ def wire(monkeypatch):
                  "source": "norma", "numeral": "5.2", "content": "La política..."},
             ],
         )
+        async def fake_list_items(tid, token, category=None):
+            return []
+
+        monkeypatch.setattr(inventory_service, "list_items", fake_list_items)
+
         monkeypatch.setattr(repository, "next_version", lambda tid, dt, token: 1)
         monkeypatch.setattr(
             repository, "upload_document",
@@ -170,6 +176,42 @@ def test_requires_tenant_claim(client, make_token, wire):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 401
+
+
+def test_inventory_items_reach_the_prompt(client, make_token, wire, monkeypatch):
+    """Fase 3: el inventario operativo del tenant entra en el contexto del prompt
+    para que la IA genere listas dinámicas (N salidas, vehículos, etc.)."""
+    captured = wire(FULL_OUTPUT)
+
+    provider = FakeProvider(FULL_OUTPUT)
+    monkeypatch.setattr(service, "get_ai_provider", lambda: provider)
+
+    class _Item:
+        def __init__(self, category, name, attributes):
+            self.category = category
+            self.name = name
+            self.attributes = attributes
+
+    async def fake_list_items(tid, token, category=None):
+        return [
+            _Item("salida_emergencia", "Salida Norte", {"punto_encuentro": "Cancha"}),
+            _Item("salida_emergencia", "Salida Sur", {"punto_encuentro": "Parqueadero"}),
+            _Item("vehiculo", "Cuatrimoto 01", {"placa": "ABC123"}),
+        ]
+
+    monkeypatch.setattr(inventory_service, "list_items", fake_list_items)
+
+    resp = client.post("/generation/politica_seguridad", headers=_auth(make_token))
+    assert resp.status_code == 201, resp.text
+
+    prompt = provider.last_prompt
+    assert "INVENTARIO OPERATIVO REAL" in prompt  # sección prominente
+    assert "Salida Norte" in prompt
+    assert "Salida Sur" in prompt
+    assert "Cuatrimoto 01" in prompt
+    assert "ABC123" in prompt
+    # Y queda en el snapshot de reproducibilidad indirectamente vía prompt_hash.
+    assert captured["record"]["prompt_hash"]
 
 
 def test_list_document_types(client, make_token):
