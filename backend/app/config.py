@@ -1,10 +1,15 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Ancla el .env a backend/ para que la carga no dependa del directorio de
+# trabajo (uvicorn corre desde backend/, los seeds desde la raíz del repo).
+_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_ENV_FILE, env_file_encoding="utf-8", extra="ignore")
 
     # Supabase
     supabase_url: str = "http://127.0.0.1:54321"
@@ -18,7 +23,9 @@ class Settings(BaseSettings):
     # IA
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
-    gemini_embedding_model: str = "text-embedding-004"
+    # gemini-embedding-001 emite 3072 dims por defecto; el provider pide 768
+    # (output_dimensionality) para calzar con vector(768) de knowledge_chunks.
+    gemini_embedding_model: str = "gemini-embedding-001"
     # Timeout (ms) de las llamadas a Gemini. Evita que un upstream colgado
     # cuelgue la request indefinidamente.
     gemini_timeout_ms: int = 60000

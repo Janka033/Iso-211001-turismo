@@ -5,11 +5,14 @@ Los dos PDFs tienen estructura distinta y se tratan por separado:
 
 - ``norma``  -> prosa por numeral. Viene sucia (encabezados/pies repetidos,
   números de página, watermark) y trae TOC + definiciones que parecen
-  numerales. Se limpia el boilerplate, se excluye el TOC y se chunkea por
-  numeral.
-- ``acotur`` -> tabla (numeral | requisito | posibles evidencias). Se extrae
-  con detección de tablas (pdfplumber), NO aplanando: las evidencias por
-  numeral son lo más valioso para el RAG. Un chunk por fila.
+  numerales. Se limpia el boilerplate, se excluye el índice completo
+  (bloque CONTENIDO→INTRODUCCIÓN) y se chunkea por numeral, incluidos los
+  anexos (numerales A.x / B).
+- ``acotur`` -> tabla (numeral y título | requisito | posibles evidencias).
+  Se extrae con detección de tablas (pdfplumber), NO aplanando: las
+  evidencias por numeral son lo más valioso para el RAG. Las filas de
+  continuación (celda de numeral vacía) acumulan evidencias/requisito del
+  numeral anterior; sale un chunk por numeral con todas sus evidencias.
 
 Toda llamada de embedding pasa por ``AIProvider`` (regla de oro 8).
 El upsert usa el service client (salta RLS: operación superadmin legítima).
@@ -43,6 +46,13 @@ KNOWLEDGE_DIR = ROOT / "knowledge-base"
 
 # Heading de numeral al inicio de línea: "5.2 Política", "6.1.1 Acciones..."
 NUMERAL_RE = re.compile(r"^(\d+(?:\.\d+)*)\s+(\S.*)$")
+# Heading de nivel superior con punto tras el numeral: "1. OBJETO Y CAMPO DE APLICACIÓN".
+# Se limita a 1-2 dígitos + título en mayúscula para no confundir años u otras cifras.
+TOP_HEADING_RE = re.compile(r"^(\d{1,2})\.\s+([A-ZÁÉÍÓÚÑ].*)$")
+# Encabezado de anexo en línea propia: "ANEXO A" (el "(Normativo)" y el título vienen después).
+ANEXO_HEADER_RE = re.compile(r"^ANEXO\s+([A-Z])\b\s*(.*)$")
+# Subnumerales de anexo: "A.1 GENERALIDADES", "A.3 EVALUACIÓN DEL RIESGO".
+ANEXO_NUMERAL_RE = re.compile(r"^([A-Z](?:\.\d+)+)\s+(\S.*)$")
 # Línea que es solo un número de página.
 PAGE_NUMBER_RE = re.compile(r"^\s*\d{1,4}\s*$")
 # Línea de TOC: contiene un líder de puntos largo ("Política .......... 12").
@@ -128,24 +138,45 @@ def chunk_norma(pdf_path: Path, skip_definitions: bool) -> list[Chunk]:
 
     boilerplate = detect_boilerplate(pages_lines)
 
-    # Aplanar a líneas limpias, descartando líneas de TOC.
+    # Aplanar a líneas limpias. El índice se salta completo (CONTENIDO → primer
+    # encabezado real): trae entradas partidas en dos renglones sin líder de
+    # puntos que se cuelan como headings falsos. TOC_LINE_RE queda como red de
+    # seguridad fuera de ese bloque.
     flat: list[str] = []
+    in_toc = False
     for lines in pages_lines:
         for line in clean_lines(lines, boilerplate):
+            if line == "CONTENIDO":
+                in_toc = True
+                continue
+            if in_toc:
+                is_body_start = line == "INTRODUCCIÓN" or (
+                    TOP_HEADING_RE.match(line) and not TOC_LINE_RE.search(line)
+                )
+                if not is_body_start:
+                    continue
+                in_toc = False
             if TOC_LINE_RE.search(line):
-                continue  # excluir el índice
+                continue
             flat.append(line)
 
-    # Agrupar por numeral.
-    sections: list[tuple[str, str, list[str]]] = []  # (numeral, titulo, lineas)
-    current: tuple[str, str, list[str]] | None = None
+    # Agrupar por numeral (numéricos, "1. TÍTULO", anexos "A"/"A.1").
+    sections: list[tuple[str, str, list[str], dict]] = []  # (numeral, titulo, lineas, meta_extra)
+    current: tuple[str, str, list[str], dict] | None = None
     for line in flat:
-        match = NUMERAL_RE.match(line)
-        if match:
-            numeral, title = match.group(1), match.group(2)
+        match = NUMERAL_RE.match(line) or TOP_HEADING_RE.match(line) or ANEXO_NUMERAL_RE.match(line)
+        anexo_header = None if match else ANEXO_HEADER_RE.match(line)
+        if match or anexo_header:
             if current:
                 sections.append(current)
-            current = (numeral, title, [])
+            if match:
+                numeral, title = match.group(1), match.group(2)
+                extra = {"section_type": "anexo"} if numeral[0].isalpha() else {}
+            else:
+                numeral = anexo_header.group(1)
+                title = f"ANEXO {numeral}"
+                extra = {"section_type": "anexo"}
+            current = (numeral, title, [], extra)
         elif current:
             current[2].append(line)
     if current:
@@ -153,18 +184,23 @@ def chunk_norma(pdf_path: Path, skip_definitions: bool) -> list[Chunk]:
 
     chunks: list[Chunk] = []
     index_por_numeral: Counter[str] = Counter()
-    for numeral, title, body_lines in sections:
-        # Saltar preliminares/índice (0.x) y encabezados sin cuerpo (TOC residual).
+    for numeral, title, body_lines, extra in sections:
+        # Saltar preliminares/índice (0.x).
         if numeral.startswith("0"):
             continue
         is_definition = numeral.startswith("3.")
         if is_definition and skip_definitions:
             continue
         body = " ".join(body_lines).strip()
-        if not body:
+        if body:
+            text = f"{numeral} {title}\n{body}".strip()
+        elif is_definition and len(title) > 20:
+            # Definición de una sola línea: todo el contenido vive en el heading.
+            text = f"{numeral} {title}".strip()
+        else:
+            # Encabezado sin cuerpo (residuo de TOC u hoja suelta).
             continue
-        text = f"{numeral} {title}\n{body}".strip()
-        meta = {"titulo": title}
+        meta = {"titulo": title, **extra}
         if is_definition:
             meta["section_type"] = "definicion"
         for piece in _split(text):
@@ -189,40 +225,83 @@ def _split(text: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Chunking de ACOTUR (tabla: numeral | requisito | posibles evidencias)
+# Chunking de ACOTUR (tabla: numeral y título | requisito | posibles evidencias)
 # ---------------------------------------------------------------------------
 
+# Celda de numeral: "4.1 Comprensión de la organización...", "5.2. Política",
+# "6.1.1 Acciones...", "A.4. Tratamiento del riesgo", "A.3.Evaluación" (a veces
+# el título viene pegado al punto, sin espacio). El punto final es opcional y
+# el título puede faltar.
+ACOTUR_NUMERAL_CELL_RE = re.compile(
+    r"^\s*([A-Z](?:\.\d+)+|\d+(?:\.\d+)*)(?:(?:\.\s*|\s+)(.*))?$", re.S
+)
+
+
+def _norm_cell(cell: str | None) -> str:
+    """Colapsa saltos de línea y espacios de una celda de pdfplumber."""
+    return " ".join((cell or "").split())
+
+
+def _is_acotur_header(cells: list[str]) -> bool:
+    """Filas de encabezado (se repiten en cada página) o totalmente vacías."""
+    low = " ".join(" ".join(cells).lower().split())
+    if not low:
+        return True
+    if "numeral y titulo" in low or "ítem y titulo" in low or "item y titulo" in low:
+        return True
+    return low == "del requisito"
+
+
 def chunk_acotur(pdf_path: Path) -> list[Chunk]:
-    chunks: list[Chunk] = []
-    index_por_numeral: Counter[str] = Counter()
+    # Las tablas traen columnas vacías por celdas fusionadas: el numeral+título
+    # vive en la PRIMERA celda, el requisito en la penúltima y las evidencias en
+    # la última. Una fila sin numeral continúa el ítem anterior (más evidencias
+    # o la continuación del requisito), incluso cruzando de página.
+    items: list[dict] = []
+    current: dict | None = None
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
             for table in page.extract_tables() or []:
                 for row in table:
-                    cells = [(c or "").strip() for c in row]
-                    if len(cells) < 2:
+                    cells = [_norm_cell(c) for c in row]
+                    if len(cells) < 3 or _is_acotur_header(cells):
                         continue
-                    numeral = cells[0]
-                    # Saltar la fila de encabezado de la tabla.
-                    if not re.match(r"^\d+(?:\.\d+)*$", numeral):
-                        continue
-                    requisito = cells[1] if len(cells) > 1 else ""
-                    evidencias = cells[2] if len(cells) > 2 else ""
-                    content = (
-                        f"Numeral {numeral}. Requisito: {requisito}\n"
-                        f"Posibles evidencias: {evidencias}"
-                    ).strip()
-                    idx = index_por_numeral[numeral]
-                    index_por_numeral[numeral] += 1
-                    chunks.append(
-                        Chunk(
-                            "acotur",
-                            numeral,
-                            content,
-                            idx,
-                            {"requisito": requisito, "evidencias": evidencias},
-                        )
-                    )
+                    numeral_cell, requisito, evidencia = cells[0], cells[-2], cells[-1]
+                    match = ACOTUR_NUMERAL_CELL_RE.match(numeral_cell) if numeral_cell else None
+                    if match:
+                        current = {
+                            "numeral": match.group(1),
+                            "titulo": _norm_cell(match.group(2)),
+                            "requisito": [],
+                            "evidencias": [],
+                        }
+                        items.append(current)
+                    if current is None:
+                        continue  # fila de datos antes del primer numeral
+                    if requisito:
+                        current["requisito"].append(requisito)
+                    if evidencia:
+                        current["evidencias"].append(evidencia)
+
+    chunks: list[Chunk] = []
+    index_por_numeral: Counter[str] = Counter()
+    for item in items:
+        requisito = " ".join(item["requisito"]).strip()
+        evidencias = item["evidencias"]
+        ev_lines = "\n".join(f"- {e}" for e in evidencias)
+        content = (
+            f"Numeral {item['numeral']} {item['titulo']}. Requisito: {requisito}\n"
+            f"Posibles evidencias:\n{ev_lines}"
+        ).strip()
+        meta = {
+            "titulo": item["titulo"],
+            "requisito": requisito,
+            "evidencias": evidencias,
+        }
+        for piece in _split(content):
+            idx = index_por_numeral[item["numeral"]]
+            index_por_numeral[item["numeral"]] += 1
+            chunks.append(Chunk("acotur", item["numeral"], piece, idx, dict(meta, part=idx)))
     return chunks
 
 
