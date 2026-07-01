@@ -1,7 +1,7 @@
 # CLAUDE.md — ColAdventure
 
-> Contexto persistente para Claude Code y Codex. Se carga en cada sesión.
-> Para Codex: ver `AGENTS.md` (mismo contexto). Skills en `.claude/skills/` (Claude Code) y `.agents/skills/` (Codex).
+> Contexto persistente para Claude Code. Se carga en cada sesión.
+> Skills en `.claude/skills/`.
 
 ## Qué es ColAdventure
 
@@ -87,7 +87,7 @@ No construir el árbol documental completo ni features de escala hasta validar e
 
 ## Base de conocimiento (los PDFs)
 
-La norma NTC-ISO 21101 y el Módulo 2 de ACOTUR (evidencias por numeral) son **datos del producto**, no contexto del agente. Van a `knowledge_chunks` (pgvector) vía `scripts/seed_knowledge.py`, fragmentados por numeral. Guarda los PDFs fuente en `/knowledge-base/` para que el seed los procese; no los pegues en el contexto de Claude Code/Codex (gastan tokens y el agente no los necesita para escribir código — necesita el schema y la estrategia de chunking, no la norma entera).
+La norma NTC-ISO 21101 y el Módulo 2 de ACOTUR (evidencias por numeral) son **datos del producto**, no contexto del agente. Van a `knowledge_chunks` (pgvector) vía `scripts/seed_knowledge.py`, fragmentados por numeral. Guarda los PDFs fuente en `/knowledge-base/` para que el seed los procese; no los pegues en el contexto de Claude Code (gastan tokens y el agente no los necesita para escribir código — necesita el schema y la estrategia de chunking, no la norma entera).
 
 ⚠️ **Legal:** la NTC-ISO 21101 es copyright de ICONTEC ("prohibida su reproducción"). Confirmar con Felipe que se tiene derecho a indexar y servir contenido derivado de la norma antes del lanzamiento comercial.
 

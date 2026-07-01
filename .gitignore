@@ -24,6 +24,9 @@ out/
 knowledge-base/*.pdf
 knowledge-base/*.PDF
 
+# Datos reales de la empresa cliente (no versionar)
+8. TOURS AND ADVENTURES*/
+
 # Supabase local
 supabase/.branches/
 supabase/.temp/
@@ -37,6 +40,5 @@ Thumbs.db
 .idea/
 .vscode/
 
-# Config local de Claude Code / Codex (permisos por máquina, no compartir)
+# Config local de Claude Code (permisos por máquina, no compartir)
 .claude/settings.local.json
-.agents/settings.local.json
