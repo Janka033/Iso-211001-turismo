@@ -93,10 +93,15 @@ def match_knowledge_chunks(
     embedding: list[float],
     numeral: str,
     token: str,
-    source: str = "norma",
+    source: str | None = None,
     limit: int = 5,
 ) -> list[dict]:
-    """Paso RAG: top-K chunks por similitud (RPC pgvector de 0006)."""
+    """Paso RAG: top-K chunks por similitud (RPC pgvector de 0006).
+
+    ``source=None`` consulta TODOS los sources (norma + acotur + futuros como
+    capacitaciones): las evidencias por numeral de ACOTUR son parte del
+    contexto que el generador necesita.
+    """
     client = get_user_client(token)
     res = client.rpc(
         "match_knowledge_chunks",

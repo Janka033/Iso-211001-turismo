@@ -30,9 +30,16 @@ from app.modules.generation.schemas import (
 class DocumentSpec:
     document_type: str
     title: str
-    numeral: str                       # numeral de la norma para el RAG
+    numeral: str                       # numeral principal de la norma
     variables_model: type[BaseModel]
     generator: DocumentGenerator
+    # Numerales adicionales para el RAG (p. ej. anexos). El principal siempre
+    # se consulta; estos amplían el contexto normativo del documento.
+    extra_rag_numerales: tuple[str, ...] = ()
+
+    @property
+    def rag_numerales(self) -> tuple[str, ...]:
+        return (self.numeral, *self.extra_rag_numerales)
 
 
 _REGISTRY: dict[str, DocumentSpec] = {
@@ -49,6 +56,8 @@ _REGISTRY: dict[str, DocumentSpec] = {
         numeral="6.1.1",
         variables_model=RiskMatrixVariables,
         generator=RiskMatrixGenerator(),
+        # La matriz del MVP es "6.1.1 + Anexo A" (proceso de gestión del riesgo).
+        extra_rag_numerales=("A",),
     ),
     "plan_emergencias": DocumentSpec(
         document_type="plan_emergencias",

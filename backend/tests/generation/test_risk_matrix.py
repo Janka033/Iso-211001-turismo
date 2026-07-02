@@ -76,6 +76,10 @@ def test_partial_row_only_missing_cells_pending():
     )
     result = RiskMatrixGenerator().generate(variables)
     assert "risks" not in result.pending_fields  # hay al menos una fila
+    # Los pendientes de celda se reportan uno a uno (visibles para el cliente).
+    assert "risks[0].hazard" in result.pending_fields
+    assert "risks[0].probability" in result.pending_fields
+    assert "risks[0].activity" not in result.pending_fields
 
     ws = _load(result.content)["Matriz de Riesgos"]
     assert ws.cell(row=8, column=1).value == "Canopy"
@@ -121,9 +125,17 @@ def test_matrix_endpoint_uses_xlsx_engine(client, make_token, monkeypatch):
     monkeypatch.setattr(repository, "get_onboarding_data", lambda tid, token: {})
     monkeypatch.setattr(repository, "get_checklist", lambda dt, token: MATRIX_CHECKLIST)
     monkeypatch.setattr(repository, "get_generation_patterns", lambda dt, token: [])
-    monkeypatch.setattr(
-        repository, "match_knowledge_chunks", lambda emb, n, token, **kw: []
-    )
+
+    # Devuelve el MISMO chunk para cada numeral consultado: prueba a la vez
+    # que la matriz consulta 6.1.1 y el Anexo A, y que el service deduplica.
+    def fake_match(emb, numeral, token, **kw):
+        captured.setdefault("numerales", []).append(numeral)
+        return [{
+            "id": "cccccccc-0000-0000-0000-000000000001",
+            "source": "acotur", "numeral": "6.1.1", "content": "Evidencias...",
+        }]
+
+    monkeypatch.setattr(repository, "match_knowledge_chunks", fake_match)
     async def fake_list_items(tid, token, category=None):
         return []
 
@@ -135,9 +147,12 @@ def test_matrix_endpoint_uses_xlsx_engine(client, make_token, monkeypatch):
         return f"{tid}/{dt}/v{v}.{engine}"
 
     monkeypatch.setattr(repository, "upload_document", fake_upload)
-    monkeypatch.setattr(
-        repository, "insert_document", lambda record, token: {"id": "doc-x", **record}
-    )
+
+    def fake_insert(record, token):
+        captured["record"] = record
+        return {"id": "doc-x", **record}
+
+    monkeypatch.setattr(repository, "insert_document", fake_insert)
     monkeypatch.setattr(
         repository, "upsert_document_status", lambda *a, **k: None
     )
@@ -154,3 +169,16 @@ def test_matrix_endpoint_uses_xlsx_engine(client, make_token, monkeypatch):
     assert body["storage_path"].endswith("v1.xlsx")
     assert body["template_version"] == "matriz-riesgos-xlsx-v1"
     assert body["completeness"] == 100.0
+    # RAG multi-numeral: la matriz consulta 6.1.1 Y el Anexo A…
+    assert captured["numerales"] == ["6.1.1", "A"]
+    # …y el chunk repetido entre numerales se deduplica en el snapshot.
+    assert captured["record"]["rag_chunks_ids"] == [
+        "cccccccc-0000-0000-0000-000000000001"
+    ]
+
+
+def test_specs_declare_rag_numerales():
+    from app.modules.generation.generators.factory import get_spec
+
+    assert get_spec("matriz_riesgos").rag_numerales == ("6.1.1", "A")
+    assert get_spec("politica_seguridad").rag_numerales == ("5.2",)

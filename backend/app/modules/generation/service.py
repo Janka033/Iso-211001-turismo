@@ -83,14 +83,24 @@ async def generate(
 
     provider = get_ai_provider()
 
-    # 1. RAG: recuperar el contexto normativo del numeral.
+    # 1. RAG: contexto normativo de TODOS los numerales del spec (p. ej. la
+    #    matriz consulta 6.1.1 y el Anexo A) y de todos los sources (norma +
+    #    evidencias de ACOTUR). Un solo embedding; una consulta por numeral.
     query = (
         f"{spec.title} (numeral {spec.numeral}) NTC-ISO 21101 "
         f"para una empresa de turismo de aventura"
     )
     try:
         embedding = await provider.embed(query)
-        chunks = await _run(repository.match_knowledge_chunks, embedding, spec.numeral, token)
+        chunks = []
+        seen_ids: set[str] = set()
+        for numeral in spec.rag_numerales:
+            for chunk in await _run(
+                repository.match_knowledge_chunks, embedding, numeral, token
+            ):
+                if chunk["id"] not in seen_ids:
+                    seen_ids.add(chunk["id"])
+                    chunks.append(chunk)
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001 - upstream IA/RAG

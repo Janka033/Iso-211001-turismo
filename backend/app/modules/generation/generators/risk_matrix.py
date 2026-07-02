@@ -52,9 +52,18 @@ class RiskMatrixGenerator(DocumentGenerator):
         self, variables: BaseModel, required_fields: set[str] | None
     ) -> list[str]:
         assert isinstance(variables, RiskMatrixVariables)
-        if variables.risks or not self._is_required("risks", required_fields):
-            return []
-        return ["risks"]
+        if not variables.risks:
+            return ["risks"] if self._is_required("risks", required_fields) else []
+        # Pendientes de CELDA: cada campo vacío de cada fila real. No son claves
+        # de la checklist (no mueven la completitud), pero el cliente y el
+        # auditor deben verlos: son las celdas [PENDIENTE: ...] del archivo.
+        pending: list[str] = []
+        for i, entry in enumerate(variables.risks):
+            for key, _, _ in _COLUMNS:
+                value = getattr(entry, key)
+                if not (value.strip() if isinstance(value, str) else value):
+                    pending.append(f"risks[{i}].{key}")
+        return pending
 
     def _render(
         self, resolved: dict[str, ResolvedField], variables: BaseModel
