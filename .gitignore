@@ -24,6 +24,10 @@ out/
 knowledge-base/*.pdf
 knowledge-base/*.PDF
 
+# Videos/transcripciones de capacitaciones (datos de la empresa — no versionar)
+knowledge-base/capacitaciones/*
+!knowledge-base/capacitaciones/README.md
+
 # Datos reales de la empresa cliente (no versionar)
 8. TOURS AND ADVENTURES*/
 

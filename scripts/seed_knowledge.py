@@ -309,13 +309,28 @@ def chunk_acotur(pdf_path: Path) -> list[Chunk]:
 # Persistencia
 # ---------------------------------------------------------------------------
 
+async def _embed_with_retry(provider, text: str, retries: int = 2) -> list[float]:
+    """Embedding con reintento ante cuota agotada (free tier: 100 req/min)."""
+    for attempt in range(retries + 1):
+        try:
+            return await provider.embed(text)
+        except Exception as exc:  # noqa: BLE001 - cuota del upstream
+            message = str(exc)
+            if attempt < retries and ("429" in message or "RESOURCE_EXHAUSTED" in message):
+                print("  … cuota de embeddings agotada; esperando 65 s para reintentar")
+                await asyncio.sleep(65)
+                continue
+            raise
+    raise RuntimeError("unreachable")
+
+
 async def embed_and_store(chunks: list[Chunk], source: str) -> None:
     provider = get_ai_provider()
     client = get_service_client()
 
     rows = []
     for chunk in chunks:
-        embedding = await provider.embed(chunk.content)
+        embedding = await _embed_with_retry(provider, chunk.content)
         rows.append(
             {
                 "source": chunk.source,

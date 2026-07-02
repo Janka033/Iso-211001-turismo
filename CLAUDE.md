@@ -89,6 +89,8 @@ No construir el árbol documental completo ni features de escala hasta validar e
 
 La norma NTC-ISO 21101 y el Módulo 2 de ACOTUR (evidencias por numeral) son **datos del producto**, no contexto del agente. Van a `knowledge_chunks` (pgvector) vía `scripts/seed_knowledge.py`, fragmentados por numeral. Guarda los PDFs fuente en `/knowledge-base/` para que el seed los procese; no los pegues en el contexto de Claude Code (gastan tokens y el agente no los necesita para escribir código — necesita el schema y la estrategia de chunking, no la norma entera).
 
+Tercer source: `capacitaciones` — videos/audios de capacitaciones y auditorías en `/knowledge-base/capacitaciones/` (no versionados). `scripts/seed_trainings.py` los transcribe con faster-whisper (o usa el .srt/.vtt/.txt junto al video), fragmenta con tiempos, detecta menciones de numerales y vectoriza. El RAG de generación consulta los tres sources.
+
 ⚠️ **Legal:** la NTC-ISO 21101 es copyright de ICONTEC ("prohibida su reproducción"). Confirmar con Felipe que se tiene derecho a indexar y servir contenido derivado de la norma antes del lanzamiento comercial.
 
 ## Qué NO hacer
