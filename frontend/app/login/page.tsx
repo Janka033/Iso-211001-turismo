@@ -69,8 +69,8 @@ export default function LoginPage() {
         <div className="relative z-10 flex h-full flex-col justify-between p-12 text-white">
           <Logo variant="onDark" />
           <div className="max-w-md">
-            <h2 className="text-3xl font-semibold leading-tight">
-              Eleva el estándar de seguridad en turismo de aventura.
+            <h2 className="font-display text-3xl font-extrabold leading-tight tracking-tight">
+              La aventura es tuya. El papeleo, nuestro.
             </h2>
             <p className="mt-4 text-brand-50/90">
               ColAdventure genera tu árbol documental NTC-ISO 21101: política,
@@ -105,7 +105,7 @@ export default function LoginPage() {
             <Logo />
           </div>
 
-          <h1 className="text-2xl font-semibold text-slate-900">
+          <h1 className="font-display text-2xl font-extrabold tracking-tight text-tinta">
             {mode === "login" ? "Inicia sesión" : "Crea tu empresa"}
           </h1>
           <p className="mt-1 text-sm text-slate-500">

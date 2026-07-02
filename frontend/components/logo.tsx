@@ -20,8 +20,8 @@ export function Logo({
         </svg>
       </span>
       <span
-        className={`text-lg font-semibold tracking-tight ${
-          onDark ? "text-white" : "text-slate-900"
+        className={`font-display text-lg font-bold tracking-tight ${
+          onDark ? "text-white" : "text-tinta"
         }`}
       >
         Col

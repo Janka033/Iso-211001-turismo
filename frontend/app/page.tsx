@@ -5,66 +5,65 @@ import { Logo } from "@/components/logo";
 import { DepartmentHero } from "@/components/landing/department-hero";
 import { Scene } from "@/components/landing/scenes";
 import { DEPARTMENTS } from "@/lib/departments";
-import { DOCUMENTS } from "@/lib/documents";
+import { DOCUMENTS, DocumentType } from "@/lib/documents";
 
 export const metadata: Metadata = {
-  title: "ColAdventure · Cumplimiento NTC-ISO 21101 para turismo de aventura",
+  title: "ColAdventure · Certifícate en la NTC-ISO 21101 sin ahogarte en papeleo",
   description:
-    "Genera tu árbol documental de seguridad para turismo de aventura en Colombia. Auditable ante ONAC, sin inventar datos. Hecho para tu región.",
+    "El expediente de seguridad de tu empresa de turismo de aventura, generado desde tu operación real. Auditable ante ONAC, sin inventar un solo dato. Hecho para Colombia.",
 };
 
-const STEPS = [
+/** La ruta real del producto: es una secuencia, por eso va numerada. */
+const RUTA = [
   {
-    n: "1",
+    n: "01",
     title: "Cuéntanos cómo operas",
-    body: "Un onboarding conversacional captura tus actividades, ubicaciones y operación. En español, sin formularios eternos.",
+    body: "Un chat en español te pregunta por tus actividades, tus ríos, tus equipos y tus guías. Hablas como hablas; nada de formularios eternos.",
   },
   {
-    n: "2",
-    title: "La IA organiza tus datos",
-    body: "Extrae y estructura la información. Nunca redacta libre: lo que falta se marca [PENDIENTE], jamás se inventa.",
+    n: "02",
+    title: "La IA lo estructura",
+    body: "Extrae los datos de tu operación y los valida contra la norma. Nunca redacta por su cuenta: lo que no dijiste queda marcado [PENDIENTE].",
   },
   {
-    n: "3",
-    title: "Generas documentos auditables",
-    body: "Política, matriz de riesgos, plan de emergencias y gestión de incidentes — listos para presentar a un auditor.",
+    n: "03",
+    title: "Descargas tu expediente",
+    body: "Política, matriz de riesgos, plan de emergencias y gestión de incidentes, en Word y Excel, cada uno con su numeral y su versión.",
+  },
+  {
+    n: "04",
+    title: "Llegas tranquilo a la auditoría",
+    body: "Cada documento guarda su trazabilidad completa: con qué datos, plantilla y versión se generó. Defendible ante el organismo acreditado.",
   },
 ];
 
-const BENEFITS = [
-  {
-    title: "Sin alucinaciones",
-    body: "La IA solo devuelve datos estructurados y validados. Lo que no tienes se marca [PENDIENTE] en rojo, visible.",
-  },
-  {
-    title: "Auditable ante ONAC",
-    body: "Cada documento guarda su trazabilidad: versión de plantilla, prompt, modelo y fecha. Defendible ante el auditor.",
-  },
-  {
-    title: "Mantén tu RNT al día",
-    body: "Te avisamos antes de que venza tu Registro Nacional de Turismo. Evita sanciones y suspensiones.",
-  },
-  {
-    title: "Regenera sin perder nada",
-    body: "¿Una corrección? Ajustas el dato y regeneras. Tu información del onboarding nunca se pierde.",
-  },
-];
+/** Qué le importa al auditor de cada documento núcleo. */
+const AUDITOR_LINE: Record<DocumentType, string> = {
+  politica_seguridad:
+    "Lo primero que pide el auditor: el compromiso de la dirección, por escrito.",
+  matriz_riesgos:
+    "El corazón del sistema: cada actividad con sus riesgos valorados y controlados.",
+  plan_emergencias:
+    "Quién llama a quién, por dónde se evacúa y con qué recursos se responde.",
+  gestion_incidentes:
+    "Reportar, investigar y corregir: el ciclo que demuestra mejora continua.",
+};
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-papel text-tinta">
       {/* Navegación */}
-      <header className="sticky top-0 z-30 border-b border-slate-100 bg-white/80 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-brand-950/5 bg-papel/90 backdrop-blur">
         <div className="section flex h-16 items-center justify-between">
           <Logo />
           <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
-            <a href="#como-funciona" className="hover:text-brand-700">
+            <a href="#como-funciona" className="transition-colors hover:text-brand-700">
               Cómo funciona
             </a>
-            <a href="#documentos" className="hover:text-brand-700">
+            <a href="#documentos" className="transition-colors hover:text-brand-700">
               Documentos
             </a>
-            <a href="#regiones" className="hover:text-brand-700">
+            <a href="#regiones" className="transition-colors hover:text-brand-700">
               Regiones
             </a>
           </nav>
@@ -73,164 +72,179 @@ export default function LandingPage() {
               Ingresar
             </Link>
             <Link href="/login" className="btn-accent">
-              Empieza gratis
+              Crear mi expediente
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Hero regional */}
-      <section className="relative overflow-hidden">
-        <div className="pointer-events-none absolute -right-40 -top-40 h-96 w-96 rounded-full bg-brand-100/60 blur-3xl" />
-        <div className="pointer-events-none absolute -left-40 top-40 h-80 w-80 rounded-full bg-accent-100/50 blur-3xl" />
+      {/* Hero: selva de noche, tu región y el documento que se escribe solo */}
+      <section className="relative overflow-hidden bg-brand-950 pb-16 pt-6">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-48 -top-48 h-[28rem] w-[28rem] rounded-full bg-brand-500/15 blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-40 bottom-0 h-96 w-96 rounded-full bg-accent-500/10 blur-3xl"
+        />
         <DepartmentHero />
       </section>
 
-      {/* Barra de confianza */}
-      <section className="section mt-14">
-        <div className="grid gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200 sm:grid-cols-4">
-          {[
-            ["NTC-ISO 21101", "Norma de referencia"],
-            ["ONAC", "Organismos acreditados"],
-            ["RNT", "Registro Nacional de Turismo"],
-            ["Anti-alucinación", "Datos validados, no inventados"],
-          ].map(([k, v]) => (
-            <div key={k} className="bg-white px-6 py-5 text-center">
-              <p className="text-base font-semibold text-slate-900">{k}</p>
-              <p className="mt-1 text-xs text-slate-500">{v}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* La ruta */}
+      <section id="como-funciona" className="section scroll-mt-20 py-24">
+        <p className="eyebrow">La ruta</p>
+        <h2 className="mt-3 max-w-2xl font-display text-4xl font-extrabold tracking-tight text-tinta sm:text-5xl">
+          De tu voz al expediente auditable
+        </h2>
+        <p className="mt-4 max-w-2xl text-lg text-slate-600">
+          Tú sabes de aventura. Nosotros, de la norma. Cuatro tramos y llegas.
+        </p>
 
-      {/* Cómo funciona */}
-      <section id="como-funciona" className="section mt-24 scroll-mt-20">
-        <div className="max-w-2xl">
-          <p className="eyebrow">Cómo funciona</p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-            De tu operación a documentos de auditoría, en tres pasos
-          </h2>
-          <p className="mt-3 text-slate-600">
-            Tú sabes de aventura. Nosotros, de la norma. ColAdventure traduce tu
-            operación en el papeleo que exige la certificación.
-          </p>
-        </div>
-
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
-          {STEPS.map((s) => (
-            <div key={s.n} className="card p-6">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-gradient text-lg font-semibold text-white shadow-glow">
-                {s.n}
+        <ol className="relative mt-14 grid gap-10 md:grid-cols-4 md:gap-6">
+          {/* Línea de ruta */}
+          <div
+            aria-hidden="true"
+            className="absolute left-[1.05rem] top-2 h-[calc(100%-1rem)] border-l-2 border-dashed border-brand-200 md:left-0 md:top-[1.05rem] md:h-auto md:w-full md:border-l-0 md:border-t-2"
+          />
+          {RUTA.map((step) => (
+            <li key={step.n} className="relative pl-12 md:pl-0 md:pt-12">
+              <span className="absolute left-0 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-brand-950 font-mono text-xs font-semibold text-accent-400 ring-4 ring-papel md:-top-0.5">
+                {step.n}
               </span>
-              <h3 className="mt-4 text-lg font-semibold text-slate-900">
-                {s.title}
-              </h3>
-              <p className="mt-2 text-sm text-slate-600">{s.body}</p>
-            </div>
+              <h3 className="font-display text-lg font-bold text-tinta">{step.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">{step.body}</p>
+            </li>
           ))}
-        </div>
+        </ol>
       </section>
 
-      {/* Documentos núcleo */}
-      <section id="documentos" className="section mt-24 scroll-mt-20">
-        <div className="max-w-2xl">
-          <p className="eyebrow">Set núcleo del MVP</p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-            Los documentos que te piden, generados por ti
-          </h2>
-          <p className="mt-3 text-slate-600">
-            Empezamos por los cuatro pilares de seguridad de la NTC-ISO 21101. Cada
-            uno con su numeral, listo para descargar.
-          </p>
-        </div>
-
-        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {DOCUMENTS.map((d) => (
-            <div
-              key={d.type}
-              className="card flex flex-col p-6 transition-shadow hover:shadow-card-hover"
-            >
-              <div className="flex items-center justify-between">
-                <span className="badge bg-brand-50 text-brand-700">
-                  Numeral {d.numeral}
-                </span>
-                <span className="text-xs font-medium uppercase text-slate-400">
-                  .{d.engine}
-                </span>
-              </div>
-              <h3 className="mt-4 text-base font-semibold text-slate-900">
-                {d.title}
-              </h3>
-              <p className="mt-2 flex-1 text-sm text-slate-600">{d.description}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Por qué ColAdventure */}
-      <section className="mt-24 bg-slate-50 py-20">
+      {/* Expediente núcleo */}
+      <section id="documentos" className="scroll-mt-20 bg-white py-24">
         <div className="section">
-          <div className="max-w-2xl">
-            <p className="eyebrow">Por qué ColAdventure</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-              Hecho para pasar auditorías, no para impresionar
-            </h2>
-          </div>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2">
-            {BENEFITS.map((b) => (
-              <div key={b.title} className="flex gap-4 rounded-2xl bg-white p-6 shadow-card">
-                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
-                  <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
-                    <path
-                      d="M5 10.5l3.2 3.2L15 7"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-                <div>
-                  <h3 className="text-base font-semibold text-slate-900">
-                    {b.title}
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-600">{b.body}</p>
+          <p className="eyebrow">El expediente núcleo</p>
+          <h2 className="mt-3 max-w-2xl font-display text-4xl font-extrabold tracking-tight text-tinta sm:text-5xl">
+            Los cuatro documentos que decide la auditoría
+          </h2>
+          <p className="mt-4 max-w-2xl text-lg text-slate-600">
+            Cada uno con su numeral de la NTC-ISO 21101, generado desde tu
+            operación y listo para descargar.
+          </p>
+
+          <div className="mt-12 grid gap-6 sm:grid-cols-2">
+            {DOCUMENTS.map((d) => (
+              <article
+                key={d.type}
+                className="group flex flex-col rounded-2xl border border-slate-200 bg-papel shadow-card transition-shadow hover:shadow-card-hover"
+              >
+                <div className="flex items-center justify-between rounded-t-2xl border-b border-slate-100 bg-white px-6 py-3">
+                  <span className="numeral-chip">Numeral {d.numeral}</span>
+                  <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                    .{d.engine}
+                  </span>
                 </div>
-              </div>
+                <div className="flex flex-1 flex-col px-6 py-5">
+                  <h3 className="font-display text-xl font-bold text-tinta">{d.title}</h3>
+                  <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">
+                    {AUDITOR_LINE[d.type]}
+                  </p>
+                  <p className="mt-4 border-t border-dashed border-slate-200 pt-3 font-mono text-[11px] text-slate-400">
+                    versionado · trazable · regenerable
+                  </p>
+                </div>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Regiones */}
-      <section id="regiones" className="section mt-24 scroll-mt-20">
-        <div className="max-w-2xl">
-          <p className="eyebrow">Hecho para tu región</p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-            De San Gil al Tayrona: tu aventura, tu cumplimiento
-          </h2>
-          <p className="mt-3 text-slate-600">
-            Cada región tiene sus actividades, sus riesgos y sus paisajes.
-            ColAdventure se adapta a la operación de tu departamento.
+      {/* Franja de honestidad: la anti-alucinación como promesa comercial */}
+      <section className="bg-brand-950 py-24 text-white">
+        <div className="section">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-accent-400">
+            Nuestra regla de oro
           </p>
-        </div>
+          <h2 className="mt-3 max-w-3xl font-display text-4xl font-extrabold tracking-tight sm:text-5xl">
+            Sin inventar un solo dato.
+          </h2>
+          <p className="mt-4 max-w-2xl text-lg text-white/70">
+            Un vacío honesto se corrige en minutos. Un dato inventado te cuesta
+            la certificación.
+          </p>
 
-        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-12 grid gap-8 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <span className="inline-block rounded bg-flag-100 px-2 py-1 font-mono text-xs font-semibold text-flag-600">
+                [PENDIENTE: teléfono de la ARL]
+              </span>
+              <h3 className="mt-4 font-display text-lg font-bold">
+                Visible, no maquillado
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/65">
+                Si no nos diste un dato, el documento lo dice ahí mismo. Tú
+                decides si lo completas antes de descargar.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <span className="inline-block rounded bg-brand-900 px-2 py-1 font-mono text-xs text-brand-200">
+                prompt v3 · plantilla v1 · snapshot ✓
+              </span>
+              <h3 className="mt-4 font-display text-lg font-bold">
+                Trazabilidad de auditoría
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/65">
+                Cada documento sabe con qué datos, plantilla y versión se
+                generó. Si el auditor pregunta, la respuesta existe.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <span className="inline-block rounded bg-brand-900 px-2 py-1 font-mono text-xs text-brand-200">
+                v1 → v2 · tus datos intactos
+              </span>
+              <h3 className="mt-4 font-display text-lg font-bold">
+                Regenera sin perder nada
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/65">
+                ¿Una corrección del auditor? Ajustas el dato y regeneras. Tu
+                información nunca se pierde ni se mezcla con la de nadie.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Regiones */}
+      <section id="regiones" className="section scroll-mt-20 py-24">
+        <p className="eyebrow">17 territorios</p>
+        <h2 className="mt-3 max-w-2xl font-display text-4xl font-extrabold tracking-tight text-tinta sm:text-5xl">
+          De San Gil al Amazonas
+        </h2>
+        <p className="mt-4 max-w-2xl text-lg text-slate-600">
+          Cada región tiene sus actividades y sus riesgos. Tu expediente habla
+          de tu río, tu montaña y tu operación — no de una empresa genérica.
+        </p>
+
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {DEPARTMENTS.map((d) => (
             <div
               key={d.id}
               className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card transition-shadow hover:shadow-card-hover"
             >
-              <Scene
-                scene={d.scene}
-                sky={d.sky}
-                accent={d.accent}
-                uid={`grid-${d.id}`}
-                className="h-28 w-full"
-              />
+              <div className="overflow-hidden">
+                <Scene
+                  scene={d.scene}
+                  sky={d.sky}
+                  accent={d.accent}
+                  uid={`grid-${d.id}`}
+                  className="h-28 w-full transition-transform duration-500 group-hover:scale-[1.04]"
+                />
+              </div>
               <div className="p-4">
-                <p className="text-sm font-semibold text-slate-900">{d.name}</p>
+                <p className="font-display text-sm font-bold text-tinta">{d.name}</p>
                 <p className="mt-0.5 text-xs text-slate-500">{d.zone}</p>
+                <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-brand-600">
+                  {d.activities.slice(0, 2).join(" · ")}
+                </p>
               </div>
             </div>
           ))}
@@ -238,20 +252,26 @@ export default function LandingPage() {
       </section>
 
       {/* CTA final */}
-      <section className="section mt-24">
-        <div className="relative overflow-hidden rounded-3xl bg-brand-gradient px-8 py-14 text-center text-white sm:px-16">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
-          <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-accent-500/25 blur-3xl" />
-          <h2 className="relative mx-auto max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
-            Certifícate en la NTC-ISO 21101 sin perderte en el papeleo
+      <section className="section pb-24">
+        <div className="relative overflow-hidden rounded-3xl bg-brand-gradient px-8 py-16 text-center text-white sm:px-16">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-accent-500/20 blur-2xl"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-white/10 blur-3xl"
+          />
+          <h2 className="relative mx-auto max-w-2xl font-display text-4xl font-extrabold tracking-tight sm:text-5xl">
+            Tu próxima auditoría empieza hoy
           </h2>
-          <p className="relative mx-auto mt-4 max-w-xl text-brand-50/90">
-            Registra tu empresa y genera tu primer documento hoy. Auditable, en
-            español y hecho para tu región.
+          <p className="relative mx-auto mt-4 max-w-xl text-lg text-white/80">
+            Registra tu empresa, cuéntanos cómo operas y descarga tu primer
+            documento auditable.
           </p>
-          <div className="relative mt-8 flex flex-wrap justify-center gap-3">
+          <div className="relative mt-9 flex flex-wrap justify-center gap-3">
             <Link href="/login" className="btn-accent btn-lg">
-              Empieza gratis
+              Crear mi expediente gratis
             </Link>
             <Link
               href="/login"
@@ -264,35 +284,57 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="mt-24 border-t border-slate-100">
-        <div className="section grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
+      <footer className="bg-brand-950 text-white">
+        <div className="section grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <Logo />
-            <p className="mt-3 max-w-xs text-sm text-slate-500">
-              Cumplimiento NTC-ISO 21101 para empresas de turismo de aventura en
-              Colombia. Auditable, sin alucinaciones.
+            <Logo variant="onDark" />
+            <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/60">
+              El expediente NTC-ISO 21101 de tu empresa de turismo de aventura,
+              generado desde tu operación real. Sin inventar un solo dato.
             </p>
           </div>
-          {[
-            ["Producto", ["Cómo funciona", "Documentos", "Regiones", "Ingresar"]],
-            ["Empresa", ["Acerca de", "Contacto", "Blog"]],
-            ["Legal", ["Términos", "Privacidad", "Seguridad"]],
-          ].map(([title, items]) => (
-            <div key={title as string}>
-              <p className="text-sm font-semibold text-slate-900">{title}</p>
-              <ul className="mt-3 space-y-2 text-sm text-slate-500">
-                {(items as string[]).map((i) => (
-                  <li key={i}>
-                    <span className="cursor-pointer hover:text-brand-700">{i}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <div>
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">
+              Producto
+            </p>
+            <ul className="mt-4 space-y-2.5 text-sm text-white/70">
+              <li>
+                <a href="#como-funciona" className="hover:text-white">
+                  Cómo funciona
+                </a>
+              </li>
+              <li>
+                <a href="#documentos" className="hover:text-white">
+                  Documentos del expediente
+                </a>
+              </li>
+              <li>
+                <a href="#regiones" className="hover:text-white">
+                  Regiones
+                </a>
+              </li>
+              <li>
+                <Link href="/login" className="hover:text-white">
+                  Ingresar
+                </Link>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">
+              Cumplimiento
+            </p>
+            <ul className="mt-4 space-y-2.5 text-sm text-white/70">
+              <li>NTC-ISO 21101 — Sistema de gestión de seguridad</li>
+              <li>Evidencias del Módulo 2 · ACOTUR</li>
+              <li>Auditable ante organismos acreditados por ONAC</li>
+              <li>Registro Nacional de Turismo al día</li>
+            </ul>
+          </div>
         </div>
-        <div className="section flex flex-col items-center justify-between gap-2 border-t border-slate-100 py-6 text-xs text-slate-400 sm:flex-row">
+        <div className="section flex flex-col items-center justify-between gap-2 border-t border-white/10 py-6 text-xs text-white/40 sm:flex-row">
           <p>© {new Date().getFullYear()} ColAdventure. Todos los derechos reservados.</p>
-          <p>NTC-ISO 21101 · Turismo de aventura</p>
+          <p className="font-mono tracking-wide">Hecho en Colombia · para la aventura</p>
         </div>
       </footer>
     </div>

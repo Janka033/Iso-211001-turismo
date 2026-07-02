@@ -9,12 +9,12 @@
 }
 
 /**
- * Clases de componentes reutilizables. Reflejan el design-system de
- * ColAdventure (mismos tokens en claude.ai/design) para mantener coherencia.
+ * Clases de componentes reutilizables del sistema "expediente de la selva".
+ * brand = verdes selva/río · accent = amarillo señal (texto SIEMPRE oscuro).
  */
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold
       transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500
       focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
@@ -28,8 +28,8 @@
     @apply btn text-brand-700 hover:bg-brand-50;
   }
   .btn-accent {
-    @apply btn bg-accent-500 text-white hover:bg-accent-600;
-    box-shadow: 0 12px 28px -10px rgba(249, 115, 22, 0.5);
+    @apply btn bg-accent-500 text-brand-950 hover:bg-accent-400;
+    box-shadow: 0 12px 28px -10px rgba(245, 179, 28, 0.55);
   }
   .btn-lg {
     @apply rounded-xl px-5 py-3 text-base;
@@ -55,10 +55,16 @@
     @apply inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1
       text-sm font-medium text-slate-700;
   }
+  /* Voz de dato/registro: mono, como los numerales de la norma. */
   .eyebrow {
-    @apply text-xs font-semibold uppercase tracking-[0.14em] text-brand-600;
+    @apply font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-600;
   }
   .section {
     @apply mx-auto w-full max-w-6xl px-6;
+  }
+  /* Chip de numeral de la norma (5.2, 6.1.1…): siempre en mono. */
+  .numeral-chip {
+    @apply inline-flex items-center rounded-md bg-brand-950/90 px-2 py-0.5 font-mono text-[11px]
+      font-semibold tracking-wide text-accent-400;
   }
 }
