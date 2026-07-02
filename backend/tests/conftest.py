@@ -10,9 +10,14 @@ FALLBACK_JWT_SECRET = "test-secret-test-secret-test-secret-1234"
 
 @pytest.fixture(scope="session", autouse=True)
 def _env() -> None:
-    # Si no hay .env, poner defaults de prueba (no se clobbers el .env real:
-    # os.environ tiene precedencia sobre .env en pydantic-settings).
-    if not Path(".env").exists():
+    # Los tests firman sus tokens con HS256: se fuerza esa rama aunque el .env
+    # del desarrollador tenga SUPABASE_JWKS_URL (la CLI moderna firma ES256).
+    # os.environ tiene precedencia sobre el env_file en pydantic-settings.
+    os.environ["SUPABASE_JWKS_URL"] = ""
+
+    # Si no hay backend/.env (p.ej. CI sin Supabase local), defaults de prueba.
+    backend_env = Path(__file__).resolve().parents[1] / ".env"
+    if not backend_env.exists():
         os.environ.setdefault("SUPABASE_JWT_SECRET", FALLBACK_JWT_SECRET)
         os.environ.setdefault("SUPABASE_URL", "http://127.0.0.1:54321")
         os.environ.setdefault("SUPABASE_ANON_KEY", "anon-test-key")
