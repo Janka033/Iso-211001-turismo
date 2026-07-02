@@ -13,18 +13,34 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profile }, { data: company }, { data: statuses }, { data: docs }] =
-    await Promise.all([
-      supabase.from("user_profiles").select("tenant_id, role").single(),
-      supabase.from("companies").select("name").limit(1).maybeSingle(),
-      supabase
-        .from("document_status")
-        .select("document_type, status, completeness, updated_at"),
-      supabase
-        .from("documents")
-        .select("document_type, version, storage_path, created_at")
-        .order("created_at", { ascending: false }),
-    ]);
+  const [profileRes, companyRes, statusesRes, docsRes] = await Promise.all([
+    supabase.from("user_profiles").select("tenant_id, role").single(),
+    supabase.from("companies").select("name").limit(1).maybeSingle(),
+    supabase
+      .from("document_status")
+      .select("document_type, status, completeness, updated_at"),
+    supabase
+      .from("documents")
+      .select("document_type, version, storage_path, created_at")
+      .order("created_at", { ascending: false }),
+  ]);
+
+  const profile = profileRes.data;
+  const company = companyRes.data;
+  const statuses = statusesRes.data;
+  const docs = docsRes.data;
+
+  // Un error de consulta NO puede pasar en silencio: pintaría "Pendiente" y 0%
+  // sobre documentos que sí existen. Se loguea y se avisa en la UI.
+  const queryErrors = [profileRes, companyRes, statusesRes, docsRes]
+    .map((r) => r.error)
+    .filter((e): e is NonNullable<typeof e> => Boolean(e));
+  if (queryErrors.length > 0) {
+    console.error(
+      "[dashboard] error cargando datos del tenant:",
+      queryErrors.map((e) => e.message),
+    );
+  }
 
   // Estado inicial por tipo de documento (último estado + último documento).
   const initial: Partial<Record<DocumentType, DocState>> = {};
@@ -91,6 +107,14 @@ export default async function DashboardPage() {
           empresa aparecerá como{" "}
           <span className="font-medium text-slate-700">[PENDIENTE]</span>.
         </p>
+
+        {queryErrors.length > 0 && (
+          <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            No pudimos cargar parte de la información de tu empresa; lo que ves
+            puede estar incompleto. Recarga la página y, si persiste, contacta
+            soporte.
+          </div>
+        )}
 
         {/* Alerta de RNT (acción real, sin inventar fechas) */}
         <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-accent-100 bg-accent-50 p-4 sm:flex-row sm:items-center sm:justify-between">
