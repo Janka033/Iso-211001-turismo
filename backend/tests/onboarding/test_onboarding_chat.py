@@ -98,8 +98,8 @@ def test_first_turn_sets_activities_and_asks_first_universal(client, make_token,
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    # 12 universales + 5*3 por actividad = 27 esperados; solo `activities` con dato.
-    assert body["completeness"] == round(1 / 27 * 100, 2)
+    # 13 universales + 5*3 por actividad = 28 esperados; solo `activities` con dato.
+    assert body["completeness"] == round(1 / 28 * 100, 2)
     assert body["completed"] is False
     assert body["next_field"]["field_key"] == "main_region"
     assert body["data"]["activities"] == ["rafting", "parapente", "buceo"]
@@ -159,6 +159,29 @@ def test_activity_field_goes_into_activity_fields(client, make_token, wire):
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["data"]["activity_fields"]["equipo_rafting"] == "Balsa, remos, chalecos, cascos"
+
+
+def test_staff_roles_captured_as_dict(client, make_token, wire):
+    # El organigrama llega por el campo dedicado staff_roles (dict), no por el
+    # mapa `extracted` de strings. Alimenta MA-02.
+    wire(
+        ai_output={
+            "extracted": {},
+            "staff_roles": {"gerente": "1", "coordinador": "2", "guia": "6"},
+            "next_field_key": "legal_representative",
+            "next_question": "¿Quién es el representante legal?",
+            "completed": False,
+        },
+        stored={"activities": ["rafting"], "certified_guides": "6"},
+    )
+    resp = client.post(
+        "/onboarding/chat",
+        json={"message": "Somos un gerente, dos coordinadores y seis guías."},
+        headers=_auth(make_token),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["data"]["staff_roles"] == {"gerente": "1", "coordinador": "2", "guia": "6"}
 
 
 def test_invented_keys_are_dropped(client, make_token, wire):
@@ -240,6 +263,7 @@ _ALL_UNIVERSAL = {
     "locations": ["río Suárez"],
     "scope": "Rafting y parapente en Santander",
     "certified_guides": "8",
+    "staff_roles": {"gerente": "1", "guia": "5"},
     "legal_representative": "María Gómez",
     "nit": "900123456-7",
     "rnt_status": "Vigente",
@@ -268,9 +292,9 @@ def test_three_activities_expected_fields_exceed_five():
     checklist = _checklist_for(activities)
     pct, completed = service._measure_dynamic(_ALL_UNIVERSAL, checklist)
 
-    # 12 universales + 15 por actividad = 27 esperados (mucho más que 5).
-    # Con 12 respondidos: 12/27.
-    assert pct == round(12 / 27 * 100, 2)
+    # 13 universales + 15 por actividad = 28 esperados (mucho más que 5).
+    # Con 13 respondidos: 13/28.
+    assert pct == round(13 / 28 * 100, 2)
     assert completed is False
 
 

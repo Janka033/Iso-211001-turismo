@@ -70,6 +70,12 @@ class OnboardingPayload(BaseModel):
         default_factory=dict,
         description="Respuestas por actividad, indexadas por field_key del checklist.",
     )
+    # Organigrama del cliente: cargo -> nº de personas (p.ej. {"gerente": "1",
+    # "guia": "5"}). Alimenta el Manual de perfiles y funciones de cargo (MA-02).
+    staff_roles: dict[str, str] = Field(
+        default_factory=dict,
+        description="Cargos del equipo y número de personas por cargo.",
+    )
 
 
 class OnboardingState(BaseModel):
@@ -124,6 +130,10 @@ class OnboardingExtraction(BaseModel):
     extracted: dict[str, str] = Field(
         default_factory=dict,
         description="field_key -> valor extraído de la última respuesta. Omite lo que no se dijo.",
+    )
+    staff_roles: dict[str, str] = Field(
+        default_factory=dict,
+        description="Cargo -> nº de personas; solo si el cliente lo menciona. No inventar.",
     )
     next_field_key: str | None = Field(
         default=None, description="field_key que la IA propone preguntar (de la lista pendiente)."

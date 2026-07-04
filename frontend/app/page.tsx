@@ -37,8 +37,9 @@ const RUTA = [
   },
 ];
 
-/** Qué le importa al auditor de cada documento núcleo. */
-const AUDITOR_LINE: Record<DocumentType, string> = {
+/** Qué le importa al auditor de cada documento núcleo. Solo los 4 del MVP se
+ * destacan en el landing; el dashboard lista el set completo. */
+const AUDITOR_LINE: Partial<Record<DocumentType, string>> = {
   politica_seguridad:
     "Lo primero que pide el auditor: el compromiso de la dirección, por escrito.",
   matriz_riesgos:
@@ -132,7 +133,7 @@ export default function LandingPage() {
           </p>
 
           <div className="mt-12 grid gap-6 sm:grid-cols-2">
-            {DOCUMENTS.map((d) => (
+            {DOCUMENTS.filter((d) => AUDITOR_LINE[d.type]).map((d) => (
               <article
                 key={d.type}
                 className="group flex flex-col rounded-2xl border border-slate-200 bg-papel shadow-card transition-shadow hover:shadow-card-hover"

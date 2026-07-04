@@ -270,3 +270,161 @@ class IncidentManagementVariables(BaseModel):
     approval_date: str | None = Field(
         default=None, description="Fecha de aprobación (YYYY-MM-DD)."
     )
+
+
+# ---------------------------------------------------------------------------
+# MA-02 · Manual de perfiles y funciones de cargo (numerales 5.3 y 7.2)
+# ---------------------------------------------------------------------------
+
+
+class RoleProfile(BaseModel):
+    """Perfil de un cargo (fila estructurada del manual)."""
+
+    role: str | None = Field(
+        default=None, description="Cargo (p.ej. Gerente, Coordinador Operativo, Guía)."
+    )
+    level: str | None = Field(
+        default=None, description="Nivel: Directivo u Operativo."
+    )
+    purpose: str | None = Field(
+        default=None, description="Objetivo o propósito del cargo."
+    )
+    functions: list[str] = Field(
+        default_factory=list, description="Funciones y responsabilidades del cargo."
+    )
+    requirements: str | None = Field(
+        default=None, description="Requisitos y competencias (formación, experiencia)."
+    )
+    reports_to: str | None = Field(
+        default=None, description="Cargo al que reporta."
+    )
+
+
+class ProfilesManualVariables(BaseModel):
+    """Variables del Manual de perfiles y funciones de cargo (MA-02).
+
+    ``role_profiles`` es estructurado (un perfil por cargo); el resto son
+    campos planos. Se apoya en ``staff_roles`` del onboarding (qué cargos existen).
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    objective: str | None = Field(
+        default=None, description="Objetivo del manual de perfiles y funciones."
+    )
+    scope: str | None = Field(default=None, description="Alcance del manual.")
+    org_structure: str | None = Field(
+        default=None,
+        description="Estructura organizacional (niveles directivo y operativo, cargos).",
+    )
+    role_profiles: list[RoleProfile] = Field(
+        default_factory=list, description="Perfil y funciones por cada cargo."
+    )
+
+
+# ---------------------------------------------------------------------------
+# PR-07 · Procedimiento de comunicación, participación y consulta (numeral 7.4)
+# ---------------------------------------------------------------------------
+
+
+class CommunicationEntry(BaseModel):
+    """Una fila de la matriz de comunicación (4.1)."""
+
+    topic: str | None = Field(default=None, description="Qué se comunica.")
+    method: str | None = Field(default=None, description="Cómo se comunica.")
+    channel: str | None = Field(default=None, description="Vía o medio de comunicación.")
+    audience: str | None = Field(default=None, description="A quién se comunica.")
+    frequency: str | None = Field(default=None, description="Con qué frecuencia.")
+
+
+class CommunicationProcedureVariables(BaseModel):
+    """Variables del Procedimiento de comunicación, participación y consulta (PR-07).
+
+    ``communication_matrix`` es estructurado; el resto son campos planos.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    objective: str | None = Field(
+        default=None, description="Objetivo del procedimiento."
+    )
+    scope: str | None = Field(default=None, description="Alcance del procedimiento.")
+    responsibles: str | None = Field(
+        default=None, description="Responsables del proceso de comunicación."
+    )
+    communication_matrix: list[CommunicationEntry] = Field(
+        default_factory=list,
+        description="Matriz de comunicación: qué/cómo/vía/a quién/frecuencia.",
+    )
+    participation: str | None = Field(
+        default=None, description="Mecanismos de participación del personal (4.2)."
+    )
+    consultation: str | None = Field(
+        default=None, description="Mecanismos de consulta al personal (4.3)."
+    )
+    representation: str | None = Field(
+        default=None,
+        description="Representación del personal en asuntos de seguridad (4.4).",
+    )
+    performance_evaluation: str | None = Field(
+        default=None, description="Cómo se evalúa el desempeño del proceso."
+    )
+    records: str | None = Field(
+        default=None, description="Registros que deja el procedimiento."
+    )
+
+
+# ---------------------------------------------------------------------------
+# MA-03 · Manual de inspección y mantenimiento de equipos (numeral 8.1 + Anexo A)
+# ---------------------------------------------------------------------------
+
+
+class EquipmentInspectionItem(BaseModel):
+    """Una fila del control de equipos (derivada de ``activity_fields``)."""
+
+    activity: str | None = Field(
+        default=None, description="Actividad de aventura a la que pertenece el equipo."
+    )
+    equipment: str | None = Field(
+        default=None, description="Equipo o elemento de seguridad."
+    )
+    state: str | None = Field(
+        default=None, description="Estado: Ok / A revisar / En cuarentena / De baja."
+    )
+    inspection_type: str | None = Field(
+        default=None,
+        description="Tipo de revisión: previa a uso / especial / periódica trimestral.",
+    )
+    frequency: str | None = Field(
+        default=None, description="Frecuencia de inspección/mantenimiento."
+    )
+
+
+class EquipmentManualVariables(BaseModel):
+    """Variables del Manual de inspección y mantenimiento de equipos (MA-03).
+
+    ``equipment_items`` es estructurado y se deriva de ``activity_fields`` del
+    onboarding (equipo_rafting, equipo_buceo, …): NO se captura data nueva.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    objective: str | None = Field(
+        default=None, description="Objetivo del manual de inspección y mantenimiento."
+    )
+    scope: str | None = Field(default=None, description="Alcance del manual.")
+    role_obligations: str | None = Field(
+        default=None,
+        description="Obligaciones por rol (Gerencia, Coordinador, Guía).",
+    )
+    equipment_items: list[EquipmentInspectionItem] = Field(
+        default_factory=list,
+        description="Control de equipos por actividad (derivado del equipo real del cliente).",
+    )
+    maintenance_types: list[str] = Field(
+        default_factory=list,
+        description="Tipos de mantenimiento (revisión previa a uso, especial, periódica).",
+    )

@@ -1,0 +1,83 @@
+"""Generador .docx del Manual de perfiles y funciones de cargo (MA-02, 5.3 + 7.2).
+
+Generador DELGADO: mapea sus Variables a secciones y delega el layout real
+(Calibri, encabezado, firmas, CONTROL DE CAMBIOS) en ``FelipeDocxBuilder``.
+Anti-alucinación: dato faltante = [PENDIENTE].
+"""
+
+from __future__ import annotations
+
+from pydantic import BaseModel
+
+from app.modules.generation.generators.base import (
+    DocumentGenerator,
+    ResolvedField,
+    pending_marker,
+    resolve_text,
+)
+from app.modules.generation.generators.felipe_docx import FelipeDocxBuilder
+from app.modules.generation.schemas import ProfilesManualVariables, RoleProfile
+
+
+class ProfilesManualGenerator(DocumentGenerator):
+    template_version = "manual-perfiles-docx-v2"
+    engine = "docx"
+    custom_fields = frozenset({"role_profiles"})
+
+    def _extra_pending(
+        self, variables: BaseModel, required_fields: set[str] | None
+    ) -> list[str]:
+        assert isinstance(variables, ProfilesManualVariables)
+        if variables.role_profiles or not self._is_required(
+            "role_profiles", required_fields
+        ):
+            return []
+        return ["role_profiles"]
+
+    def _render(
+        self, resolved: dict[str, ResolvedField], variables: BaseModel
+    ) -> bytes:
+        assert isinstance(variables, ProfilesManualVariables)
+
+        def val(key: str) -> str:
+            f = resolved[key]
+            return f.value if isinstance(f.value, str) else "\n".join(f.value)
+
+        b = FelipeDocxBuilder(
+            code="MA-02",
+            title="Manual de perfiles y funciones de cargo",
+            company=val("company_name"),
+            norm_reference="NTC-ISO 21101 — numerales 5.3 y 7.2",
+            approval_date="[PENDIENTE: fecha de aprobación]",
+        )
+        b.section("1. Objetivo", val("objective"))
+        b.section("2. Alcance", val("scope"))
+        b.section("3. Estructura organizacional", val("org_structure"))
+        b.heading("4. Perfiles y funciones por cargo")
+        self._profiles(b, variables.role_profiles)
+        b.signatures()
+        b.change_control()
+        return b.render()
+
+    @staticmethod
+    def _profiles(b: FelipeDocxBuilder, profiles: list[RoleProfile]) -> None:
+        rows = profiles or [RoleProfile()]  # sin perfiles => bloque [PENDIENTE]
+        fd = {k: (v.description or k) for k, v in RoleProfile.model_fields.items()}
+        for p in rows:
+            role, _ = resolve_text(p.role, fd["role"])
+            b.heading(role, level=2)
+            level, _ = resolve_text(p.level, fd["level"])
+            purpose, _ = resolve_text(p.purpose, fd["purpose"])
+            reqs, _ = resolve_text(p.requirements, fd["requirements"])
+            rep, _ = resolve_text(p.reports_to, fd["reports_to"])
+            b.doc.add_paragraph(f"Nivel: {level}")
+            b.doc.add_paragraph(f"Objetivo del cargo: {purpose}")
+            b.doc.add_paragraph(f"Reporta a: {rep}")
+            b.doc.add_paragraph(f"Requisitos y competencias: {reqs}")
+            b.doc.add_paragraph("Funciones:")
+            funcs = [str(f).strip() for f in (p.functions or []) if str(f).strip()]
+            if funcs:
+                for f in funcs:
+                    b.doc.add_paragraph(f, style="List Bullet")
+            else:
+                b.doc.add_paragraph(pending_marker(fd["functions"]), style="List Bullet")

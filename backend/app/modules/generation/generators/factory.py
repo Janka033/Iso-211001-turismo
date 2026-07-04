@@ -12,15 +12,23 @@ from dataclasses import dataclass
 from pydantic import BaseModel
 
 from app.modules.generation.generators.base import DocumentGenerator
+from app.modules.generation.generators.communication_procedure import (
+    CommunicationProcedureGenerator,
+)
 from app.modules.generation.generators.emergency_plan import EmergencyPlanGenerator
+from app.modules.generation.generators.equipment_manual import EquipmentManualGenerator
 from app.modules.generation.generators.incident_management import (
     IncidentManagementGenerator,
 )
+from app.modules.generation.generators.profiles_manual import ProfilesManualGenerator
 from app.modules.generation.generators.risk_matrix import RiskMatrixGenerator
 from app.modules.generation.generators.security_policy import SecurityPolicyGenerator
 from app.modules.generation.schemas import (
+    CommunicationProcedureVariables,
     EmergencyPlanVariables,
+    EquipmentManualVariables,
     IncidentManagementVariables,
+    ProfilesManualVariables,
     RiskMatrixVariables,
     SecurityPolicyVariables,
 )
@@ -72,6 +80,31 @@ _REGISTRY: dict[str, DocumentSpec] = {
         numeral="8.3",
         variables_model=IncidentManagementVariables,
         generator=IncidentManagementGenerator(),
+    ),
+    "manual_perfiles_cargos": DocumentSpec(
+        document_type="manual_perfiles_cargos",
+        title="Manual de perfiles y funciones de cargo",
+        numeral="5.3",
+        variables_model=ProfilesManualVariables,
+        generator=ProfilesManualGenerator(),
+        # 7.2: competencia/formación del personal, base de los perfiles de cargo.
+        extra_rag_numerales=("7.2",),
+    ),
+    "comunicacion_participacion_consulta": DocumentSpec(
+        document_type="comunicacion_participacion_consulta",
+        title="Procedimiento de comunicación, participación y consulta",
+        numeral="7.4",
+        variables_model=CommunicationProcedureVariables,
+        generator=CommunicationProcedureGenerator(),
+    ),
+    "manual_inspeccion_equipos": DocumentSpec(
+        document_type="manual_inspeccion_equipos",
+        title="Manual de inspección y mantenimiento de equipos",
+        numeral="8.1",
+        variables_model=EquipmentManualVariables,
+        generator=EquipmentManualGenerator(),
+        # Anexo A: proceso de gestión del riesgo, base del control de equipos.
+        extra_rag_numerales=("A",),
     ),
 }
 

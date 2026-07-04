@@ -7,7 +7,10 @@ export type DocumentType =
   | "politica_seguridad"
   | "matriz_riesgos"
   | "plan_emergencias"
-  | "gestion_incidentes";
+  | "gestion_incidentes"
+  | "manual_perfiles_cargos"
+  | "comunicacion_participacion_consulta"
+  | "manual_inspeccion_equipos";
 
 export interface DocumentMeta {
   type: DocumentType;
@@ -49,6 +52,30 @@ export const DOCUMENTS: DocumentMeta[] = [
     engine: "docx",
     description:
       "Procedimiento de reporte, investigación y acciones correctivas, con formato de reporte.",
+  },
+  {
+    type: "manual_perfiles_cargos",
+    title: "Manual de perfiles y funciones de cargo",
+    numeral: "5.3",
+    engine: "docx",
+    description:
+      "Estructura organizacional y perfil de cada cargo (funciones, competencias, nivel).",
+  },
+  {
+    type: "comunicacion_participacion_consulta",
+    title: "Comunicación, participación y consulta",
+    numeral: "7.4",
+    engine: "docx",
+    description:
+      "Matriz de comunicación del SGS y mecanismos de participación y consulta del personal.",
+  },
+  {
+    type: "manual_inspeccion_equipos",
+    title: "Inspección y mantenimiento de equipos",
+    numeral: "8.1",
+    engine: "docx",
+    description:
+      "Control de equipos por actividad, estados y tipos de mantenimiento, según el equipo real.",
   },
 ];
 

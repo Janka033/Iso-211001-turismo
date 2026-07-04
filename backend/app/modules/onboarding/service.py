@@ -48,6 +48,7 @@ _UNIVERSAL_QUESTIONS: tuple[tuple[str, str], ...] = (
     ("locations", "¿En qué ubicaciones específicas operan (ríos, cañones, sedes)?"),
     ("scope", "¿Cuál es el alcance de su operación: qué actividades y dónde las prestan?"),
     ("certified_guides", "¿Cuántos guías certificados tiene su operación?"),
+    ("staff_roles", "¿Qué cargos tiene su equipo y cuántas personas hay en cada uno?"),
     ("legal_representative", "¿Quién es el representante legal de la empresa?"),
     ("nit", "¿Cuál es el NIT de la empresa?"),
     ("rnt_status", "¿Su RNT está vigente, por renovar o aún no lo tienen?"),
@@ -176,9 +177,11 @@ def _measure_dynamic(data: dict, checklist: list[dict]) -> tuple[float, bool]:
 
 
 def _sanitize_extracted(raw: dict[str, str], activity_keys: set[str]) -> dict[str, str]:
-    """Deja solo lo que la IA puede tocar: campos universales conocidos o
-    field_keys de las actividades elegidas. Descarta claves inventadas/vacías."""
-    allowed = set(_UNIVERSAL_KEYS) | activity_keys
+    """Deja solo lo que la IA puede tocar por texto: campos universales escalares
+    o field_keys de las actividades elegidas. ``staff_roles`` NO va aquí: es un
+    dict y se captura por su campo dedicado en OnboardingExtraction. Descarta
+    claves inventadas/vacías."""
+    allowed = (set(_UNIVERSAL_KEYS) - {"staff_roles"}) | activity_keys
     return {
         k: v.strip()
         for k, v in raw.items()
@@ -295,6 +298,18 @@ async def chat(
 
         extracted = _sanitize_extracted(ai_out.extracted, activity_keys)
         _apply_extracted(data, extracted, activity_keys)
+
+        # Organigrama: la IA lo devuelve estructurado (cargo -> nº) en su propio
+        # campo; se fusiona con lo ya capturado. Alimenta MA-02.
+        clean_roles = {
+            str(k).strip(): str(v).strip()
+            for k, v in ai_out.staff_roles.items()
+            if str(k).strip() and str(v).strip()
+        }
+        if clean_roles:
+            merged_roles = dict(data.get("staff_roles") or {})
+            merged_roles.update(clean_roles)
+            data["staff_roles"] = merged_roles
 
     # Persistir el estado ya fusionado.
     saved_payload = OnboardingPayload.model_validate(data)

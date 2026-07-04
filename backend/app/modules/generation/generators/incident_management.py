@@ -16,6 +16,7 @@ from docx.shared import Pt
 from pydantic import BaseModel
 
 from app.modules.generation.generators.base import DocumentGenerator, ResolvedField
+from app.modules.generation.generators.felipe_docx import apply_base_style
 
 # Campos del FORMATO (fijos, en blanco para diligenciar).
 _FORM_FIELDS: list[str] = [
@@ -52,6 +53,7 @@ class IncidentManagementGenerator(DocumentGenerator):
             return f.value if isinstance(f.value, list) else [f.value]
 
         doc = Document()
+        apply_base_style(doc)  # Calibri 11 (consistencia del sistema documental)
         title = doc.add_heading("PROCEDIMIENTO DE GESTIÓN DE INCIDENTES", level=0)
         title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 

@@ -15,6 +15,7 @@ from docx.shared import Pt
 from pydantic import BaseModel
 
 from app.modules.generation.generators.base import DocumentGenerator, ResolvedField
+from app.modules.generation.generators.felipe_docx import apply_base_style
 
 
 class SecurityPolicyGenerator(DocumentGenerator):
@@ -33,6 +34,7 @@ class SecurityPolicyGenerator(DocumentGenerator):
             return field.value if isinstance(field.value, list) else [field.value]
 
         doc = Document()
+        apply_base_style(doc)  # Calibri 11 (consistencia del sistema documental)
 
         # --- Encabezado / identidad -------------------------------------
         title = doc.add_heading("POLÍTICA DE SEGURIDAD", level=0)

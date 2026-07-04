@@ -18,6 +18,7 @@ from app.modules.generation.generators.base import (
     ResolvedField,
     resolve_text,
 )
+from app.modules.generation.generators.felipe_docx import apply_base_style
 from app.modules.generation.schemas import EmergencyPlanVariables, EmergencyScenario
 
 # Columnas de la tabla de escenarios: (clave, encabezado).
@@ -59,6 +60,7 @@ class EmergencyPlanGenerator(DocumentGenerator):
             return f.value if isinstance(f.value, list) else [f.value]
 
         doc = Document()
+        apply_base_style(doc)  # Calibri 11 (consistencia del sistema documental)
         title = doc.add_heading("PLAN DE RESPUESTA A EMERGENCIAS", level=0)
         title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
