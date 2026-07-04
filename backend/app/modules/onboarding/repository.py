@@ -13,6 +13,74 @@ from datetime import UTC, datetime
 from app.core.supabase import get_user_client
 
 
+def get_active_onboarding_prompt(token: str) -> dict | None:
+    """Prompt activo del módulo onboarding (datos, no código). Único por módulo."""
+    client = get_user_client(token)
+    res = (
+        client.table("prompt_versions")
+        .select("version, content")
+        .eq("module", "onboarding")
+        .eq("is_active", True)
+        .limit(1)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def get_activity_checklist(activities: list[str], token: str) -> list[dict]:
+    """Filas Parte B (por actividad) de las actividades elegidas.
+
+    Devuelve ``field_key``/``description``/``activity`` deduplicados por
+    ``field_key`` (un mismo requisito puede alimentar 2 documentos y aparecer
+    dos veces). Las filas universales (Parte A) NO salen de aquí: las preguntas
+    transversales las gobierna el service.
+    """
+    if not activities:
+        return []
+    client = get_user_client(token)
+    res = (
+        client.table("extraction_checklist")
+        .select("field_key, description, activity")
+        .in_("activity", activities)
+        .execute()
+    )
+    seen: set[str] = set()
+    out: list[dict] = []
+    for row in res.data or []:
+        if row["field_key"] in seen:
+            continue
+        seen.add(row["field_key"])
+        out.append(row)
+    return out
+
+
+def match_knowledge_chunks(
+    embedding: list[float],
+    numeral: str | None,
+    token: str,
+    source: str | None = None,
+    limit: int = 3,
+) -> list[dict]:
+    """Paso RAG por actividad: top-K chunks por similitud (RPC pgvector de 0006).
+
+    ``numeral=None`` no filtra por numeral: para una actividad el contexto
+    relevante puede estar en varios numerales, así que dejamos que mande la
+    similitud. Copia deliberada de la de generation: un módulo no importa el
+    repository de otro.
+    """
+    client = get_user_client(token)
+    res = client.rpc(
+        "match_knowledge_chunks",
+        {
+            "query_embedding": embedding,
+            "match_count": limit,
+            "filter_source": source,
+            "filter_numeral": numeral,
+        },
+    ).execute()
+    return res.data or []
+
+
 def get_onboarding(tenant_id: str, token: str) -> dict:
     client = get_user_client(token)
     res = (

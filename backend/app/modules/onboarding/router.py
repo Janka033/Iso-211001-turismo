@@ -8,7 +8,12 @@ from fastapi import APIRouter, Depends
 
 from app.core.security import CurrentUser, get_current_user, get_tenant_id
 from app.modules.onboarding import service
-from app.modules.onboarding.schemas import OnboardingPayload, OnboardingState
+from app.modules.onboarding.schemas import (
+    OnboardingChatRequest,
+    OnboardingChatResponse,
+    OnboardingPayload,
+    OnboardingState,
+)
 
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 
@@ -28,3 +33,14 @@ async def update_onboarding(
     tenant_id: str = Depends(get_tenant_id),  # 401 si el JWT no trae el claim
 ) -> OnboardingState:
     return await service.save(payload, tenant_id, user.token)
+
+
+@router.post("/chat", response_model=OnboardingChatResponse)
+async def onboarding_chat(
+    payload: OnboardingChatRequest,
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),  # 401 si el JWT no trae el claim
+) -> OnboardingChatResponse:
+    """Un turno del onboarding conversacional: la IA extrae lo que dijo el
+    cliente y redacta la siguiente pregunta; el backend decide el flujo."""
+    return await service.chat(payload, tenant_id, user.token)

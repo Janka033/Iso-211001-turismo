@@ -7,69 +7,74 @@ import { apiBase } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
 /**
- * Onboarding conversacional conectado al backend.
- * La IA pregunta, el empresario responde con chips o texto; cada respuesta se
- * persiste en `onboarding_data` vía `PUT /onboarding` (merge incremental). El
- * panel "Datos extraídos" y el progreso reflejan lo capturado.
+ * Onboarding conversacional REAL, conectado a `POST /onboarding/chat`.
+ * 1) El empresario marca sus actividades (13 chips → slugs de ACTIVIDADES.md).
+ * 2) La IA pregunta; el backend decide qué campo sigue y extrae lo que el
+ *    cliente dijo (nunca inventa). Cada turno persiste en `onboarding_data`.
+ * El panel "Datos extraídos" y el progreso se arman DINÁMICAMENTE desde la
+ * respuesta del backend (no desde una lista fija de pasos).
  */
 
 const supabase = createClient();
 
-type StepType = "chips" | "multi" | "text";
+// slug (lo que consume el backend) -> etiqueta legible.
+const ACTIVITIES: { slug: string; label: string }[] = [
+  { slug: "rafting", label: "Rafting" },
+  { slug: "rapel", label: "Rápel" },
+  { slug: "espeleologia", label: "Espeleología" },
+  { slug: "parapente", label: "Parapente" },
+  { slug: "cabalgata", label: "Cabalgata" },
+  { slug: "canyoning", label: "Canyoning / Torrentismo" },
+  { slug: "buceo", label: "Buceo" },
+  { slug: "canopy", label: "Canopy / Tirolesa" },
+  { slug: "senderismo", label: "Senderismo / Trekking" },
+  { slug: "atv", label: "Cuatrimotos / ATV" },
+  { slug: "kayak", label: "Kayak" },
+  { slug: "ciclomontanismo", label: "Ciclomontañismo" },
+  { slug: "escalada", label: "Escalada" },
+];
 
-interface Step {
-  key: string;
-  /** Campo del schema OnboardingPayload del backend. */
-  field: string;
-  label: string;
-  question: string;
-  type: StepType;
-  options?: string[];
-  placeholder?: string;
+const ACTIVITY_LABEL: Record<string, string> = Object.fromEntries(
+  ACTIVITIES.map((a) => [a.slug, a.label]),
+);
+
+const UNIVERSAL_LABELS: Record<string, string> = {
+  activities: "Actividades",
+  main_region: "Región principal",
+  locations: "Ubicaciones",
+  scope: "Alcance",
+  certified_guides: "Guías certificados",
+  legal_representative: "Representante legal",
+  nit: "NIT",
+  rnt_status: "Estado del RNT",
+  rnt_number: "Número de RNT",
+  emergency_contacts: "Contactos de emergencia",
+  existing_controls: "Controles actuales",
+  management_commitment: "Compromiso de la dirección",
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  equipo: "Equipo",
+  competencias: "Competencias",
+  emergencias: "Emergencias",
+  riesgos: "Riesgos",
+  seguimiento: "Seguimiento",
+};
+
+interface OnboardingData {
+  activities?: string[];
+  activity_fields?: Record<string, string>;
+  [key: string]: unknown;
 }
 
-const STEPS: Step[] = [
-  {
-    key: "actividades",
-    field: "activities",
-    label: "Actividades",
-    question: "¿Qué actividades de aventura ofrece tu empresa? Elige todas las que apliquen.",
-    type: "multi",
-    options: ["Rafting", "Parapente", "Canopy", "Senderismo", "Buceo", "Escalada", "Espeleología", "Kayak"],
-  },
-  {
-    key: "region",
-    field: "main_region",
-    label: "Región",
-    question: "¿En qué departamento operan principalmente?",
-    type: "chips",
-    options: ["Santander", "Antioquia", "Huila", "Magdalena", "Meta", "Quindío", "Otro"],
-  },
-  {
-    key: "guias",
-    field: "certified_guides",
-    label: "Guías certificados",
-    question: "¿Cuántos guías certificados tiene tu operación?",
-    type: "chips",
-    options: ["1 a 3", "4 a 10", "11 a 25", "Más de 25"],
-  },
-  {
-    key: "representante",
-    field: "legal_representative",
-    label: "Representante legal",
-    question: "¿Quién es el representante legal de la empresa?",
-    type: "text",
-    placeholder: "Nombre y apellido",
-  },
-  {
-    key: "rnt",
-    field: "rnt_status",
-    label: "Estado del RNT",
-    question: "¿Tu Registro Nacional de Turismo (RNT) está vigente?",
-    type: "chips",
-    options: ["Vigente", "Por renovar", "Aún no lo tengo"],
-  },
-];
+interface ChatResponse {
+  next_question: string | null;
+  next_field: { field_key: string; activity: string | null } | null;
+  extracted: Record<string, string>;
+  data: OnboardingData;
+  completeness: number;
+  completed: boolean;
+}
 
 interface Bubble {
   role: "ai" | "user";
@@ -77,90 +82,158 @@ interface Bubble {
 }
 
 const GREETING =
-  "¡Hola! Soy tu asistente de cumplimiento. Te haré algunas preguntas sobre tu operación para preparar tus documentos de seguridad. Nunca invento datos: lo que falte quedará como [PENDIENTE].";
+  "¡Hola! Soy tu asistente de cumplimiento. Con base en tus actividades te haré unas preguntas para preparar tus documentos de seguridad. Nunca invento datos: lo que falte quedará como [PENDIENTE].";
+
+type Phase = "activities" | "chat";
 
 export function OnboardingChat() {
-  const [history, setHistory] = useState<Bubble[]>([
-    { role: "ai", text: GREETING },
-    { role: "ai", text: STEPS[0].question },
-  ]);
-  const [step, setStep] = useState(0);
-  const [extracted, setExtracted] = useState<Record<string, string>>({});
-  const [multiSel, setMultiSel] = useState<string[]>([]);
+  const [phase, setPhase] = useState<Phase>("activities");
+  const [selected, setSelected] = useState<string[]>([]);
+
+  const [history, setHistory] = useState<Bubble[]>([]);
+  const [data, setData] = useState<OnboardingData>({});
+  const [completeness, setCompleteness] = useState(0);
+  const [completed, setCompleted] = useState(false);
   const [textVal, setTextVal] = useState("");
-  const [saveError, setSaveError] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const done = step >= STEPS.length;
-  const progress = Math.round((Object.keys(extracted).length / STEPS.length) * 100);
   const scrollRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [history]);
+  }, [history, loading]);
 
-  // Persiste un campo en onboarding_data vía el backend (merge incremental).
-  async function persist(field: string, value: string | string[]) {
+  // Un turno contra el backend. `message` null en el turno inicial.
+  async function postChat(body: { message: string | null; activities?: string[] }) {
+    setLoading(true);
+    setError(null);
     try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session) return; // sin sesión no persistimos (la ruta está protegida)
-      const res = await fetch(`${apiBase()}/onboarding`, {
-        method: "PUT",
+      if (!session) {
+        setError("Tu sesión expiró. Vuelve a iniciar sesión para continuar.");
+        return null;
+      }
+      const res = await fetch(`${apiBase()}/onboarding/chat`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ [field]: value }),
+        body: JSON.stringify(body),
       });
-      setSaveError(!res.ok);
+      if (!res.ok) {
+        setError(
+          res.status === 503
+            ? "El asistente de IA no está disponible en este momento."
+            : "No se pudo procesar tu respuesta. Intenta de nuevo.",
+        );
+        return null;
+      }
+      return (await res.json()) as ChatResponse;
     } catch {
-      setSaveError(true);
+      setError("No se pudo conectar con el servidor.");
+      return null;
+    } finally {
+      setLoading(false);
     }
   }
 
-  function answer(displayText: string, value: string | string[]) {
-    const current = STEPS[step];
-    const next: Bubble[] = [...history, { role: "user", text: displayText }];
-
-    if (step + 1 < STEPS.length) {
-      next.push({ role: "ai", text: STEPS[step + 1].question });
-    } else {
-      next.push({
+  function applyResponse(resp: ChatResponse) {
+    setData(resp.data);
+    setCompleteness(resp.completeness);
+    setCompleted(resp.completed);
+    setHistory((h) => [
+      ...h,
+      {
         role: "ai",
-        text: "¡Listo! Con esto puedo preparar tu política de seguridad, matriz de riesgos, plan de emergencias y gestión de incidentes. Lo que falte lo marcaré como [PENDIENTE] para que lo completes.",
-      });
-    }
-
-    setHistory(next);
-    setExtracted((e) => ({ ...e, [current.key]: displayText }));
-    setStep(step + 1);
-    setMultiSel([]);
-    setTextVal("");
-    void persist(current.field, value);
+        text:
+          resp.next_question ??
+          "¡Listo! Con esto puedo preparar tus documentos. Lo que falte lo marcaré como [PENDIENTE] para que lo completes.",
+      },
+    ]);
   }
 
-  const current = done ? null : STEPS[step];
+  async function startChat() {
+    if (selected.length === 0) return;
+    setPhase("chat");
+    setHistory([{ role: "ai", text: GREETING }]);
+    const resp = await postChat({ message: null, activities: selected });
+    if (resp) applyResponse(resp);
+  }
+
+  async function sendAnswer() {
+    const text = textVal.trim();
+    if (!text || loading) return;
+    setHistory((h) => [...h, { role: "user", text }]);
+    setTextVal("");
+    const resp = await postChat({ message: text });
+    if (resp) applyResponse(resp);
+  }
+
+  function toggle(slug: string) {
+    setSelected((s) => (s.includes(slug) ? s.filter((x) => x !== slug) : [...s, slug]));
+  }
+
+  if (phase === "activities") {
+    return (
+      <div className="card p-6">
+        <h2 className="text-lg font-semibold text-slate-900">
+          ¿Qué actividades de aventura ofrece tu empresa?
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Elige todas las que apliquen. Con esto personalizamos las preguntas y los documentos.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          {ACTIVITIES.map((a) => {
+            const on = selected.includes(a.slug);
+            return (
+              <button
+                key={a.slug}
+                type="button"
+                onClick={() => toggle(a.slug)}
+                aria-pressed={on}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  on
+                    ? "bg-brand-600 text-white"
+                    : "border border-slate-200 bg-white text-slate-600 hover:border-brand-300"
+                }`}
+              >
+                {a.label}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          disabled={selected.length === 0}
+          onClick={startChat}
+          className="btn-primary mt-6"
+        >
+          Comenzar ({selected.length})
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       {/* Conversación */}
       <div className="card flex h-[560px] flex-col overflow-hidden">
-        {/* Barra de progreso */}
         <div className="border-b border-slate-100 px-5 py-4">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium text-slate-700">Datos capturados</span>
-            <span className="font-semibold text-brand-700">{progress}%</span>
+            <span className="font-semibold text-brand-700">{Math.round(completeness)}%</span>
           </div>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
             <div
               className="h-full rounded-full bg-brand-600 transition-all duration-500"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${completeness}%` }}
             />
           </div>
         </div>
 
-        {/* Mensajes */}
         <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
           {history.map((b, i) =>
             b.role === "ai" ? (
@@ -178,124 +251,113 @@ export function OnboardingChat() {
               </div>
             ),
           )}
+          {loading && (
+            <div className="flex items-start gap-3">
+              <Avatar />
+              <div className="rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-2.5 text-sm text-slate-400">
+                Escribiendo…
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Entrada */}
         <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-4">
-          {current?.type === "chips" && (
-            <div className="flex flex-wrap gap-2">
-              {current.options!.map((o) => (
-                <button
-                  key={o}
-                  type="button"
-                  onClick={() => answer(o, o)}
-                  className="chip transition-colors hover:border-brand-400 hover:text-brand-700"
-                >
-                  {o}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {current?.type === "multi" && (
-            <div>
-              <div className="flex flex-wrap gap-2">
-                {current.options!.map((o) => {
-                  const on = multiSel.includes(o);
-                  return (
-                    <button
-                      key={o}
-                      type="button"
-                      onClick={() =>
-                        setMultiSel((s) => (on ? s.filter((x) => x !== o) : [...s, o]))
-                      }
-                      aria-pressed={on}
-                      className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-                        on
-                          ? "bg-brand-600 text-white"
-                          : "border border-slate-200 bg-white text-slate-600 hover:border-brand-300"
-                      }`}
-                    >
-                      {o}
-                    </button>
-                  );
-                })}
-              </div>
-              <button
-                type="button"
-                disabled={multiSel.length === 0}
-                onClick={() => answer(multiSel.join(", "), multiSel)}
-                className="btn-primary mt-3"
-              >
-                Continuar
-              </button>
-            </div>
-          )}
-
-          {current?.type === "text" && (
+          {!completed ? (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (textVal.trim()) answer(textVal.trim(), textVal.trim());
+                void sendAnswer();
               }}
               className="flex gap-2"
             >
               <input
                 className="input"
-                placeholder={current.placeholder}
+                placeholder="Escribe tu respuesta…"
                 value={textVal}
                 onChange={(e) => setTextVal(e.target.value)}
+                disabled={loading}
                 autoFocus
               />
-              <button type="submit" disabled={!textVal.trim()} className="btn-primary">
+              <button type="submit" disabled={loading || !textVal.trim()} className="btn-primary">
                 Enviar
               </button>
             </form>
-          )}
-
-          {done && (
+          ) : (
             <Link href="/dashboard" className="btn-accent btn-lg w-full justify-center">
               Generar mis documentos
             </Link>
           )}
-
-          {saveError && (
-            <p className="mt-3 text-xs text-amber-600">
-              No se pudo guardar en el servidor; tus respuestas siguen en pantalla.
-            </p>
-          )}
+          {error && <p className="mt-3 text-xs text-amber-600">{error}</p>}
         </div>
       </div>
 
-      {/* Panel de datos extraídos */}
+      {/* Panel de datos extraídos (dinámico) */}
       <aside className="card h-fit p-5">
         <h2 className="text-sm font-semibold text-slate-900">Datos extraídos</h2>
         <p className="mt-1 text-xs text-slate-500">
           Lo que la IA va capturando de tu operación.
         </p>
-        <dl className="mt-4 space-y-3">
-          {STEPS.map((s) => {
-            const val = extracted[s.key];
-            return (
-              <div key={s.key} className="flex items-start justify-between gap-3">
-                <dt className="text-sm text-slate-500">{s.label}</dt>
-                <dd className="text-right">
-                  {val ? (
-                    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-800">
-                      <CheckDot />
-                      <span className="max-w-[150px] truncate">{val}</span>
-                    </span>
-                  ) : (
-                    <span className="badge bg-accent-50 text-accent-600">[PENDIENTE]</span>
-                  )}
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
+        <ExtractedPanel data={data} activities={selected} />
       </aside>
     </div>
   );
+}
+
+function ExtractedPanel({ data, activities }: { data: OnboardingData; activities: string[] }) {
+  const universalEntries = Object.entries(UNIVERSAL_LABELS)
+    .map(([key, label]) => [label, formatValue(data[key])] as const)
+    .filter(([, value]) => value !== null);
+
+  const activityFields = data.activity_fields ?? {};
+
+  return (
+    <div className="mt-4 space-y-4">
+      <dl className="space-y-3">
+        {universalEntries.length === 0 && (
+          <p className="text-xs text-slate-400">Aún no hay datos capturados.</p>
+        )}
+        {universalEntries.map(([label, value]) => (
+          <div key={label} className="flex items-start justify-between gap-3">
+            <dt className="text-sm text-slate-500">{label}</dt>
+            <dd className="max-w-[160px] text-right text-sm font-medium text-slate-800">
+              {value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      {activities.map((slug) => {
+        const rows = Object.entries(CATEGORY_LABELS)
+          .map(([cat, catLabel]) => [catLabel, activityFields[`${cat}_${slug}`]] as const)
+          .filter(([, v]) => Boolean(v));
+        if (rows.length === 0) return null;
+        return (
+          <div key={slug} className="border-t border-slate-100 pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">
+              {ACTIVITY_LABEL[slug] ?? slug}
+            </p>
+            <dl className="mt-2 space-y-2">
+              {rows.map(([catLabel, v]) => (
+                <div key={catLabel} className="flex items-start justify-between gap-3">
+                  <dt className="text-sm text-slate-500">{catLabel}</dt>
+                  <dd className="max-w-[160px] text-right text-sm font-medium text-slate-800">
+                    {v}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function formatValue(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (Array.isArray(value)) return value.length ? value.join(", ") : null;
+  const str = String(value).trim();
+  return str.length ? str : null;
 }
 
 function Avatar() {
@@ -308,16 +370,6 @@ function Avatar() {
           strokeWidth="1.6"
           strokeLinecap="round"
         />
-      </svg>
-    </span>
-  );
-}
-
-function CheckDot() {
-  return (
-    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-100 text-brand-700">
-      <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none">
-        <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>
   );

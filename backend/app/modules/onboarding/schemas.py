@@ -61,6 +61,15 @@ class OnboardingPayload(BaseModel):
         max_length=2000,
         description="Compromiso de la dirección con la seguridad.",
     )
+    # Datos POR ACTIVIDAD (Parte B). Clave = field_key del checklist
+    # (p.ej. ``equipo_rafting``), valor = lo que dijo el cliente. Flexible pero
+    # tipado (dict[str, str], no ``dict`` a secas): cada actividad elegida aporta
+    # sus campos sin tener que declarar una columna por actividad. La generación
+    # los recibe como parte de ``onboarding_data`` sin cambios en su código.
+    activity_fields: dict[str, str] = Field(
+        default_factory=dict,
+        description="Respuestas por actividad, indexadas por field_key del checklist.",
+    )
 
 
 class OnboardingState(BaseModel):
@@ -68,8 +77,79 @@ class OnboardingState(BaseModel):
 
     data: OnboardingPayload
     completeness: float = Field(
-        description="% de campos clave del onboarding con dato (0-100)."
+        description="% de campos esperados del onboarding con dato (0-100)."
     )
     completed: bool = Field(
-        description="True si todos los campos clave tienen dato."
+        description="True si todos los campos esperados tienen dato."
     )
+
+
+# ---------------------------------------------------------------------------
+# Onboarding conversacional (POST /onboarding/chat)
+# ---------------------------------------------------------------------------
+
+
+class OnboardingChatRequest(BaseModel):
+    """Un turno del onboarding conversacional."""
+
+    message: str | None = Field(
+        default=None,
+        max_length=4000,
+        description="Última respuesta del cliente (texto libre). Vacío en el turno inicial.",
+    )
+    activities: list[str] | None = Field(
+        default=None,
+        max_length=40,
+        description="Actividades elegidas (slugs). Fija/actualiza el set por actividad.",
+    )
+
+
+class OnboardingField(BaseModel):
+    """Campo objetivo de la siguiente pregunta."""
+
+    field_key: str
+    activity: str | None = Field(
+        default=None, description="Slug de la actividad si es un campo Parte B; None si universal."
+    )
+
+
+class OnboardingExtraction(BaseModel):
+    """Salida ESTRICTA de la IA por turno (se valida antes de persistir).
+
+    La IA solo EXTRAE lo que el cliente dijo (nunca inventa) y REDACTA la
+    siguiente pregunta; NO decide el flujo: el backend valida ``next_field_key``
+    contra los campos realmente pendientes y manda si difiere.
+    """
+
+    extracted: dict[str, str] = Field(
+        default_factory=dict,
+        description="field_key -> valor extraído de la última respuesta. Omite lo que no se dijo.",
+    )
+    next_field_key: str | None = Field(
+        default=None, description="field_key que la IA propone preguntar (de la lista pendiente)."
+    )
+    next_question: str | None = Field(
+        default=None,
+        description="Redacción natural de la próxima pregunta; None si ya no queda nada.",
+    )
+    completed: bool = Field(
+        default=False, description="La IA cree que ya no falta nada (el backend lo reconfirma)."
+    )
+
+
+class OnboardingChatResponse(BaseModel):
+    """Respuesta de un turno: qué se extrajo + la próxima pregunta + avance."""
+
+    next_question: str | None = Field(
+        description="Próxima pregunta a mostrar; None si el onboarding está completo."
+    )
+    next_field: OnboardingField | None = Field(
+        default=None, description="Campo objetivo de la próxima pregunta."
+    )
+    extracted: dict[str, str] = Field(
+        default_factory=dict,
+        description="Lo extraído en ESTE turno (para refrescar el panel de datos).",
+    )
+    data: OnboardingPayload = Field(description="Estado completo actualizado del onboarding.")
+    completeness: float = Field(description="% de campos esperados con dato (0-100).")
+    completed: bool = Field(description="True si no quedan campos esperados por responder.")

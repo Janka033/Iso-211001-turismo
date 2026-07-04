@@ -73,6 +73,10 @@ def get_checklist(document_type: str, token: str) -> list[dict]:
         client.table("extraction_checklist")
         .select("field_key, description, required")
         .eq("document_type", document_type)
+        # Solo la Parte A (transversal). Las filas por actividad (activity no
+        # nulo) entran con la selección activity-aware de la Fase 2; hasta
+        # entonces el cálculo de los 4 documentos queda idéntico.
+        .is_("activity", "null")
         .execute()
     )
     return res.data or []
