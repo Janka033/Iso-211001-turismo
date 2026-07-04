@@ -28,12 +28,12 @@ from app.config import get_settings
 from app.core.ai.factory import get_ai_provider
 from app.modules.generation import repository
 from app.modules.generation.generators.factory import get_spec
-from app.modules.inventory import service as inventory_service
 from app.modules.generation.schemas import (
     DownloadResponse,
     GeneratedDocument,
     GenerateRequest,
 )
+from app.modules.inventory import service as inventory_service
 
 logger = logging.getLogger(__name__)
 

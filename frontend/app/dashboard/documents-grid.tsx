@@ -174,6 +174,7 @@ function StatusBadge({ status }: { status: DocStatus }) {
     generated: "bg-brand-50 text-brand-700",
     approved: "bg-emerald-50 text-emerald-700",
     rejected: "bg-rose-50 text-rose-700",
+    needs_correction: "bg-amber-50 text-amber-700",
   };
   return <span className={`badge ${styles[status]}`}>{STATUS_LABEL[status]}</span>;
 }

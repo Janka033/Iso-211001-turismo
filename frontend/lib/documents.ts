@@ -57,7 +57,8 @@ export type DocStatus =
   | "generating"
   | "generated"
   | "approved"
-  | "rejected";
+  | "rejected"
+  | "needs_correction";
 
 export const STATUS_LABEL: Record<DocStatus, string> = {
   pending: "Pendiente",
@@ -65,4 +66,5 @@ export const STATUS_LABEL: Record<DocStatus, string> = {
   generated: "Generado",
   approved: "Aprobado",
   rejected: "Rechazado",
+  needs_correction: "Requiere corrección",
 };

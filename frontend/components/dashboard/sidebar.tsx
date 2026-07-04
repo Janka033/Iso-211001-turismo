@@ -16,6 +16,7 @@ const NAV: NavItem[] = [
   { href: "/dashboard", label: "Panel", icon: <IconHome /> },
   { href: "/dashboard#documentos", label: "Documentos", icon: <IconDoc /> },
   { href: "/dashboard/inventario", label: "Inventario", icon: <IconBox /> },
+  { href: "/dashboard/calidad", label: "Calidad", icon: <IconShield /> },
   { href: "/onboarding", label: "Onboarding", icon: <IconChat /> },
   { href: "/dashboard#asistente", label: "Asistente", icon: <IconSpark /> },
   { href: "/dashboard#config", label: "Configuración", icon: <IconGear /> },
@@ -82,6 +83,14 @@ function IconBox() {
     <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
       <path d="M3 6.5 10 3l7 3.5v7L10 17l-7-3.5v-7Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
       <path d="M3 6.5 10 10m0 0 7-3.5M10 10v7" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconShield() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
+      <path d="M10 2.5 16.5 5v4.5c0 4-2.8 6.9-6.5 8-3.7-1.1-6.5-4-6.5-8V5L10 2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <path d="m7.5 9.8 1.8 1.8 3.2-3.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

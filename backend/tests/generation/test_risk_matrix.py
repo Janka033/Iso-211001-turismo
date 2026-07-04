@@ -6,8 +6,8 @@ from openpyxl import load_workbook
 
 from app.modules.generation import repository, service
 from app.modules.generation.generators.risk_matrix import RiskMatrixGenerator
-from app.modules.inventory import service as inventory_service
 from app.modules.generation.schemas import RiskEntry, RiskMatrixVariables
+from app.modules.inventory import service as inventory_service
 
 TENANT_A = "11111111-1111-1111-1111-111111111111"
 
