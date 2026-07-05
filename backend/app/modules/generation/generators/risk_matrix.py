@@ -75,13 +75,13 @@ class RiskMatrixGenerator(DocumentGenerator):
         ws.title = "Matriz de Riesgos"
 
         # --- Cabecera identidad (tipo MT: "solo encabezado", sin firmas) --
-        # Código provisional MT-01: confirmar numeración real con Felipe.
+        # MT-04: código confirmado del sistema documental (2026-07-05).
         ncols = len(_COLUMNS)
         ws.cell(row=1, column=1, value="MATRIZ DE RIESGOS Y OPORTUNIDADES").font = Font(
             bold=True, size=14
         )
         ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=ncols)
-        ws.cell(row=2, column=1, value="Código: MT-01 · Revisión: 01").font = Font(
+        ws.cell(row=2, column=1, value="Código: MT-04 · Revisión: 01").font = Font(
             bold=True
         )
         ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=ncols)

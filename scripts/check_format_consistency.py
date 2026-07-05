@@ -110,9 +110,9 @@ def main() -> int:
             print(f"         - {p}")
         failures += bool(problems)
 
-    problems = check_xlsx("matriz_riesgos", "MT-01")
+    problems = check_xlsx("matriz_riesgos", "MT-04")
     status = "OK" if not problems else "FALLA"
-    print(f"  [{status}] matriz_riesgos (MT-01, xlsx)")
+    print(f"  [{status}] matriz_riesgos (MT-04, xlsx)")
     for p in problems:
         print(f"         - {p}")
     failures += bool(problems)
