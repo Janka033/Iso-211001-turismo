@@ -20,13 +20,36 @@ SaaS multi-tenant que automatiza el cumplimiento de la **NTC-ISO 21101** (sistem
 - **Generación:** python-docx (.docx), openpyxl (.xlsx) — inyección en plantillas, no texto libre
 - **Deploy:** Vercel (front), Railway (back), Supabase Cloud (DB)
 
+## Comandos
+
+Backend (`cd backend`, venv activo, `pip install -e ".[dev]"`):
+
+| Acción                | Comando                                                          |
+| --------------------- | --------------------------------------------------------------- |
+| Correr API (dev)      | `uvicorn app.main:app --reload`                                 |
+| Tests                 | `pytest`                                                        |
+| Un módulo             | `pytest tests/generation`                                      |
+| Un test               | `pytest tests/generation/test_risk_matrix.py::test_nombre`      |
+| Lint                  | `ruff check .`  ·  autofix: `ruff check --fix .`                |
+| Formato/orden imports | `ruff` (line-length 100; reglas `E,F,I,UP,B`, ignora `B008`)   |
+
+Frontend (`cd frontend`, `npm install`): `npm run dev` · `npm run build` · `npm run lint`.
+
+DB y seed (raíz del repo): `supabase start` aplica `supabase/migrations/` en local. Seeds:
+`python scripts/seed_knowledge.py --source norma` (vectoriza norma/ACOTUR a `knowledge_chunks`);
+`python scripts/seed_trainings.py` (transcribe+vectoriza capacitaciones); `scripts/generate_samples.py` (docs de muestra).
+
+**Tests:** `asyncio_mode=auto` (no marcar `@pytest.mark.asyncio`). Fixtures en `tests/conftest.py`: `client` (TestClient) y `make_token(tenant_id, role)` que firma JWT **HS256** con el secreto de la app. Los tests de integración RLS (`tests/auth/test_rls_integration.py`) requieren Supabase local corriendo; el resto corre sin DB usando defaults de prueba.
+
 ## Arquitectura: monolito modular
 
-Un solo proceso FastAPI. Cada módulo tiene `router.py`, `service.py`, `repository.py`, `schemas.py`. Módulos: `auth`, `onboarding`, `generation`, `dashboard`, `assistant`, `admin`, `notifications`.
+Un solo proceso FastAPI (`app/main.py`). Cada módulo en `app/modules/` tiene `router.py`, `service.py`, `repository.py`, `schemas.py`. **Módulos existentes hoy:** `auth`, `onboarding`, `generation`, `inventory`, `quality`. (`dashboard`, `assistant`, `admin`, `notifications` son planificados, aún no implementados.) Infra compartida en `app/core/`: `ai/` (provider Gemini + factory), `security.py` (JWT), `supabase.py`, `config.py`.
 
-**Cadena obligatoria:** router → service → repository → DB. El router nunca llama a la DB. La lógica vive en service. El repository es el ÚNICO que habla con Supabase. Un módulo nunca importa el repository de otro; se comunican vía services.
+**Cadena obligatoria:** router → service → repository → DB. El router nunca llama a la DB. La lógica vive en service. El repository es el ÚNICO que habla con Supabase. Un módulo nunca importa el repository de otro; se comunican vía services (p. ej. `generation.service` llama a `inventory.service`, no a su repository).
 
-**Patrones:** Strategy (`AIProvider`), Repository (acceso a DB), Factory (`DocumentFactory` → generador .docx/.xlsx), Template Method (generadores), Observer (onboarding).
+**Patrones:** Strategy (`AIProvider` en `core/ai/`), Repository (acceso a DB), Factory (`DocumentFactory`), Template Method (`generators/base.py`), Observer (onboarding).
+
+**Añadir un documento nuevo:** el registro único es `generation/generators/factory.py` (`_REGISTRY`): mapea `document_type` → schema Pydantic de variables + generador concreto + numeral(es) de la norma para el RAG. Los 7 tipos actuales (`politica_seguridad`, `matriz_riesgos`, `plan_emergencias`, `gestion_incidentes`, `manual_perfiles_cargos`, `comunicacion_participacion_consulta`, `manual_inspeccion_equipos`) viven ahí. El flujo de `generation/service.py::generate` es fijo: RAG (por numeral, todos los sources) → ensamblar prompt activo desde DB (marcadores `<<...>>`) → `AIProvider` → validación Pydantic → generador → snapshot de reproducibilidad. Ver skill `iso-document-generator`.
 
 ## Reglas de oro (no negociables)
 
