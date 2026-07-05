@@ -28,11 +28,24 @@ class ProfilesManualGenerator(DocumentGenerator):
         self, variables: BaseModel, required_fields: set[str] | None
     ) -> list[str]:
         assert isinstance(variables, ProfilesManualVariables)
-        if variables.role_profiles or not self._is_required(
-            "role_profiles", required_fields
-        ):
-            return []
-        return ["role_profiles"]
+        if not variables.role_profiles:
+            return (
+                ["role_profiles"]
+                if self._is_required("role_profiles", required_fields)
+                else []
+            )
+        # Pendientes de CELDA (patrón de risk_matrix): cada subcampo vacío de
+        # cada perfil real. No mueven la completitud, pero el cliente y el
+        # auditor deben verlos: son los [PENDIENTE: ...] del documento.
+        pending: list[str] = []
+        for i, profile in enumerate(variables.role_profiles):
+            for key in ("role", "level", "purpose", "requirements", "reports_to"):
+                value = getattr(profile, key)
+                if not (value.strip() if isinstance(value, str) else value):
+                    pending.append(f"role_profiles[{i}].{key}")
+            if not [f for f in profile.functions if str(f).strip()]:
+                pending.append(f"role_profiles[{i}].functions")
+        return pending
 
     def _render(
         self, resolved: dict[str, ResolvedField], variables: BaseModel

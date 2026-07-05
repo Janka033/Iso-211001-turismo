@@ -30,6 +30,10 @@ def apply_base_style(doc: Document) -> None:
     normal = doc.styles["Normal"].font
     normal.name = CALIBRI
     normal.size = Pt(11)
+    # Los headings heredan del TEMA de Word (Calibri Light); el sistema
+    # documental de Felipe es Calibri en todo el texto, títulos incluidos.
+    for style_name in ("Title", "Heading 1", "Heading 2", "Heading 3"):
+        doc.styles[style_name].font.name = CALIBRI
 
 
 def _page_field(paragraph, instruction: str) -> None:
@@ -59,7 +63,11 @@ class FelipeDocxBuilder:
         norm_reference: str,
         approval_date: str,
         revision: str = "01",
+        cover: bool = True,
     ) -> None:
+        """``cover=False`` para los tipos "solo encabezado" de la taxonomía
+        (PO Política, PT, FT, MT, FR, AC): llevan encabezado, firmas y control
+        de cambios, pero SIN portada."""
         self.doc = Document()
         apply_base_style(self.doc)
         self.code = code
@@ -70,7 +78,8 @@ class FelipeDocxBuilder:
         self.revision = revision
         self._narrow_margins()
         self._build_header()
-        self._build_cover()
+        if cover:
+            self._build_cover()
 
     # -- Montaje inicial --------------------------------------------------
 

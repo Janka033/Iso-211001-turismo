@@ -40,11 +40,21 @@ class EquipmentManualGenerator(DocumentGenerator):
         self, variables: BaseModel, required_fields: set[str] | None
     ) -> list[str]:
         assert isinstance(variables, EquipmentManualVariables)
-        if variables.equipment_items or not self._is_required(
-            "equipment_items", required_fields
-        ):
-            return []
-        return ["equipment_items"]
+        if not variables.equipment_items:
+            return (
+                ["equipment_items"]
+                if self._is_required("equipment_items", required_fields)
+                else []
+            )
+        # Pendientes de CELDA (patrón de risk_matrix): visibles para el cliente
+        # y el auditor aunque no muevan la completitud de la checklist.
+        pending: list[str] = []
+        for i, entry in enumerate(variables.equipment_items):
+            for key, _ in _EQUIP_COLUMNS:
+                value = getattr(entry, key)
+                if not (value.strip() if isinstance(value, str) else value):
+                    pending.append(f"equipment_items[{i}].{key}")
+        return pending
 
     def _render(
         self, resolved: dict[str, ResolvedField], variables: BaseModel

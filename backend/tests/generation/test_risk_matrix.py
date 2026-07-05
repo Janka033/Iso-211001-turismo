@@ -167,7 +167,7 @@ def test_matrix_endpoint_uses_xlsx_engine(client, make_token, monkeypatch):
     body = resp.json()
     assert captured["engine"] == "xlsx"
     assert body["storage_path"].endswith("v1.xlsx")
-    assert body["template_version"] == "matriz-riesgos-xlsx-v1"
+    assert body["template_version"] == "matriz-riesgos-xlsx-v2"
     assert body["completeness"] == 100.0
     # RAG multi-numeral: la matriz consulta 6.1.1 Y el Anexo A…
     assert captured["numerales"] == ["6.1.1", "A"]

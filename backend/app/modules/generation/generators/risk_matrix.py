@@ -44,7 +44,7 @@ _WRAP = Alignment(wrap_text=True, vertical="top")
 
 
 class RiskMatrixGenerator(DocumentGenerator):
-    template_version = "matriz-riesgos-xlsx-v1"
+    template_version = "matriz-riesgos-xlsx-v2"
     engine = "xlsx"
     custom_fields = frozenset({"risks"})
 
@@ -74,22 +74,27 @@ class RiskMatrixGenerator(DocumentGenerator):
         ws = wb.active
         ws.title = "Matriz de Riesgos"
 
-        # --- Cabecera identidad ----------------------------------------
+        # --- Cabecera identidad (tipo MT: "solo encabezado", sin firmas) --
+        # Código provisional MT-01: confirmar numeración real con Felipe.
         ncols = len(_COLUMNS)
         ws.cell(row=1, column=1, value="MATRIZ DE RIESGOS Y OPORTUNIDADES").font = Font(
             bold=True, size=14
         )
         ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=ncols)
-        ws.cell(row=2, column=1, value=resolved["company_name"].value)
+        ws.cell(row=2, column=1, value="Código: MT-01 · Revisión: 01").font = Font(
+            bold=True
+        )
         ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=ncols)
-        ws.cell(row=3, column=1, value="NTC-ISO 21101 — numeral 6.1.1 y Anexo A").font = (
+        ws.cell(row=3, column=1, value=resolved["company_name"].value)
+        ws.merge_cells(start_row=3, start_column=1, end_row=3, end_column=ncols)
+        ws.cell(row=4, column=1, value="NTC-ISO 21101 — numeral 6.1.1 y Anexo A").font = (
             Font(italic=True)
         )
-        ws.merge_cells(start_row=3, start_column=1, end_row=3, end_column=ncols)
-        ws.cell(row=4, column=1, value=f"Alcance: {resolved['scope'].value}")
         ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=ncols)
-        ws.cell(row=5, column=1, value=f"Metodología: {resolved['methodology'].value}")
+        ws.cell(row=5, column=1, value=f"Alcance: {resolved['scope'].value}")
         ws.merge_cells(start_row=5, start_column=1, end_row=5, end_column=ncols)
+        ws.cell(row=6, column=1, value=f"Metodología: {resolved['methodology'].value}")
+        ws.merge_cells(start_row=6, start_column=1, end_row=6, end_column=ncols)
 
         # --- Encabezado de la tabla ------------------------------------
         header_row = 7

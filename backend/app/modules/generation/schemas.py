@@ -9,7 +9,25 @@ Dos familias de modelos:
   generador lo sustituye por ``[PENDIENTE: ...]``. La IA NUNCA inventa.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+
+class AIVariablesModel(BaseModel):
+    """Base de los modelos que validan la SALIDA de la IA.
+
+    El prompt permite "null (o lista vacía)" para lo que falte, pero un campo
+    ``list[...]`` no acepta null: la IA que obedece literalmente provocaría un
+    502. Aquí se eliminan las claves en null ANTES de validar, de modo que
+    apliquen los defaults del modelo (None / lista vacía). No relaja el schema:
+    tipos incorrectos siguen fallando en la validación.
+    """
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_nulls(cls, data: object) -> object:
+        if isinstance(data, dict):
+            return {k: v for k, v in data.items() if v is not None}
+        return data
 
 
 class GenerateRequest(BaseModel):
@@ -49,7 +67,7 @@ class DownloadResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class SecurityPolicyVariables(BaseModel):
+class SecurityPolicyVariables(AIVariablesModel):
     """Variables de la Política de seguridad (numeral 5.2).
 
     Es el contrato JSON que la IA debe cumplir. ``model_json_schema()`` se
@@ -97,7 +115,7 @@ class SecurityPolicyVariables(BaseModel):
     )
 
 
-class RiskEntry(BaseModel):
+class RiskEntry(AIVariablesModel):
     """Una fila de la matriz de riesgos (un peligro de una actividad)."""
 
     activity: str | None = Field(default=None, description="Actividad de aventura.")
@@ -133,7 +151,7 @@ class RiskEntry(BaseModel):
     )
 
 
-class RiskMatrixVariables(BaseModel):
+class RiskMatrixVariables(AIVariablesModel):
     """Variables de la Matriz de riesgos y oportunidades (numeral 6.1.1 + Anexo A).
 
     ``risks`` es estructurado (filas de la matriz); el generador lo resuelve por
@@ -160,7 +178,7 @@ class RiskMatrixVariables(BaseModel):
     )
 
 
-class EmergencyScenario(BaseModel):
+class EmergencyScenario(AIVariablesModel):
     """Un escenario de emergencia y su respuesta (fila del plan)."""
 
     scenario: str | None = Field(
@@ -180,7 +198,7 @@ class EmergencyScenario(BaseModel):
     )
 
 
-class EmergencyPlanVariables(BaseModel):
+class EmergencyPlanVariables(AIVariablesModel):
     """Variables del Plan de respuesta a emergencias (numeral 8.2).
 
     ``emergency_scenarios`` es estructurado; el resto son campos planos.
@@ -228,7 +246,7 @@ class EmergencyPlanVariables(BaseModel):
     )
 
 
-class IncidentManagementVariables(BaseModel):
+class IncidentManagementVariables(AIVariablesModel):
     """Variables del Procedimiento de gestión de incidentes (numeral 8.3).
 
     El documento incluye el procedimiento (contenido inteligente) y un FORMATO
@@ -277,7 +295,7 @@ class IncidentManagementVariables(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class RoleProfile(BaseModel):
+class RoleProfile(AIVariablesModel):
     """Perfil de un cargo (fila estructurada del manual)."""
 
     role: str | None = Field(
@@ -300,7 +318,7 @@ class RoleProfile(BaseModel):
     )
 
 
-class ProfilesManualVariables(BaseModel):
+class ProfilesManualVariables(AIVariablesModel):
     """Variables del Manual de perfiles y funciones de cargo (MA-02).
 
     ``role_profiles`` es estructurado (un perfil por cargo); el resto son
@@ -328,7 +346,7 @@ class ProfilesManualVariables(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class CommunicationEntry(BaseModel):
+class CommunicationEntry(AIVariablesModel):
     """Una fila de la matriz de comunicación (4.1)."""
 
     topic: str | None = Field(default=None, description="Qué se comunica.")
@@ -338,7 +356,7 @@ class CommunicationEntry(BaseModel):
     frequency: str | None = Field(default=None, description="Con qué frecuencia.")
 
 
-class CommunicationProcedureVariables(BaseModel):
+class CommunicationProcedureVariables(AIVariablesModel):
     """Variables del Procedimiento de comunicación, participación y consulta (PR-07).
 
     ``communication_matrix`` es estructurado; el resto son campos planos.
@@ -381,7 +399,7 @@ class CommunicationProcedureVariables(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class EquipmentInspectionItem(BaseModel):
+class EquipmentInspectionItem(AIVariablesModel):
     """Una fila del control de equipos (derivada de ``activity_fields``)."""
 
     activity: str | None = Field(
@@ -402,7 +420,7 @@ class EquipmentInspectionItem(BaseModel):
     )
 
 
-class EquipmentManualVariables(BaseModel):
+class EquipmentManualVariables(AIVariablesModel):
     """Variables del Manual de inspección y mantenimiento de equipos (MA-03).
 
     ``equipment_items`` es estructurado y se deriva de ``activity_fields`` del

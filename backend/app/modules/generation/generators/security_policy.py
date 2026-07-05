@@ -1,30 +1,34 @@
-"""Generador .docx de la Política de seguridad (numeral 5.2).
+"""Generador .docx de la Política de seguridad (PO-01, numeral 5.2).
 
 La ESTRUCTURA del documento es fija (este código). La IA solo aporta los
 valores de las variables, ya validados por Pydantic y resueltos a texto o
 ``[PENDIENTE: ...]`` por la clase base.
+
+Tipo PO de la taxonomía: "solo encabezado + contenido libre" — lleva el
+encabezado, firmas y CONTROL DE CAMBIOS del sistema documental, SIN portada.
+Código provisional PO-01: confirmar numeración real con Felipe.
 """
 
 from __future__ import annotations
 
-import io
-
-from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt
 from pydantic import BaseModel
 
 from app.modules.generation.generators.base import DocumentGenerator, ResolvedField
-from app.modules.generation.generators.felipe_docx import apply_base_style
+from app.modules.generation.generators.felipe_docx import FelipeDocxBuilder
+from app.modules.generation.schemas import SecurityPolicyVariables
 
 
 class SecurityPolicyGenerator(DocumentGenerator):
-    template_version = "politica-seguridad-docx-v1"
+    template_version = "politica-seguridad-docx-v2"
     engine = "docx"
 
     def _render(
         self, resolved: dict[str, ResolvedField], variables: BaseModel
     ) -> bytes:
+        assert isinstance(variables, SecurityPolicyVariables)
+
         def val(key: str) -> str:
             field = resolved[key]
             return field.value if isinstance(field.value, str) else "\n".join(field.value)
@@ -33,10 +37,24 @@ class SecurityPolicyGenerator(DocumentGenerator):
             field = resolved[key]
             return field.value if isinstance(field.value, list) else [field.value]
 
-        doc = Document()
-        apply_base_style(doc)  # Calibri 11 (consistencia del sistema documental)
+        # Datos de aprobación: reales si el cliente los dio; si no, [PENDIENTE]
+        # con el MISMO marcador que usan MA-02/PR-07/MA-03.
+        approval_date = (variables.approval_date or "").strip() or (
+            "[PENDIENTE: fecha de aprobación]"
+        )
+        legal_rep = (variables.legal_representative or "").strip()
 
-        # --- Encabezado / identidad -------------------------------------
+        b = FelipeDocxBuilder(
+            code="PO-01",
+            title="Política de seguridad",
+            company=val("company_name"),
+            norm_reference="NTC-ISO 21101 — numeral 5.2",
+            approval_date=approval_date,
+            cover=False,  # tipo PO: solo encabezado, sin portada
+        )
+        doc = b.doc
+
+        # --- Identidad (contenido libre del tipo PO) ---------------------
         title = doc.add_heading("POLÍTICA DE SEGURIDAD", level=0)
         title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
@@ -55,52 +73,18 @@ class SecurityPolicyGenerator(DocumentGenerator):
         meta.add_run("Conforme a la NTC-ISO 21101 — numeral 5.2").italic = True
 
         # --- Cuerpo -----------------------------------------------------
-        self._section(doc, "1. Alcance", val("scope"))
-
-        doc.add_heading("2. Actividades de turismo de aventura", level=1)
-        for activity in items("activities"):
-            doc.add_paragraph(activity, style="List Bullet")
-
-        self._section(
-            doc,
-            "3. Compromiso de la alta dirección",
-            val("management_commitment"),
-        )
-
-        doc.add_heading("4. Objetivos de seguridad", level=1)
-        for objective in items("safety_objectives"):
-            doc.add_paragraph(objective, style="List Bullet")
-
-        self._section(
-            doc,
+        b.section("1. Alcance", val("scope"))
+        b.bullet_list("2. Actividades de turismo de aventura", items("activities"))
+        b.section("3. Compromiso de la alta dirección", val("management_commitment"))
+        b.bullet_list("4. Objetivos de seguridad", items("safety_objectives"))
+        b.section(
             "5. Compromiso de cumplimiento legal y reglamentario",
             val("legal_commitment"),
         )
-        self._section(
-            doc,
-            "6. Compromiso de mejora continua",
-            val("continuous_improvement"),
-        )
-        self._section(
-            doc,
-            "7. Comunicación y disponibilidad",
-            val("communication"),
-        )
+        b.section("6. Compromiso de mejora continua", val("continuous_improvement"))
+        b.section("7. Comunicación y disponibilidad", val("communication"))
 
-        # --- Aprobación -------------------------------------------------
-        doc.add_heading("8. Aprobación", level=1)
-        doc.add_paragraph(
-            "Esta política es aprobada por la alta dirección y comunicada a todas "
-            "las partes interesadas."
-        )
-        doc.add_paragraph(f"Representante legal: {val('legal_representative')}")
-        doc.add_paragraph(f"Fecha de aprobación: {val('approval_date')}")
-
-        buffer = io.BytesIO()
-        doc.save(buffer)
-        return buffer.getvalue()
-
-    @staticmethod
-    def _section(doc: Document, heading: str, body: str) -> None:
-        doc.add_heading(heading, level=1)
-        doc.add_paragraph(body)
+        # --- Cierre estándar del sistema documental ----------------------
+        b.signatures(approved=(legal_rep, "Representante legal" if legal_rep else ""))
+        b.change_control()
+        return b.render()

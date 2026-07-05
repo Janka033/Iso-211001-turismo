@@ -56,10 +56,17 @@ def test_emergency_plan_full_no_pending():
     )
     result = EmergencyPlanGenerator().generate(variables)
     assert result.pending_fields == []
-    text = _all_text(_doc(result.content))
+    doc = _doc(result.content)
+    text = _all_text(doc)
     assert "PLAN DE RESPUESTA A EMERGENCIAS" in text
     assert "Volcamiento de balsa" in text
-    assert "[PENDIENTE" not in text
+    # Cierre estándar del sistema documental (formato Felipe).
+    assert "Firmas" in text
+    assert "CONTROL DE CAMBIOS" in text
+    # El CONTENIDO (párrafos) no lleva pendientes. La fecha de FIRMA queda
+    # [PENDIENTE] por diseño (se firma en papel) y vive en la tabla de firmas.
+    paragraphs = "\n".join(p.text for p in doc.paragraphs)
+    assert "[PENDIENTE" not in paragraphs
 
 
 def test_emergency_plan_empty_scenarios_pending():

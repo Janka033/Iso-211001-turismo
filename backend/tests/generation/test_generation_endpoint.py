@@ -138,7 +138,7 @@ def test_generate_full_document(client, make_token, wire):
     # Snapshot de reproducibilidad completo.
     record = captured["record"]
     assert record["prompt_version"] == "v1"
-    assert record["template_version"] == "politica-seguridad-docx-v1"
+    assert record["template_version"] == "politica-seguridad-docx-v2"
     assert record["prompt_hash"]
     assert record["rag_chunks_ids"] == ["aaaaaaaa-0000-0000-0000-000000000001"]
     assert record["variables_snapshot"]["company_name"] == "Aventura Andina SAS"

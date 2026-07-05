@@ -1,4 +1,4 @@
-"""Genera MUESTRAS de los 4 documentos núcleo del MVP con datos de ejemplo.
+"""Genera MUESTRAS de los 7 documentos del MVP con datos de ejemplo.
 
 Sirve para mostrarle a Felipe el FORMATO auditable de cada documento SIN
 necesidad de Gemini ni Supabase: invoca los generadores reales directamente
@@ -21,11 +21,17 @@ sys.path.insert(0, str(ROOT / "backend"))
 
 from app.modules.generation.generators.factory import get_spec, supported_types  # noqa: E402
 from app.modules.generation.schemas import (  # noqa: E402
+    CommunicationEntry,
+    CommunicationProcedureVariables,
     EmergencyPlanVariables,
     EmergencyScenario,
+    EquipmentInspectionItem,
+    EquipmentManualVariables,
     IncidentManagementVariables,
+    ProfilesManualVariables,
     RiskEntry,
     RiskMatrixVariables,
+    RoleProfile,
     SecurityPolicyVariables,
 )
 
@@ -147,6 +153,96 @@ _SAMPLES = {
         review_frequency="Revisión anual del procedimiento.",
         legal_representative="María Gómez",
         approval_date="2026-06-18",
+    ),
+    "manual_perfiles_cargos": ProfilesManualVariables(
+        company_name="Aventura Andina SAS",
+        objective="Definir el perfil, las funciones y los requisitos de cada cargo.",
+        scope="Todo el personal directivo y operativo de la empresa.",
+        org_structure=(
+            "Nivel directivo: Gerente. Nivel operativo: Coordinador de operaciones, "
+            "Técnico de equipos y Guías."
+        ),
+        role_profiles=[
+            RoleProfile(
+                role="Gerente",
+                level="Directivo",
+                purpose="Dirigir la organización y asignar recursos al SGS.",
+                functions=[
+                    "Aprobar la política y los objetivos de seguridad",
+                    "Asignar los recursos del sistema de gestión",
+                ],
+                requirements="Profesional con 3 años de experiencia en turismo.",
+                reports_to="Junta de socios",
+            ),
+            RoleProfile(
+                role="Guía de rafting",
+                level="Operativo",
+                purpose="Conducir la actividad con seguridad.",
+                functions=[
+                    "Realizar el briefing de seguridad",
+                    "Inspeccionar el equipo antes de cada salida",
+                ],
+                requirements="Certificado en rescate acuático y primeros auxilios.",
+                reports_to="Coordinador de operaciones",
+            ),
+        ],
+    ),
+    "comunicacion_participacion_consulta": CommunicationProcedureVariables(
+        company_name="Aventura Andina SAS",
+        objective="Regular la comunicación, participación y consulta del SGS.",
+        scope="Todo el personal y las partes interesadas.",
+        responsibles="Gerente y Coordinador de operaciones.",
+        communication_matrix=[
+            CommunicationEntry(
+                topic="Política de seguridad",
+                method="Inducción y cartelera",
+                channel="Presencial / física",
+                audience="Todo el personal",
+                frequency="Anual y al ingreso",
+            ),
+            CommunicationEntry(
+                topic="Procedimientos operativos",
+                method="Reunión operativa",
+                channel="Presencial",
+                audience="Guías y coordinación",
+                frequency="Mensual",
+            ),
+        ],
+        participation="Reuniones mensuales de seguridad con todo el equipo.",
+        consultation="Consulta previa a cambios de rutas o equipos.",
+        representation="Un guía representa al personal en asuntos de seguridad.",
+        performance_evaluation="Encuesta anual y seguimiento de acuerdos.",
+        records="Actas de reunión y registros de asistencia.",
+    ),
+    "manual_inspeccion_equipos": EquipmentManualVariables(
+        company_name="Aventura Andina SAS",
+        objective="Controlar la inspección y el mantenimiento del equipo de seguridad.",
+        scope="Todo el equipo usado en las actividades de aventura.",
+        role_obligations=(
+            "Gerencia aprueba el programa; el Coordinador lo programa; "
+            "los Guías inspeccionan antes de cada uso."
+        ),
+        equipment_items=[
+            EquipmentInspectionItem(
+                activity="Rafting",
+                equipment="Balsas, remos, chalecos y cascos",
+                state="Ok",
+                inspection_type="previa a uso",
+                frequency="Cada salida",
+            ),
+            EquipmentInspectionItem(
+                activity="Canopy",
+                equipment="Líneas, arneses y poleas",
+                state="Ok",
+                inspection_type="periódica trimestral",
+                frequency="Trimestral",
+            ),
+        ],
+        maintenance_types=[
+            "Revisión previa a cada uso",
+            "Revisión especial (tras un evento)",
+            "Revisión periódica trimestral",
+        ],
     ),
 }
 

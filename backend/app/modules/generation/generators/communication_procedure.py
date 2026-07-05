@@ -39,11 +39,21 @@ class CommunicationProcedureGenerator(DocumentGenerator):
         self, variables: BaseModel, required_fields: set[str] | None
     ) -> list[str]:
         assert isinstance(variables, CommunicationProcedureVariables)
-        if variables.communication_matrix or not self._is_required(
-            "communication_matrix", required_fields
-        ):
-            return []
-        return ["communication_matrix"]
+        if not variables.communication_matrix:
+            return (
+                ["communication_matrix"]
+                if self._is_required("communication_matrix", required_fields)
+                else []
+            )
+        # Pendientes de CELDA (patrón de risk_matrix): visibles para el cliente
+        # y el auditor aunque no muevan la completitud de la checklist.
+        pending: list[str] = []
+        for i, entry in enumerate(variables.communication_matrix):
+            for key, _ in _COMM_COLUMNS:
+                value = getattr(entry, key)
+                if not (value.strip() if isinstance(value, str) else value):
+                    pending.append(f"communication_matrix[{i}].{key}")
+        return pending
 
     def _render(
         self, resolved: dict[str, ResolvedField], variables: BaseModel

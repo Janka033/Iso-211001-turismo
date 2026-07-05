@@ -82,6 +82,49 @@ def test_ma02_empty_marks_pending():
     assert "[PENDIENTE:" in _text(result.content)
 
 
+def test_ma02_partial_profile_reports_cell_pendings():
+    """Patrón de risk_matrix: los [PENDIENTE] de celda de una fila real se
+    reportan uno a uno (visibles para el cliente y el auditor)."""
+    variables = ProfilesManualVariables(
+        company_name="X SAS",
+        objective="Definir perfiles.",
+        scope="Todo el personal.",
+        org_structure="Directivo y operativo.",
+        role_profiles=[RoleProfile(role="Guía")],  # solo el cargo
+    )
+    result = ProfilesManualGenerator().generate(variables)
+    assert "role_profiles" not in result.pending_fields  # hay al menos un perfil
+    assert "role_profiles[0].level" in result.pending_fields
+    assert "role_profiles[0].functions" in result.pending_fields
+    assert "role_profiles[0].role" not in result.pending_fields
+
+
+def test_null_lists_from_ai_are_tolerated():
+    """El prompt permite 'null (o lista vacía)': un null en un campo lista no
+    debe tumbar la validación (502), sino tratarse como dato faltante."""
+    variables = ProfilesManualVariables.model_validate(
+        {"company_name": "X SAS", "objective": None, "role_profiles": None}
+    )
+    assert variables.role_profiles == []
+    assert variables.objective is None
+
+    equip = EquipmentManualVariables.model_validate(
+        {"equipment_items": None, "maintenance_types": None}
+    )
+    assert equip.equipment_items == []
+    assert equip.maintenance_types == []
+
+
+def test_headings_and_title_use_calibri():
+    """Todo el sistema documental es Calibri, títulos incluidos (no el
+    Calibri Light del tema de Word)."""
+    result = ProfilesManualGenerator().generate(ProfilesManualVariables())
+    doc = Document(io.BytesIO(result.content))
+    assert doc.styles["Title"].font.name == "Calibri"
+    assert doc.styles["Heading 1"].font.name == "Calibri"
+    assert doc.styles["Heading 2"].font.name == "Calibri"
+
+
 # ---------------------------------------------------------------------------
 # PR-07 · Comunicación, participación y consulta
 # ---------------------------------------------------------------------------
@@ -124,6 +167,16 @@ def test_pr07_empty_marks_pending():
     )
     assert "communication_matrix" in result.pending_fields
     assert "[PENDIENTE:" in _text(result.content)
+
+
+def test_pr07_partial_row_reports_cell_pendings():
+    variables = CommunicationProcedureVariables(
+        communication_matrix=[CommunicationEntry(topic="Política de seguridad")],
+    )
+    result = CommunicationProcedureGenerator().generate(variables)
+    assert "communication_matrix" not in result.pending_fields
+    assert "communication_matrix[0].frequency" in result.pending_fields
+    assert "communication_matrix[0].topic" not in result.pending_fields
 
 
 # ---------------------------------------------------------------------------
