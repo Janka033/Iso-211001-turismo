@@ -127,6 +127,19 @@ def _category_of(field_key: str) -> str:
     return field_key.split("_", 1)[0]
 
 
+def _dedupe_checklist(checklist: list[dict]) -> list[dict]:
+    """Una fila por ``field_key`` (conserva la primera). La tabla asocia el
+    mismo campo a varios ``document_type``; para preguntar y medir avance el
+    campo es uno solo."""
+    seen: set[str] = set()
+    unique: list[dict] = []
+    for row in checklist:
+        if row["field_key"] not in seen:
+            seen.add(row["field_key"])
+            unique.append(row)
+    return unique
+
+
 def _pending_fields(data: dict, checklist: list[dict]) -> list[dict]:
     """Lista ORDENADA de campos aún sin dato: universales primero, luego por
     actividad (por orden de categoría). Cada item: field_key, activity, prompt."""
@@ -252,6 +265,11 @@ async def chat(
         if activities
         else []
     )
+    # La Parte B repite field_key entre document_types (un mismo campo alimenta
+    # varios documentos). Para el FLUJO y la completitud cuenta el campo ÚNICO:
+    # sin dedupe el denominador se infla (21 filas vs 15 con 3 actividades) y
+    # el prompt lista pendientes duplicados.
+    checklist = _dedupe_checklist(checklist)
     activity_keys = {row["field_key"] for row in checklist}
 
     extracted: dict[str, str] = {}
@@ -280,7 +298,9 @@ async def chat(
         )
 
         try:
-            raw_ai = await provider.generate_json(prompt)
+            # Extracción de campos: el thinking extendido solo agrega latencia
+            # y costo (medido en el ensayo E2E); se desactiva.
+            raw_ai = await provider.generate_json(prompt, thinking_budget=0)
         except Exception as exc:  # noqa: BLE001 - upstream IA
             logger.exception("Fallo al invocar la IA en onboarding chat")
             raise HTTPException(

@@ -32,8 +32,9 @@ class FakeProvider:
     async def embed(self, text: str) -> list[float]:
         return [0.0] * 768
 
-    async def generate_json(self, prompt: str) -> dict:
+    async def generate_json(self, prompt: str, **kwargs) -> dict:
         self.last_prompt = prompt
+        self.last_kwargs = kwargs
         return self._output
 
 
@@ -139,6 +140,22 @@ def test_extracts_multiple_universal_fields(client, make_token, wire):
     # La pregunta de la IA se usa porque coincide con el campo que eligió el backend.
     assert body["next_field"]["field_key"] == "scope"
     assert body["next_question"] == "¿Cuál es el alcance de su operación?"
+
+
+def test_extraction_disables_thinking(client, make_token, wire):
+    """La extracción no necesita razonamiento extendido: el service debe pedir
+    thinking_budget=0 (latencia y costo medidos en el ensayo E2E)."""
+    captured = wire(
+        ai_output={"extracted": {}, "next_field_key": "scope", "completed": False},
+        stored={"activities": ["rafting"]},
+    )
+    resp = client.post(
+        "/onboarding/chat",
+        json={"message": "hola"},
+        headers=_auth(make_token),
+    )
+    assert resp.status_code == 200, resp.text
+    assert captured["provider"].last_kwargs == {"thinking_budget": 0}
 
 
 def test_activity_field_goes_into_activity_fields(client, make_token, wire):
@@ -310,3 +327,59 @@ def test_full_capture_completes():
     assert pending == []
     assert pct == 100.0
     assert completed is True
+
+
+# ---------------------------------------------------------------------------
+# Dedupe de la Parte B: la tabla asocia el MISMO field_key a varios
+# document_type; para el flujo y el % cuenta el campo único.
+# ---------------------------------------------------------------------------
+
+
+def _duplicated_checklist(activities: list[str]) -> list[dict]:
+    """Como la tabla real: equipo_* y competencias_* aparecen 2 veces (asociados
+    a document_types distintos)."""
+    rows = _checklist_for(activities)
+    dupes = [
+        dict(row) for row in rows
+        if row["field_key"].startswith(("equipo_", "competencias_"))
+    ]
+    return rows + dupes
+
+
+def test_dedupe_checklist_keeps_one_row_per_field_key():
+    checklist = _duplicated_checklist(["rafting"])
+    assert len(checklist) == 7  # 5 + 2 duplicadas
+    unique = service._dedupe_checklist(checklist)
+    assert len(unique) == 5
+    assert [r["field_key"] for r in unique] == [
+        f"{cat}_rafting" for cat in _CATS
+    ]
+
+
+def test_duplicated_rows_do_not_inflate_completeness(client, make_token, wire):
+    """Con 3 actividades la tabla real trae 21 filas (15 únicas): el % debe
+    calcularse sobre las únicas y los pendientes no deben repetirse."""
+    captured = wire(ai_output={})
+    monkeypatch_checklist = captured  # legibilidad
+
+    # Recablea la checklist para que devuelva filas duplicadas.
+    import app.modules.onboarding.repository as repo
+
+    original = repo.get_activity_checklist
+    try:
+        repo.get_activity_checklist = (
+            lambda activities, token: _duplicated_checklist(activities)
+        )
+        resp = client.post(
+            "/onboarding/chat",
+            json={"activities": ["rafting", "parapente", "buceo"], "message": None},
+            headers=_auth(make_token),
+        )
+    finally:
+        repo.get_activity_checklist = original
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    # 13 universales + 15 únicos por actividad = 28 esperados (no 34).
+    assert body["completeness"] == round(1 / 28 * 100, 2)
+    assert monkeypatch_checklist is captured

@@ -27,8 +27,10 @@ class Settings(BaseSettings):
     # (output_dimensionality) para calzar con vector(768) de knowledge_chunks.
     gemini_embedding_model: str = "gemini-embedding-001"
     # Timeout (ms) de las llamadas a Gemini. Evita que un upstream colgado
-    # cuelgue la request indefinidamente.
-    gemini_timeout_ms: int = 60000
+    # cuelgue la request indefinidamente. 120s: la generación de documentos
+    # con thinking puede superar los 60s (medido en el ensayo E2E; a 60s los
+    # turnos largos morían en timeout → 502).
+    gemini_timeout_ms: int = 120000
 
     # App
     environment: str = "development"
