@@ -54,23 +54,70 @@ _UNIVERSAL_QUESTIONS: tuple[tuple[str, str], ...] = (
     ("rnt_status", "¿Su RNT está vigente, por renovar o aún no lo tienen?"),
     ("rnt_number", "¿Cuál es el número de RNT?"),
     ("emergency_contacts", "¿Qué contactos de emergencia tienen (bomberos, ambulancia, rescate)?"),
+    # Bloque PL-01 (8.2). Fuente: cuestionario "Caracterización para el Plan de
+    # Respuesta a Emergencias". Responden alertas reales de generation_patterns.
+    (
+        "brigada_emergencias",
+        "¿Cuentan con brigada de emergencias? ¿Qué roles la integran y cómo se "
+        "contacta a cada uno?",
+    ),
+    (
+        "capacitaciones_personal_emergencias",
+        "¿Qué capacitaciones en emergencias tiene el personal (primeros auxilios, "
+        "evacuación y rescate, manejo de incendios, autorrescate u otras)?",
+    ),
+    (
+        "equipos_emergencia",
+        "¿Con qué equipos para emergencias cuentan (botiquín, camilla con "
+        "inmovilizadores, sistema de comunicación —descríbanlo—, otros)?",
+    ),
+    (
+        "organismos_apoyo",
+        "¿Qué organismos de apoyo tienen identificados (Cruz Roja, Defensa Civil, "
+        "bomberos) y en qué teléfonos los contactan?",
+    ),
+    (
+        "hospital_cercano",
+        "¿Cuál es el hospital o centro de salud más cercano (nombre, ubicación, "
+        "distancia y tiempo de acceso)?",
+    ),
+    (
+        "vehiculos_evacuacion",
+        "¿Con qué vehículos contarían para una evacuación y quién es el encargado "
+        "(tipo de vehículo y contacto)?",
+    ),
     ("existing_controls", "¿Qué medidas o controles de seguridad ya aplican en su operación?"),
     ("management_commitment", "¿Cómo se compromete la dirección con la seguridad?"),
 )
 
-# Todos los campos universales que cuentan para la completitud (12).
+# Todos los campos universales que cuentan para la completitud (19: las 18
+# preguntas + `activities`).
 _UNIVERSAL_KEYS: tuple[str, ...] = ("activities",) + tuple(k for k, _ in _UNIVERSAL_QUESTIONS)
 
 # Campos universales de tipo lista (para coercionar el valor extraído por la IA).
-_LIST_FIELDS: frozenset[str] = frozenset({"activities", "locations", "emergency_contacts"})
+_LIST_FIELDS: frozenset[str] = frozenset(
+    {
+        "activities",
+        "locations",
+        "emergency_contacts",
+        "capacitaciones_personal_emergencias",
+        "equipos_emergencia",
+        "organismos_apoyo",
+    }
+)
 
-# Orden de las categorías por actividad (Parte B) al preguntar.
+# Orden de las categorías por actividad (Parte B) al preguntar. `edades` y
+# `restricciones` son los dos campos del cuestionario "Información Técnica de
+# Actividades" con required=true (responden alertas de auditor); el resto de
+# esos campos es opcional y nunca entra al flujo de preguntas.
 _ACTIVITY_CATEGORY_ORDER: tuple[str, ...] = (
     "equipo",
     "competencias",
     "emergencias",
     "riesgos",
     "seguimiento",
+    "edades",
+    "restricciones",
 )
 
 # Plantillas de pregunta por categoría (fallback cuando la IA no redacta, y como
@@ -81,6 +128,11 @@ _ACTIVITY_QUESTION_TEMPLATES: dict[str, str] = {
     "emergencias": "Para {act}, ¿qué protocolos de emergencia tienen definidos? (ref.: {desc})",
     "riesgos": "Para {act}, ¿qué riesgos identifican y cómo los controlan? (ref.: {desc})",
     "seguimiento": "Para {act}, ¿qué seguimiento o registros llevan? (ref.: {desc})",
+    "edades": "Para {act}, ¿cuál es la edad mínima y la máxima permitida para participar?",
+    "restricciones": (
+        "Para {act}, ¿qué restricciones de salud impiden participar "
+        "(embarazo, cirugías recientes, etc.)?"
+    ),
 }
 
 
@@ -128,21 +180,29 @@ def _category_of(field_key: str) -> str:
 
 
 def _dedupe_checklist(checklist: list[dict]) -> list[dict]:
-    """Una fila por ``field_key`` (conserva la primera). La tabla asocia el
-    mismo campo a varios ``document_type``; para preguntar y medir avance el
-    campo es uno solo."""
-    seen: set[str] = set()
+    """Una fila por ``field_key``. La tabla asocia el mismo campo a varios
+    ``document_type``; para preguntar y medir avance el campo es uno solo.
+    Si CUALQUIERA de las filas duplicadas es ``required``, el campo queda
+    ``required``: un campo obligatorio para un documento no se vuelve opcional
+    por el orden en que llegan las filas."""
+    by_key: dict[str, dict] = {}
     unique: list[dict] = []
     for row in checklist:
-        if row["field_key"] not in seen:
-            seen.add(row["field_key"])
+        prev = by_key.get(row["field_key"])
+        if prev is None:
+            row = dict(row)
+            by_key[row["field_key"]] = row
             unique.append(row)
+        elif row.get("required", True) and not prev.get("required", True):
+            prev["required"] = True
     return unique
 
 
 def _pending_fields(data: dict, checklist: list[dict]) -> list[dict]:
-    """Lista ORDENADA de campos aún sin dato: universales primero, luego por
-    actividad (por orden de categoría). Cada item: field_key, activity, prompt."""
+    """Lista ORDENADA de campos OBLIGATORIOS aún sin dato: universales primero,
+    luego por actividad (por orden de categoría). Los campos opcionales
+    (required=false) NUNCA entran aquí: no alargan el camino obligatorio (ver
+    ``_optional_unanswered``). Cada item: field_key, activity, prompt."""
     pending: list[dict] = []
     for key, question in _UNIVERSAL_QUESTIONS:
         if not _has_value(data.get(key)):
@@ -156,6 +216,8 @@ def _pending_fields(data: dict, checklist: list[dict]) -> list[dict]:
         return idx, row["field_key"]
 
     for row in sorted(checklist, key=rank):
+        if not row.get("required", True):
+            continue
         if not activity_fields.get(row["field_key"]):
             cat = _category_of(row["field_key"])
             template = _ACTIVITY_QUESTION_TEMPLATES.get(cat, "Para {act}: {desc}")
@@ -168,6 +230,22 @@ def _pending_fields(data: dict, checklist: list[dict]) -> list[dict]:
     return pending
 
 
+def _optional_unanswered(data: dict, checklist: list[dict]) -> list[dict]:
+    """Campos OPCIONALES (required=false) de la Parte B aún sin dato. No se
+    preguntan nunca; se listan en el prompt para que la IA los extraiga si el
+    cliente los menciona espontáneamente (y sumen completitud al darse)."""
+    activity_fields = data.get("activity_fields") or {}
+    return [
+        {
+            "field_key": row["field_key"],
+            "activity": row.get("activity"),
+            "description": row.get("description", ""),
+        }
+        for row in checklist
+        if not row.get("required", True) and not activity_fields.get(row["field_key"])
+    ]
+
+
 def _measure(data: dict) -> tuple[float, bool]:
     """Avance LEGACY sobre los 5 campos clave fijos (contrato de GET/PUT)."""
     filled = [f for f in _KEY_FIELDS if _has_value(data.get(f))]
@@ -176,14 +254,21 @@ def _measure(data: dict) -> tuple[float, bool]:
 
 
 def _measure_dynamic(data: dict, checklist: list[dict]) -> tuple[float, bool]:
-    """% de campos esperados con dato: 12 universales + los Parte B de las
-    actividades elegidas. Es la completitud del onboarding conversacional."""
+    """% de campos esperados con dato: 19 universales + los Parte B de las
+    actividades elegidas. Es la completitud del onboarding conversacional.
+
+    Los campos OPCIONALES (required=false) solo entran al cálculo si el
+    cliente los dio: suman completitud al responderse, pero su ausencia no
+    baja el % ni bloquea ``completed``."""
     total = len(_UNIVERSAL_KEYS)
     filled = sum(1 for k in _UNIVERSAL_KEYS if _has_value(data.get(k)))
     activity_fields = data.get("activity_fields") or {}
     for row in checklist:
+        has_value = bool(activity_fields.get(row["field_key"]))
+        if not row.get("required", True) and not has_value:
+            continue
         total += 1
-        if activity_fields.get(row["field_key"]):
+        if has_value:
             filled += 1
     pct = round(filled / total * 100, 2) if total else 0.0
     return pct, filled == total
@@ -286,6 +371,7 @@ async def chat(
 
         provider = get_ai_provider()
         pending_before = _pending_fields(data, checklist)
+        optional_before = _optional_unanswered(data, checklist)
         chunks = await _rag(provider, activities, token)
 
         prompt = _assemble_prompt(
@@ -294,6 +380,7 @@ async def chat(
             captured=data,
             last_answer=payload.message.strip(),
             pending=pending_before,
+            optional=optional_before,
             chunks=chunks,
         )
 
@@ -407,6 +494,7 @@ def _assemble_prompt(
     captured: dict,
     last_answer: str,
     pending: list[dict],
+    optional: list[dict],
     chunks: list[dict],
 ) -> str:
     """Rellena los marcadores ``<<...>>`` del prompt activo (mismo mecanismo que
@@ -424,6 +512,16 @@ def _assemble_prompt(
     else:
         pending_lines = "(no quedan campos pendientes)"
 
+    if optional:
+        optional_lines = "\n".join(
+            f"- {o['field_key']}"
+            + (f" (actividad: {o['activity']})" if o["activity"] else "")
+            + f": {o['description']}"
+            for o in optional
+        )
+    else:
+        optional_lines = "(sin campos opcionales pendientes)"
+
     if chunks:
         norm_context = "\n\n".join(
             f"[{c.get('source')} {c.get('numeral')}] {c.get('content')}" for c in chunks
@@ -440,6 +538,7 @@ def _assemble_prompt(
         .replace("<<CAPTURED>>", captured_json)
         .replace("<<LAST_ANSWER>>", last_answer)
         .replace("<<PENDING_FIELDS>>", pending_lines)
+        .replace("<<OPTIONAL_FIELDS>>", optional_lines)
         .replace("<<NORM_CONTEXT>>", norm_context)
         .replace("<<JSON_SCHEMA>>", json_schema)
     )

@@ -49,16 +49,34 @@ const UNIVERSAL_LABELS: Record<string, string> = {
   rnt_status: "Estado del RNT",
   rnt_number: "Número de RNT",
   emergency_contacts: "Contactos de emergencia",
+  brigada_emergencias: "Brigada de emergencias",
+  capacitaciones_personal_emergencias: "Capacitaciones en emergencias",
+  equipos_emergencia: "Equipos de emergencia",
+  organismos_apoyo: "Organismos de apoyo",
+  hospital_cercano: "Hospital más cercano",
+  vehiculos_evacuacion: "Vehículos de evacuación",
   existing_controls: "Controles actuales",
   management_commitment: "Compromiso de la dirección",
 };
 
+// Prefijo del field_key por actividad (`<prefijo>_<slug>`) -> etiqueta.
+// Incluye los campos del cuestionario "Información Técnica de Actividades".
 const CATEGORY_LABELS: Record<string, string> = {
   equipo: "Equipo",
   competencias: "Competencias",
   emergencias: "Emergencias",
   riesgos: "Riesgos",
   seguimiento: "Seguimiento",
+  edades_permitidas: "Edades permitidas",
+  restricciones_salud: "Restricciones de salud",
+  ruta_descripcion: "Ruta",
+  grupo_participantes: "Grupo (mín–máx)",
+  competencias_requeridas_participante: "Competencias del participante",
+  equipos_operacion: "Equipos de operación",
+  equipos_rescate: "Equipos de rescate",
+  indumentaria: "Indumentaria",
+  seguro_contratado: "Seguro",
+  politica_cancelacion: "Política de cancelación",
 };
 
 interface OnboardingData {

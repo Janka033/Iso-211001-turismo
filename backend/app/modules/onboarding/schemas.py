@@ -61,6 +61,48 @@ class OnboardingPayload(BaseModel):
         max_length=2000,
         description="Compromiso de la dirección con la seguridad.",
     )
+    # Preparación y respuesta ante emergencias (PL-01, 8.2). Fuente: cuestionario
+    # "Caracterización para el Plan de Respuesta a Emergencias" (Calidad
+    # Turística Colombiana). Responden alertas reales de generation_patterns.
+    brigada_emergencias: str | None = Field(
+        default=None,
+        max_length=2000,
+        description="Brigada de emergencias: existencia, roles que la integran y contactos.",
+    )
+    capacitaciones_personal_emergencias: list[str] = Field(
+        default_factory=list,
+        max_length=40,
+        description=(
+            "Capacitaciones del personal en emergencias (primeros auxilios, "
+            "evacuación y rescate, manejo de incendios, autorrescate, otras)."
+        ),
+    )
+    equipos_emergencia: list[str] = Field(
+        default_factory=list,
+        max_length=60,
+        description=(
+            "Equipos para atención de emergencias (botiquín, camilla con "
+            "inmovilizadores, sistema de comunicación con su descripción, otros)."
+        ),
+    )
+    organismos_apoyo: list[str] = Field(
+        default_factory=list,
+        max_length=40,
+        description="Organismos de apoyo identificados y sus teléfonos.",
+    )
+    hospital_cercano: str | None = Field(
+        default=None,
+        max_length=500,
+        description=(
+            "Hospital o centro de salud más cercano: nombre, ubicación, "
+            "distancia y tiempo de acceso."
+        ),
+    )
+    vehiculos_evacuacion: str | None = Field(
+        default=None,
+        max_length=1000,
+        description="Vehículos disponibles para evacuación: tipo y contacto del encargado.",
+    )
     # Datos POR ACTIVIDAD (Parte B). Clave = field_key del checklist
     # (p.ej. ``equipo_rafting``), valor = lo que dijo el cliente. Flexible pero
     # tipado (dict[str, str], no ``dict`` a secas): cada actividad elegida aporta

@@ -30,27 +30,33 @@ def get_active_onboarding_prompt(token: str) -> dict | None:
 def get_activity_checklist(activities: list[str], token: str) -> list[dict]:
     """Filas Parte B (por actividad) de las actividades elegidas.
 
-    Devuelve ``field_key``/``description``/``activity`` deduplicados por
-    ``field_key`` (un mismo requisito puede alimentar 2 documentos y aparecer
-    dos veces). Las filas universales (Parte A) NO salen de aquí: las preguntas
-    transversales las gobierna el service.
+    Devuelve ``field_key``/``description``/``activity``/``required``
+    deduplicados por ``field_key`` (un mismo requisito puede alimentar 2
+    documentos y aparecer dos veces). Si CUALQUIERA de las filas duplicadas es
+    ``required``, el campo queda ``required``: un campo obligatorio para un
+    documento no se vuelve opcional por el orden en que llegan las filas. Las
+    filas universales (Parte A) NO salen de aquí: las preguntas transversales
+    las gobierna el service.
     """
     if not activities:
         return []
     client = get_user_client(token)
     res = (
         client.table("extraction_checklist")
-        .select("field_key, description, activity")
+        .select("field_key, description, activity, required")
         .in_("activity", activities)
         .execute()
     )
-    seen: set[str] = set()
+    by_key: dict[str, dict] = {}
     out: list[dict] = []
     for row in res.data or []:
-        if row["field_key"] in seen:
-            continue
-        seen.add(row["field_key"])
-        out.append(row)
+        prev = by_key.get(row["field_key"])
+        if prev is None:
+            row = dict(row)
+            by_key[row["field_key"]] = row
+            out.append(row)
+        elif row.get("required", True) and not prev.get("required", True):
+            prev["required"] = True
     return out
 
 

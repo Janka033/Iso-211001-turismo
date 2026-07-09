@@ -25,6 +25,43 @@ def _checklist_for(activities: list[str]) -> list[dict]:
     return rows
 
 
+def _levantamiento_rows(act: str) -> list[dict]:
+    """Simula los campos del cuestionario "Información Técnica de Actividades"
+    (0025): 2 obligatorios (responden alertas de auditor) + 3 opcionales."""
+    return [
+        {
+            "field_key": f"edades_permitidas_{act}",
+            "description": "Edad mínima y máxima permitida",
+            "activity": act,
+            "required": True,
+        },
+        {
+            "field_key": f"restricciones_salud_{act}",
+            "description": "Restricciones de salud para participar",
+            "activity": act,
+            "required": True,
+        },
+        {
+            "field_key": f"ruta_descripcion_{act}",
+            "description": "Ruta: inicio, fin, tipo y dificultad",
+            "activity": act,
+            "required": False,
+        },
+        {
+            "field_key": f"grupo_participantes_{act}",
+            "description": "Mínimo y máximo de participantes",
+            "activity": act,
+            "required": False,
+        },
+        {
+            "field_key": f"seguro_contratado_{act}",
+            "description": "Seguro contratado para la actividad",
+            "activity": act,
+            "required": False,
+        },
+    ]
+
+
 class FakeProvider:
     def __init__(self, output: dict):
         self._output = output
@@ -64,7 +101,10 @@ def wire(monkeypatch):
         monkeypatch.setattr(
             repository,
             "get_active_onboarding_prompt",
-            lambda token: {"version": "v1", "content": "PENDIENTES: <<PENDING_FIELDS>>"},
+            lambda token: {
+                "version": "v2",
+                "content": "PENDIENTES: <<PENDING_FIELDS>>\nOPCIONALES: <<OPTIONAL_FIELDS>>",
+            },
         )
         monkeypatch.setattr(
             repository, "match_knowledge_chunks", lambda emb, numeral, token: []
@@ -99,8 +139,8 @@ def test_first_turn_sets_activities_and_asks_first_universal(client, make_token,
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    # 13 universales + 5*3 por actividad = 28 esperados; solo `activities` con dato.
-    assert body["completeness"] == round(1 / 28 * 100, 2)
+    # 19 universales + 5*3 por actividad = 34 esperados; solo `activities` con dato.
+    assert body["completeness"] == round(1 / 34 * 100, 2)
     assert body["completed"] is False
     assert body["next_field"]["field_key"] == "main_region"
     assert body["data"]["activities"] == ["rafting", "parapente", "buceo"]
@@ -286,6 +326,12 @@ _ALL_UNIVERSAL = {
     "rnt_status": "Vigente",
     "rnt_number": "12345",
     "emergency_contacts": ["Bomberos 119"],
+    "brigada_emergencias": "Sí: la lidera el coordinador (300 111 2233)",
+    "capacitaciones_personal_emergencias": ["Primeros auxilios", "Rescate en agua"],
+    "equipos_emergencia": ["Botiquín", "Camilla con inmovilizadores", "Radio VHF"],
+    "organismos_apoyo": ["Cruz Roja 132", "Bomberos San Gil 119"],
+    "hospital_cercano": "Hospital de San Gil, a 20 minutos",
+    "vehiculos_evacuacion": "Camioneta 4x4 — Juan (310 000 0000)",
     "existing_controls": "Chequeo de equipo",
     "management_commitment": "La dirección prioriza la seguridad",
 }
@@ -309,9 +355,9 @@ def test_three_activities_expected_fields_exceed_five():
     checklist = _checklist_for(activities)
     pct, completed = service._measure_dynamic(_ALL_UNIVERSAL, checklist)
 
-    # 13 universales + 15 por actividad = 28 esperados (mucho más que 5).
-    # Con 13 respondidos: 13/28.
-    assert pct == round(13 / 28 * 100, 2)
+    # 19 universales + 15 por actividad = 34 esperados (mucho más que 5).
+    # Con 19 respondidos: 19/34.
+    assert pct == round(19 / 34 * 100, 2)
     assert completed is False
 
 
@@ -380,6 +426,165 @@ def test_duplicated_rows_do_not_inflate_completeness(client, make_token, wire):
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    # 13 universales + 15 únicos por actividad = 28 esperados (no 34).
-    assert body["completeness"] == round(1 / 28 * 100, 2)
+    # 19 universales + 15 únicos por actividad = 34 esperados (no 40).
+    assert body["completeness"] == round(1 / 34 * 100, 2)
     assert monkeypatch_checklist is captured
+
+
+# ---------------------------------------------------------------------------
+# Campos del levantamiento (0025): los required=false NUNCA se preguntan ni
+# castigan la completitud, pero suman si el cliente los da espontáneamente.
+# ---------------------------------------------------------------------------
+
+
+def test_optional_fields_are_never_asked():
+    checklist = _checklist_for(["rafting"]) + _levantamiento_rows("rafting")
+    data = dict(_ALL_UNIVERSAL, activities=["rafting"])
+    pending = service._pending_fields(data, checklist)
+
+    keys = [p["field_key"] for p in pending]
+    # Los obligatorios nuevos SÍ se preguntan, tras las 5 categorías de 0021;
+    # los opcionales (ruta, grupo, seguro) no aparecen jamás.
+    assert keys == [f"{cat}_rafting" for cat in _CATS] + [
+        "edades_permitidas_rafting",
+        "restricciones_salud_rafting",
+    ]
+
+
+def test_optional_absence_does_not_lower_completeness_nor_block_completion():
+    checklist = _checklist_for(["rafting"]) + _levantamiento_rows("rafting")
+    data = dict(_ALL_UNIVERSAL)
+    data["activities"] = ["rafting"]
+    data["activity_fields"] = {f"{cat}_rafting": "ok" for cat in _CATS}
+    data["activity_fields"]["edades_permitidas_rafting"] = "12 a 60 años"
+    data["activity_fields"]["restricciones_salud_rafting"] = "Embarazo, cirugías recientes"
+
+    pending = service._pending_fields(data, checklist)
+    pct, completed = service._measure_dynamic(data, checklist)
+    assert pending == []
+    assert pct == 100.0
+    assert completed is True
+
+
+def test_optional_fields_add_to_completeness_when_given():
+    checklist = _checklist_for(["rafting"]) + _levantamiento_rows("rafting")
+    data = dict(_ALL_UNIVERSAL, activities=["rafting"])
+
+    # 19 universales llenos; 7 obligatorios por actividad vacíos => 19/26.
+    pct_before, _ = service._measure_dynamic(data, checklist)
+    assert pct_before == round(19 / 26 * 100, 2)
+
+    # Un opcional dado espontáneamente entra al numerador Y al denominador.
+    data["activity_fields"] = {"seguro_contratado_rafting": "Póliza Sura 123"}
+    pct_after, completed = service._measure_dynamic(data, checklist)
+    assert pct_after == round(20 / 27 * 100, 2)
+    assert pct_after > pct_before
+    assert completed is False
+
+
+def test_dedupe_checklist_keeps_required_when_duplicated_row_is_optional():
+    # El mismo field_key puede alimentar 2 documentos con exigencia distinta;
+    # el dedupe no debe degradar un campo obligatorio según el orden de filas.
+    rows = [
+        {
+            "field_key": "restricciones_salud_rafting",
+            "description": "Restricciones de salud",
+            "activity": "rafting",
+            "required": False,
+        },
+        {
+            "field_key": "restricciones_salud_rafting",
+            "description": "Restricciones de salud",
+            "activity": "rafting",
+            "required": True,
+        },
+    ]
+    unique = service._dedupe_checklist(rows)
+    assert len(unique) == 1
+    assert unique[0]["required"] is True
+
+
+def test_chat_extracts_optional_field_spontaneously(client, make_token, wire):
+    """La IA puede extraer un opcional mencionado de pasada: se persiste en
+    activity_fields y el prompt lo lista como OPCIONAL, no como pendiente."""
+    captured = wire(
+        ai_output={
+            "extracted": {
+                "equipo_rafting": "Balsa y cascos",
+                "seguro_contratado_rafting": "Póliza de accidentes Sura",
+            },
+            "next_field_key": "competencias_rafting",
+            "next_question": "¿Qué certificaciones tienen sus guías de rafting?",
+            "completed": False,
+        },
+        stored={**_ALL_UNIVERSAL, "activities": ["rafting"]},
+    )
+
+    import app.modules.onboarding.repository as repo
+
+    original = repo.get_activity_checklist
+    try:
+        repo.get_activity_checklist = lambda activities, token: (
+            _checklist_for(activities) + _levantamiento_rows("rafting")
+        )
+        resp = client.post(
+            "/onboarding/chat",
+            json={"message": "Balsa y cascos; además tenemos póliza con Sura."},
+            headers=_auth(make_token),
+        )
+    finally:
+        repo.get_activity_checklist = original
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    fields = body["data"]["activity_fields"]
+    assert fields["seguro_contratado_rafting"] == "Póliza de accidentes Sura"
+    assert body["next_field"]["field_key"] == "competencias_rafting"
+
+    # El prompt separa PENDIENTES (obligatorios) de OPCIONALES.
+    prompt = captured["provider"].last_prompt
+    pendientes, opcionales = prompt.split("OPCIONALES:")
+    assert "seguro_contratado_rafting" in opcionales
+    assert "seguro_contratado_rafting" not in pendientes
+    assert "edades_permitidas_rafting" in pendientes
+
+
+def test_new_emergency_universals_enter_flow_and_coerce_lists(client, make_token, wire):
+    """El bloque PL-01 (brigada, organismos, etc.) entra al camino obligatorio
+    tras emergency_contacts; los campos de lista se coercionan."""
+    stored = {
+        k: v
+        for k, v in _ALL_UNIVERSAL.items()
+        if k
+        not in (
+            "brigada_emergencias",
+            "capacitaciones_personal_emergencias",
+            "equipos_emergencia",
+            "organismos_apoyo",
+            "hospital_cercano",
+            "vehiculos_evacuacion",
+        )
+    }
+    wire(
+        ai_output={
+            "extracted": {
+                "brigada_emergencias": "Sí, la lidera el coordinador de operaciones",
+                "organismos_apoyo": "Cruz Roja 132; Bomberos 119",
+            },
+            "next_field_key": "capacitaciones_personal_emergencias",
+            "next_question": "¿Qué capacitaciones en emergencias tiene el personal?",
+            "completed": False,
+        },
+        stored=stored,
+    )
+    resp = client.post(
+        "/onboarding/chat",
+        json={"message": "Sí hay brigada; nos apoyan Cruz Roja y bomberos."},
+        headers=_auth(make_token),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["data"]["brigada_emergencias"] == "Sí, la lidera el coordinador de operaciones"
+    assert body["data"]["organismos_apoyo"] == ["Cruz Roja 132", "Bomberos 119"]
+    # El backend elige el primer universal aún pendiente del bloque PL-01.
+    assert body["next_field"]["field_key"] == "capacitaciones_personal_emergencias"

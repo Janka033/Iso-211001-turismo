@@ -149,7 +149,9 @@ async def generate(
     result = spec.generator.generate(variables, required_fields)
 
     # 6. Persistir: snapshot de reproducibilidad + estado.
-    completeness = _completeness(checklist, result.pending_fields)
+    completeness = _completeness(
+        checklist, result.pending_fields, set(spec.variables_model.model_fields)
+    )
     version = await _run(repository.next_version, tenant_id, document_type, token)
     storage_path = await _run(
         repository.upload_document,
@@ -385,12 +387,23 @@ def _group_inventory(items: list) -> dict[str, list[dict]]:
     return grouped
 
 
-def _completeness(checklist: list[dict], pending_fields: list[str]) -> float:
+def _completeness(
+    checklist: list[dict], pending_fields: list[str], model_fields: set[str]
+) -> float:
     """% de campos OBLIGATORIOS que quedaron con dato (0-100).
+
+    Solo cuentan los field_key que el generador puede resolver (campos del
+    modelo de variables): la checklist puede ir por delante del modelo (p. ej.
+    los campos de levantamiento de PL-01 aún sin variable/plantilla) y esos ni
+    inflan el % como "llenos" ni castigan como pendientes.
 
     Si no hay checklist, no podemos medir contra requisitos: devolvemos 0.0.
     """
-    required = [c["field_key"] for c in checklist if c.get("required")]
+    required = [
+        c["field_key"]
+        for c in checklist
+        if c.get("required") and c["field_key"] in model_fields
+    ]
     if not required:
         return 0.0
     pending = set(pending_fields)

@@ -218,3 +218,18 @@ def test_list_document_types(client, make_token):
     resp = client.get("/generation/document-types", headers=_auth(make_token))
     assert resp.status_code == 200
     assert "politica_seguridad" in resp.json()
+
+
+def test_completeness_ignores_checklist_fields_outside_model():
+    """La checklist puede ir por delante del modelo de variables (0025: campos
+    de levantamiento de PL-01 aún sin variable/plantilla). Esos field_key no
+    deben contarse como "llenos" (inflarían el %) ni como pendientes."""
+    checklist = CHECKLIST + [
+        {"field_key": "brigada_emergencias", "description": "Brigada", "required": True},
+    ]
+    model_fields = {c["field_key"] for c in CHECKLIST}
+
+    # Todos los obligatorios del modelo llenos => 100, no 7/8.
+    assert service._completeness(checklist, [], model_fields) == 100.0
+    # Con un obligatorio real pendiente, el % se mide solo sobre el modelo.
+    assert service._completeness(checklist, ["scope"], model_fields) == round(6 / 7 * 100, 2)
