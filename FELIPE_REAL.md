@@ -52,18 +52,28 @@ está aquí, NO se inventa — se pregunta o se deja [PENDIENTE].
 - **MA-03, Alcance (confirmación final de Felipe, 2026-07-09):** "Aplica a todas las
   cuatrimotos, cascos y elementos de protección personal utilizados en las actividades de
   ATV operadas por TOURS AND ADVENTURES en Salento."
-- **PO-01, Política de seguridad (texto confirmado por Felipe):** "En TOURS AND ADVENTURES,
-  nos dedicamos a ofrecer experiencias recreativas y de aventura en contacto con la
-  naturaleza, especialmente a través de actividades como cuatrimotos, reconocemos que la
-  seguridad de nuestros clientes, colaboradores y partes interesadas es un pilar fundamental
-  en todas nuestras operaciones. Por lo anterior, la alta dirección se compromete a
-  establecer, mantener y mejorar continuamente el Sistema de Gestión de Seguridad para
-  Actividades de Aventura, bajo los siguientes principios: 1. Apropiación del propósito
-  organizacional. 2. Marco para los objetivos de seguridad. 3. Cumplimiento de requisitos
-  aplicables (NTC-ISO 21101, Resolución 0612 de 2024). 4. Mejora continua."
-  ⚠️ La redacción EXTENDIDA de cada principio no quedó registrada en esta base — los
-  títulos son los confirmados. Si Felipe/Janka tienen el texto ampliado de cada principio,
-  agregarlo aquí y regenerar PO-01.
+- **PO-01, Política de seguridad (texto COMPLETO confirmado por Felipe, 2026-07-09):**
+  "En TOURS AND ADVENTURES, nos dedicamos a ofrecer experiencias recreativas y de aventura
+  en contacto con la naturaleza, especialmente a través de actividades como cuatrimotos,
+  reconocemos que la seguridad de nuestros clientes, colaboradores y partes interesadas es
+  un pilar fundamental en todas nuestras operaciones. Por lo anterior, la alta dirección se
+  compromete a establecer, mantener y mejorar continuamente el Sistema de Gestión de
+  Seguridad para Actividades de Aventura, bajo los siguientes principios:
+  1. Apropiación del propósito organizacional: Nuestra política está alineada con el
+  propósito de brindar servicios turísticos seguros, sostenibles y de alta calidad,
+  asegurando el bienestar de quienes participan en nuestras actividades.
+  2. Marco para los objetivos de seguridad: Esta política orienta el establecimiento de
+  objetivos y metas específicas en materia de seguridad, tales como la gestión integral de
+  riesgos, la capacitación continua, la mejora en los procedimientos operativos y la
+  evaluación permanente de nuestro desempeño.
+  3. Cumplimiento de requisitos aplicables: Garantizamos el cumplimiento de la normatividad
+  legal vigente, incluidos los requisitos establecidos en la NTC ISO 21101, la Resolución
+  0612 de 2024, y otras disposiciones regulatorias o contractuales que apliquen a nuestra
+  actividad.
+  4. Mejora continua: Promovemos una cultura organizacional de mejora continua, en la que
+  todas las personas contribuyen activamente a fortalecer la seguridad de nuestras
+  operaciones mediante la revisión periódica de procesos, el análisis de retroalimentación
+  y la innovación en los servicios."
 - **PR-07, Objetivo (confirmado por Felipe):** "Definir las estrategias de comunicación y
   consulta, de manera que sean precisas y accesibles, promoviendo la participación y
   consulta con el personal, los proveedores de actividades de turismo de aventura,
@@ -75,6 +85,8 @@ está aquí, NO se inventa — se pregunta o se deja [PENDIENTE].
   "Capacitaciones" — el personal participa y es consultado en el espacio de las
   capacitaciones periódicas. No hay otros mecanismos confirmados; no derivar reuniones,
   comités ni buzones que el cliente no mencionó.
+- **PR-07, Responsable del proceso de comunicación y consulta (confirmado por Felipe,
+  2026-07-09):** el Coordinador.
 - **Su SGS real fue aprobado el 30/12/2025** (fecha que aparece consistente en sus documentos
   — útil como referencia de qué tan reciente es su sistema, no para reusar como fecha nuestra).
 
