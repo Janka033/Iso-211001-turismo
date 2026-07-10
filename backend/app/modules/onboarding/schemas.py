@@ -118,6 +118,14 @@ class OnboardingPayload(BaseModel):
         default_factory=dict,
         description="Cargos del equipo y número de personas por cargo.",
     )
+    # Códigos CONFIRMADOS del SGS del cliente: document_type -> código (p.ej.
+    # {"matriz_riesgos": "MT-04"}). Solo códigos que el cliente confirmó; los
+    # tipos sin entrada salen con [PENDIENTE: código por confirmar] — el
+    # sistema nunca adivina la numeración del sistema documental del cliente.
+    document_codes: dict[str, str] = Field(
+        default_factory=dict,
+        description="Códigos confirmados del sistema documental del cliente, por document_type.",
+    )
 
 
 class OnboardingState(BaseModel):

@@ -37,6 +37,18 @@ from app.modules.generation.schemas import (  # noqa: E402
 
 OUT_DIR = ROOT / "samples"
 
+# Códigos de MUESTRA (empresa ficticia): en producción el código es DATO por
+# tenant (onboarding_data.document_codes) y sin confirmar sale [PENDIENTE].
+_SAMPLE_CODES: dict[str, str] = {
+    "politica_seguridad": "PO-01",
+    "matriz_riesgos": "MT-04",
+    "plan_emergencias": "PL-01",
+    "gestion_incidentes": "PR-02",
+    "manual_perfiles_cargos": "MA-02",
+    "comunicacion_participacion_consulta": "PR-07",
+    "manual_inspeccion_equipos": "MA-03",
+}
+
 # Empresa ficticia de ejemplo (NO datos reales de Felipe).
 _SAMPLES = {
     "politica_seguridad": SecurityPolicyVariables(
@@ -47,6 +59,14 @@ _SAMPLES = {
         management_commitment=(
             "La alta dirección se compromete a proteger la seguridad de turistas, "
             "guías y comunidad, asignando los recursos necesarios."
+        ),
+        purpose_alignment=(
+            "La política está alineada con el propósito de ofrecer turismo de "
+            "aventura seguro y sostenible en Santander."
+        ),
+        objectives_framework=(
+            "Esta política orienta el establecimiento de objetivos y metas de "
+            "seguridad medibles para la operación."
         ),
         safety_objectives=[
             "Cero accidentes graves anuales",
@@ -186,6 +206,8 @@ _SAMPLES = {
                 reports_to="Coordinador de operaciones",
             ),
         ],
+        legal_representative="María Gómez",
+        approval_date="2026-06-18",
     ),
     "comunicacion_participacion_consulta": CommunicationProcedureVariables(
         company_name="Aventura Andina SAS",
@@ -213,6 +235,8 @@ _SAMPLES = {
         representation="Un guía representa al personal en asuntos de seguridad.",
         performance_evaluation="Encuesta anual y seguimiento de acuerdos.",
         records="Actas de reunión y registros de asistencia.",
+        legal_representative="María Gómez",
+        approval_date="2026-06-18",
     ),
     "manual_inspeccion_equipos": EquipmentManualVariables(
         company_name="Aventura Andina SAS",
@@ -243,6 +267,8 @@ _SAMPLES = {
             "Revisión especial (tras un evento)",
             "Revisión periódica trimestral",
         ],
+        legal_representative="María Gómez",
+        approval_date="2026-06-18",
     ),
 }
 
@@ -253,7 +279,9 @@ def main() -> None:
         spec = get_spec(document_type)
         assert spec is not None
         variables = _SAMPLES[document_type]
-        result = spec.generator.generate(variables)
+        result = spec.generator.generate(
+            variables, document_code=_SAMPLE_CODES[document_type]
+        )
         out = OUT_DIR / f"{document_type}.{spec.generator.engine}"
         out.write_bytes(result.content)
         flag = "OK" if not result.pending_fields else f"PENDIENTES: {result.pending_fields}"

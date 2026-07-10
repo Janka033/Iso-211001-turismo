@@ -93,6 +93,16 @@ está aquí, NO se inventa — se pregunta o se deja [PENDIENTE].
   2026-07-09):** el Coordinador.
 - **Su SGS real fue aprobado el 30/12/2025** (fecha que aparece consistente en sus documentos
   — útil como referencia de qué tan reciente es su sistema, no para reusar como fecha nuestra).
+- **Códigos CONFIRMADOS de su sistema documental** (catálogo `document_codes`):
+  | document_type | Código | Fuente |
+  | --- | --- | --- |
+  | matriz_riesgos | MT-04 | confirmado 2026-07-05 |
+  | manual_perfiles_cargos | MA-02 | archivo real de su Drive |
+  | manual_inspeccion_equipos | MA-03 | archivo real de su Drive |
+  | comunicacion_participacion_consulta | PR-07 | archivo real de su Drive |
+  **NO confirmados (los documentos salen con `[PENDIENTE: código por confirmar]`):**
+  politica_seguridad, plan_emergencias, gestion_incidentes — los códigos PO-01/PL-01/PR-02
+  eran provisionales/inventados; preguntarle a Felipe la numeración real de su SGS.
 
 ## NO confirmado — no inventar
 

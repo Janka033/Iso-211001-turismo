@@ -120,6 +120,37 @@ def test_null_lists_from_ai_are_tolerated():
     assert equip.maintenance_types == []
 
 
+def _header_text(content: bytes) -> str:
+    doc = Document(io.BytesIO(content))
+    parts = [p.text for p in doc.sections[0].header.paragraphs]
+    for table in doc.sections[0].header.tables:
+        for row in table.rows:
+            parts.extend(c.text for c in row.cells)
+    return "\n".join(parts)
+
+
+def test_document_code_is_data_not_hardcoded():
+    """El código del documento es DATO por tenant: sin código confirmado el
+    encabezado lleva el placeholder; con código confirmado, ese exacto.
+    El sistema nunca adivina la numeración del SGS del cliente."""
+    result = ProfilesManualGenerator().generate(ProfilesManualVariables())
+    assert "[PENDIENTE: código por confirmar]" in _header_text(result.content)
+
+    result = ProfilesManualGenerator().generate(
+        ProfilesManualVariables(), document_code="MA-02"
+    )
+    header = _header_text(result.content)
+    assert "Código: MA-02" in header
+    assert "[PENDIENTE: código" not in header
+
+
+def test_header_page_field_has_cached_result():
+    """El campo PAGE lleva resultado cacheado (begin/instr/separate/t/end):
+    sin él, los visores muestran 'Página  de 1' (bug del encabezado)."""
+    result = ProfilesManualGenerator().generate(ProfilesManualVariables())
+    assert "Página 1 de 1" in _header_text(result.content)
+
+
 def test_headings_and_title_use_calibri():
     """Todo el sistema documental es Calibri, títulos incluidos (no el
     Calibri Light del tema de Word)."""

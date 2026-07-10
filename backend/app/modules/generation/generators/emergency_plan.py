@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from app.modules.generation.generators.base import (
     DocumentGenerator,
     ResolvedField,
+    resolve_code,
     resolve_text,
 )
 from app.modules.generation.generators.felipe_docx import FelipeDocxBuilder
@@ -45,7 +46,10 @@ class EmergencyPlanGenerator(DocumentGenerator):
         return ["emergency_scenarios"]
 
     def _render(
-        self, resolved: dict[str, ResolvedField], variables: BaseModel
+        self,
+        resolved: dict[str, ResolvedField],
+        variables: BaseModel,
+        document_code: str | None,
     ) -> bytes:
         assert isinstance(variables, EmergencyPlanVariables)
 
@@ -63,7 +67,7 @@ class EmergencyPlanGenerator(DocumentGenerator):
         legal_rep = (variables.legal_representative or "").strip()
 
         b = FelipeDocxBuilder(
-            code="PL-01",
+            code=resolve_code(document_code),
             title="Plan de respuesta a emergencias",
             company=val("company_name"),
             norm_reference="NTC-ISO 21101 — numeral 8.2",

@@ -39,7 +39,7 @@ def test_full_matrix_no_pending():
         opportunities=["Certificar guías en rescate acuático"],
     )
 
-    result = RiskMatrixGenerator().generate(variables)
+    result = RiskMatrixGenerator().generate(variables, document_code='MT-04')
 
     assert result.pending_fields == []
     wb = _load(result.content)

@@ -6,7 +6,8 @@ valores de las variables, ya validados por Pydantic y resueltos a texto o
 
 Tipo PO de la taxonomía: "solo encabezado + contenido libre" — lleva el
 encabezado, firmas y CONTROL DE CAMBIOS del sistema documental, SIN portada.
-Código provisional PO-01: confirmar numeración real con Felipe.
+El código del documento es DATO por tenant (``document_codes``); sin confirmar
+=> [PENDIENTE: código por confirmar].
 """
 
 from __future__ import annotations
@@ -15,17 +16,24 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt
 from pydantic import BaseModel
 
-from app.modules.generation.generators.base import DocumentGenerator, ResolvedField
+from app.modules.generation.generators.base import (
+    DocumentGenerator,
+    ResolvedField,
+    resolve_code,
+)
 from app.modules.generation.generators.felipe_docx import FelipeDocxBuilder
 from app.modules.generation.schemas import SecurityPolicyVariables
 
 
 class SecurityPolicyGenerator(DocumentGenerator):
-    template_version = "politica-seguridad-docx-v3"
+    template_version = "politica-seguridad-docx-v4"
     engine = "docx"
 
     def _render(
-        self, resolved: dict[str, ResolvedField], variables: BaseModel
+        self,
+        resolved: dict[str, ResolvedField],
+        variables: BaseModel,
+        document_code: str | None,
     ) -> bytes:
         assert isinstance(variables, SecurityPolicyVariables)
 
@@ -45,7 +53,7 @@ class SecurityPolicyGenerator(DocumentGenerator):
         legal_rep = (variables.legal_representative or "").strip()
 
         b = FelipeDocxBuilder(
-            code="PO-01",
+            code=resolve_code(document_code),
             title="Política de seguridad",
             company=val("company_name"),
             norm_reference="NTC-ISO 21101 — numeral 5.2",
@@ -73,22 +81,28 @@ class SecurityPolicyGenerator(DocumentGenerator):
         meta.add_run("Conforme a la NTC-ISO 21101 — numeral 5.2").italic = True
 
         # --- Cuerpo -----------------------------------------------------
-        # Las secciones 4-7 son los 4 principios del 5.2 en su orden: (a)
-        # apropiación del propósito, (b) marco para objetivos, (c) cumplimiento
-        # de requisitos, (d) mejora continua. La 3 (compromiso) los introduce.
+        # Los 4 principios del 5.2 tienen CADA UNO su sección (4, 5, 7, 8):
+        # (a) apropiación del propósito, (b) marco para los objetivos, (c)
+        # cumplimiento de requisitos, (d) mejora continua. La 3 (compromiso)
+        # los introduce y la 6 lista los objetivos reales (6.2, incluido el
+        # medible de la dirección). Un principio sin variable propia se pierde
+        # en la extracción — ya pasó dos veces (P1 y P2).
         b.section("1. Alcance", val("scope"))
         b.bullet_list("2. Actividades de turismo de aventura", items("activities"))
         b.section("3. Compromiso de la alta dirección", val("management_commitment"))
         b.section(
             "4. Apropiación del propósito organizacional", val("purpose_alignment")
         )
-        b.bullet_list("5. Objetivos de seguridad", items("safety_objectives"))
         b.section(
-            "6. Compromiso de cumplimiento legal y reglamentario",
+            "5. Marco para los objetivos de seguridad", val("objectives_framework")
+        )
+        b.bullet_list("6. Objetivos de seguridad", items("safety_objectives"))
+        b.section(
+            "7. Compromiso de cumplimiento legal y reglamentario",
             val("legal_commitment"),
         )
-        b.section("7. Compromiso de mejora continua", val("continuous_improvement"))
-        b.section("8. Comunicación y disponibilidad", val("communication"))
+        b.section("8. Compromiso de mejora continua", val("continuous_improvement"))
+        b.section("9. Comunicación y disponibilidad", val("communication"))
 
         # --- Cierre estándar del sistema documental ----------------------
         b.signatures(approved=(legal_rep, "Representante legal" if legal_rep else ""))

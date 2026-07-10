@@ -13,6 +13,7 @@ from app.modules.generation.generators.base import (
     DocumentGenerator,
     ResolvedField,
     pending_marker,
+    resolve_code,
     resolve_text,
 )
 from app.modules.generation.generators.felipe_docx import FelipeDocxBuilder
@@ -48,7 +49,10 @@ class ProfilesManualGenerator(DocumentGenerator):
         return pending
 
     def _render(
-        self, resolved: dict[str, ResolvedField], variables: BaseModel
+        self,
+        resolved: dict[str, ResolvedField],
+        variables: BaseModel,
+        document_code: str | None,
     ) -> bytes:
         assert isinstance(variables, ProfilesManualVariables)
 
@@ -64,7 +68,7 @@ class ProfilesManualGenerator(DocumentGenerator):
         legal_rep = (variables.legal_representative or "").strip()
 
         b = FelipeDocxBuilder(
-            code="MA-02",
+            code=resolve_code(document_code),
             title="Manual de perfiles y funciones de cargo",
             company=val("company_name"),
             norm_reference="NTC-ISO 21101 — numerales 5.3 y 7.2",

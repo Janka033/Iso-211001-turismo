@@ -143,10 +143,16 @@ async def generate(
 
     # 5. Generar el documento (estructura fija; obligatorios faltantes => [PENDIENTE]).
     #    Qué es obligatorio lo dice la checklist (datos). Sin checklist => conservador.
+    #    El código del documento (PO-01, MA-02, …) es DATO por tenant
+    #    (onboarding_data.document_codes): sin código confirmado, el generador
+    #    emite [PENDIENTE: código por confirmar] — nunca se adivina.
     required_fields = (
         {c["field_key"] for c in checklist if c.get("required")} if checklist else None
     )
-    result = spec.generator.generate(variables, required_fields)
+    document_codes = (onboarding or {}).get("document_codes") or {}
+    result = spec.generator.generate(
+        variables, required_fields, document_code=document_codes.get(document_type)
+    )
 
     # 6. Persistir: snapshot de reproducibilidad + estado.
     completeness = _completeness(

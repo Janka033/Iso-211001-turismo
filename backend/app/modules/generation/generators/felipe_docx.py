@@ -37,18 +37,27 @@ def apply_base_style(doc: Document) -> None:
 
 
 def _page_field(paragraph, instruction: str) -> None:
-    """Inserta un campo de Word (PAGE / NUMPAGES) en el párrafo."""
+    """Inserta un campo de Word (PAGE / NUMPAGES) en el párrafo.
+
+    El campo lleva las CUATRO partes (begin / instrText / separate / resultado
+    cacheado / end). Sin ``separate`` + resultado, varios visores (y Word hasta
+    recalcular campos) muestran el campo VACÍO — era el bug "Página de 1" del
+    encabezado. El "1" cacheado se actualiza al repaginar/imprimir.
+    """
     run = paragraph.add_run()
     begin = OxmlElement("w:fldChar")
     begin.set(qn("w:fldCharType"), "begin")
     instr = OxmlElement("w:instrText")
     instr.set(qn("xml:space"), "preserve")
     instr.text = f" {instruction} "
+    separate = OxmlElement("w:fldChar")
+    separate.set(qn("w:fldCharType"), "separate")
+    cached = OxmlElement("w:t")
+    cached.text = "1"
     end = OxmlElement("w:fldChar")
     end.set(qn("w:fldCharType"), "end")
-    run._r.append(begin)
-    run._r.append(instr)
-    run._r.append(end)
+    for element in (begin, instr, separate, cached, end):
+        run._r.append(element)
 
 
 class FelipeDocxBuilder:

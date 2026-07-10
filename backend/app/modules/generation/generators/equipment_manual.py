@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from app.modules.generation.generators.base import (
     DocumentGenerator,
     ResolvedField,
+    resolve_code,
     resolve_text,
 )
 from app.modules.generation.generators.felipe_docx import FelipeDocxBuilder
@@ -57,7 +58,10 @@ class EquipmentManualGenerator(DocumentGenerator):
         return pending
 
     def _render(
-        self, resolved: dict[str, ResolvedField], variables: BaseModel
+        self,
+        resolved: dict[str, ResolvedField],
+        variables: BaseModel,
+        document_code: str | None,
     ) -> bytes:
         assert isinstance(variables, EquipmentManualVariables)
 
@@ -77,7 +81,7 @@ class EquipmentManualGenerator(DocumentGenerator):
         legal_rep = (variables.legal_representative or "").strip()
 
         b = FelipeDocxBuilder(
-            code="MA-03",
+            code=resolve_code(document_code),
             title="Manual de inspección y mantenimiento de equipos",
             company=val("company_name"),
             norm_reference="NTC-ISO 21101 — numeral 8.1 y Anexo A",

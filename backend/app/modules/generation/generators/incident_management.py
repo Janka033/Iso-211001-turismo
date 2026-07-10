@@ -15,7 +15,11 @@ from __future__ import annotations
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from pydantic import BaseModel
 
-from app.modules.generation.generators.base import DocumentGenerator, ResolvedField
+from app.modules.generation.generators.base import (
+    DocumentGenerator,
+    ResolvedField,
+    resolve_code,
+)
 from app.modules.generation.generators.felipe_docx import FelipeDocxBuilder
 from app.modules.generation.schemas import IncidentManagementVariables
 
@@ -43,7 +47,10 @@ class IncidentManagementGenerator(DocumentGenerator):
     engine = "docx"
 
     def _render(
-        self, resolved: dict[str, ResolvedField], variables: BaseModel
+        self,
+        resolved: dict[str, ResolvedField],
+        variables: BaseModel,
+        document_code: str | None,
     ) -> bytes:
         assert isinstance(variables, IncidentManagementVariables)
 
@@ -61,7 +68,7 @@ class IncidentManagementGenerator(DocumentGenerator):
         legal_rep = (variables.legal_representative or "").strip()
 
         b = FelipeDocxBuilder(
-            code="PR-02",
+            code=resolve_code(document_code),
             title="Procedimiento de gestión de incidentes",
             company=val("company_name"),
             norm_reference="NTC-ISO 21101 — numeral 8.3",

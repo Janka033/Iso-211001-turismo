@@ -33,6 +33,17 @@ def pending_marker(description: str) -> str:
     return f"[PENDIENTE: {description}]"
 
 
+def resolve_code(document_code: str | None) -> str:
+    """Código del documento en el SGS del cliente.
+
+    Es DATO confirmado por tenant (``onboarding_data.document_codes``), nunca
+    lo adivina el sistema: sin código confirmado, el documento sale con el
+    placeholder visible y Felipe/el cliente lo asigna al aprobar.
+    """
+    code = (document_code or "").strip()
+    return code or "[PENDIENTE: código por confirmar]"
+
+
 def resolve_text(value: object, description: str) -> tuple[str, bool]:
     """Resuelve un valor escalar OBLIGATORIO a texto; devuelve (texto, is_pending).
 
@@ -71,11 +82,14 @@ class DocumentGenerator(ABC):
     custom_fields: frozenset[str] = frozenset()
 
     def generate(
-        self, variables: BaseModel, required_fields: set[str] | None = None
+        self,
+        variables: BaseModel,
+        required_fields: set[str] | None = None,
+        document_code: str | None = None,
     ) -> GenerationResult:
         resolved, pending = self._resolve_flat(variables, required_fields)
         pending = pending + self._extra_pending(variables, required_fields)
-        content = self._render(resolved, variables)
+        content = self._render(resolved, variables, document_code)
         return GenerationResult(content=content, pending_fields=pending)
 
     # -- Template Method: pasos comunes ----------------------------------
@@ -135,6 +149,16 @@ class DocumentGenerator(ABC):
     # -- Template Method: paso variable ----------------------------------
 
     @abstractmethod
-    def _render(self, resolved: dict[str, ResolvedField], variables: BaseModel) -> bytes:
-        """Inyecta en la plantilla fija y devuelve los bytes del documento."""
+    def _render(
+        self,
+        resolved: dict[str, ResolvedField],
+        variables: BaseModel,
+        document_code: str | None,
+    ) -> bytes:
+        """Inyecta en la plantilla fija y devuelve los bytes del documento.
+
+        ``document_code``: código del documento en el SGS del cliente (dato por
+        tenant); ``None`` => el generador emite el placeholder de
+        ``resolve_code``, nunca un código adivinado.
+        """
         ...

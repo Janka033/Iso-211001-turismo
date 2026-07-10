@@ -54,7 +54,7 @@ def test_emergency_plan_full_no_pending():
         legal_representative="María Gómez",
         approval_date="2026-06-18",
     )
-    result = EmergencyPlanGenerator().generate(variables)
+    result = EmergencyPlanGenerator().generate(variables, document_code='PL-01')
     assert result.pending_fields == []
     doc = _doc(result.content)
     text = _all_text(doc)

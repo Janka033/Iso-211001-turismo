@@ -21,6 +21,7 @@ def test_full_variables_no_pending():
         activities=["Rafting", "Canopy"],
         management_commitment="La dirección se compromete con la seguridad.",
         purpose_alignment="Alineada con el propósito de brindar turismo seguro.",
+        objectives_framework="La política orienta el establecimiento de objetivos.",
         safety_objectives=["Cero accidentes graves", "Capacitación anual"],
         legal_commitment="Cumplir el Decreto 1085 y la normativa de turismo.",
         continuous_improvement="Revisar el sistema cada 6 meses.",

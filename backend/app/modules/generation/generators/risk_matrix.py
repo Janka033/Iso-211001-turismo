@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from app.modules.generation.generators.base import (
     DocumentGenerator,
     ResolvedField,
+    resolve_code,
     resolve_text,
 )
 from app.modules.generation.schemas import RiskEntry, RiskMatrixVariables
@@ -66,7 +67,10 @@ class RiskMatrixGenerator(DocumentGenerator):
         return pending
 
     def _render(
-        self, resolved: dict[str, ResolvedField], variables: BaseModel
+        self,
+        resolved: dict[str, ResolvedField],
+        variables: BaseModel,
+        document_code: str | None,
     ) -> bytes:
         assert isinstance(variables, RiskMatrixVariables)
 
@@ -75,15 +79,16 @@ class RiskMatrixGenerator(DocumentGenerator):
         ws.title = "Matriz de Riesgos"
 
         # --- Cabecera identidad (tipo MT: "solo encabezado", sin firmas) --
-        # MT-04: código confirmado del sistema documental (2026-07-05).
+        # El código es DATO por tenant (document_codes); para Felipe MT-04
+        # está confirmado (2026-07-05) y viene del catálogo, no del código.
         ncols = len(_COLUMNS)
         ws.cell(row=1, column=1, value="MATRIZ DE RIESGOS Y OPORTUNIDADES").font = Font(
             bold=True, size=14
         )
         ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=ncols)
-        ws.cell(row=2, column=1, value="Código: MT-04 · Revisión: 01").font = Font(
-            bold=True
-        )
+        ws.cell(
+            row=2, column=1, value=f"Código: {resolve_code(document_code)} · Revisión: 01"
+        ).font = Font(bold=True)
         ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=ncols)
         ws.cell(row=3, column=1, value=resolved["company_name"].value)
         ws.merge_cells(start_row=3, start_column=1, end_row=3, end_column=ncols)

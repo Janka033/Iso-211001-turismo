@@ -97,9 +97,22 @@ class SecurityPolicyVariables(AIVariablesModel):
             "la política se alinea con el propósito de la organización."
         ),
     )
+    objectives_framework: str | None = Field(
+        default=None,
+        description=(
+            "Marco para los objetivos de seguridad (principio 5.2.b): cómo la "
+            "política orienta el establecimiento de objetivos y metas. Es el "
+            "enunciado del principio, NO los objetivos en sí."
+        ),
+    )
     safety_objectives: list[str] = Field(
         default_factory=list,
-        description="Objetivos de seguridad de la organización.",
+        description=(
+            "Objetivos de seguridad de la organización (6.2), cada uno como "
+            "enunciado completo. Incluir SIEMPRE el objetivo medible definido "
+            "por la dirección si está en el contexto; no volcar aquí fragmentos "
+            "sueltos de los principios de la política."
+        ),
     )
     legal_commitment: str | None = Field(
         default=None,

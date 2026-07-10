@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from app.modules.generation.generators.base import (
     DocumentGenerator,
     ResolvedField,
+    resolve_code,
     resolve_text,
 )
 from app.modules.generation.generators.felipe_docx import FelipeDocxBuilder
@@ -56,7 +57,10 @@ class CommunicationProcedureGenerator(DocumentGenerator):
         return pending
 
     def _render(
-        self, resolved: dict[str, ResolvedField], variables: BaseModel
+        self,
+        resolved: dict[str, ResolvedField],
+        variables: BaseModel,
+        document_code: str | None,
     ) -> bytes:
         assert isinstance(variables, CommunicationProcedureVariables)
 
@@ -72,7 +76,7 @@ class CommunicationProcedureGenerator(DocumentGenerator):
         legal_rep = (variables.legal_representative or "").strip()
 
         b = FelipeDocxBuilder(
-            code="PR-07",
+            code=resolve_code(document_code),
             title="Procedimiento de comunicación, participación y consulta",
             company=val("company_name"),
             norm_reference="NTC-ISO 21101 — numeral 7.4",
