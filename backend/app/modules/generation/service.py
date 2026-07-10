@@ -206,6 +206,113 @@ async def generate(
     )
 
 
+async def rerender_from_snapshot(
+    document_type: str, tenant_id: str, token: str
+) -> GeneratedDocument:
+    """Re-render DETERMINÍSTICO del último documento desde su variables_snapshot.
+
+    Aplica la plantilla/builder ACTUAL a las variables ya extraídas y sube una
+    VERSIÓN NUEVA sin llamar al provider de IA: separa la extracción (LLM, no
+    determinística) del render (determinístico desde el snapshot). Los arreglos
+    de formato, encabezado o código de documento se re-aplican por aquí — nunca
+    regenerando, que re-tira los dados de la extracción.
+
+    Snapshot de reproducibilidad: conserva la PROCEDENCIA de las variables
+    (prompt_hash, prompt_version, rag_chunks_ids, model_version del registro
+    origen); lo único que cambia es template_version (el render).
+    """
+    spec = get_spec(document_type)
+    if spec is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Tipo de documento no soportado: {document_type}",
+        )
+
+    source = await _run(
+        repository.get_latest_document, tenant_id, document_type, token
+    )
+    if source is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No hay documento previo del cual re-renderizar.",
+        )
+
+    # Validación Pydantic del snapshot contra el modelo ACTUAL (los campos
+    # nuevos opcionales toman su default; un snapshot incompatible es un error
+    # explícito, nunca un documento silenciosamente distinto).
+    try:
+        variables = spec.variables_model.model_validate(
+            source.get("variables_snapshot") or {}
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "El variables_snapshot no cumple el modelo actual: "
+                f"{exc.errors()}"
+            ),
+        ) from exc
+
+    onboarding = await _run(repository.get_onboarding_data, tenant_id, token)
+    checklist = await _run(repository.get_checklist, document_type, token)
+    required_fields = (
+        {c["field_key"] for c in checklist if c.get("required")} if checklist else None
+    )
+    document_codes = (onboarding or {}).get("document_codes") or {}
+    result = spec.generator.generate(
+        variables, required_fields, document_code=document_codes.get(document_type)
+    )
+
+    completeness = _completeness(
+        checklist, result.pending_fields, set(spec.variables_model.model_fields)
+    )
+    version = await _run(repository.next_version, tenant_id, document_type, token)
+    storage_path = await _run(
+        repository.upload_document,
+        tenant_id,
+        document_type,
+        version,
+        result.content,
+        token,
+        engine=spec.generator.engine,
+    )
+
+    record = {
+        "tenant_id": tenant_id,
+        "document_type": document_type,
+        "storage_path": storage_path,
+        "version": version,
+        "prompt_hash": source.get("prompt_hash"),
+        "prompt_version": source.get("prompt_version"),
+        "rag_chunks_ids": source.get("rag_chunks_ids") or [],
+        "template_version": spec.generator.template_version,
+        "model_version": source.get("model_version"),
+        "variables_snapshot": variables.model_dump(),
+    }
+    document = await _run(repository.insert_document, record, token)
+
+    await _run(
+        repository.upsert_document_status,
+        tenant_id,
+        document_type,
+        "generated",
+        completeness,
+        token,
+    )
+
+    return GeneratedDocument(
+        document_id=document["id"],
+        document_type=document_type,
+        version=version,
+        status="generated",
+        storage_path=storage_path,
+        completeness=completeness,
+        pending_fields=result.pending_fields,
+        prompt_version=source.get("prompt_version") or "",
+        template_version=spec.generator.template_version,
+    )
+
+
 async def download_url(
     document_type: str, version: int, tenant_id: str
 ) -> DownloadResponse:

@@ -124,6 +124,28 @@ def match_knowledge_chunks(
 # ---------------------------------------------------------------------------
 
 
+def get_latest_document(tenant_id: str, document_type: str, token: str) -> dict | None:
+    """Último registro del documento, con su snapshot de reproducibilidad.
+
+    Lo usa el re-render determinístico: variables ya extraídas + procedencia
+    (prompt/RAG/modelo) del registro origen.
+    """
+    client = get_user_client(token)
+    res = (
+        client.table("documents")
+        .select(
+            "id, version, variables_snapshot, prompt_hash, prompt_version, "
+            "rag_chunks_ids, model_version"
+        )
+        .eq("tenant_id", tenant_id)
+        .eq("document_type", document_type)
+        .order("version", desc=True)
+        .limit(1)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
 def next_version(tenant_id: str, document_type: str, token: str) -> int:
     client = get_user_client(token)
     res = (

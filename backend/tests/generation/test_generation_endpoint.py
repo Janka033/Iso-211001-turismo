@@ -220,6 +220,76 @@ def test_list_document_types(client, make_token):
     assert "politica_seguridad" in resp.json()
 
 
+async def test_rerender_from_snapshot_is_deterministic_and_never_calls_ai(monkeypatch):
+    """Re-render: variables del snapshot + plantilla ACTUAL + código del
+    catálogo, versión nueva, procedencia conservada y CERO llamadas a la IA.
+    Separa extracción (LLM) de render (determinístico)."""
+    import io
+
+    from docx import Document
+
+    def _no_ai():
+        raise AssertionError("el re-render no debe llamar al provider de IA")
+
+    monkeypatch.setattr(service, "get_ai_provider", _no_ai)
+    monkeypatch.setattr(
+        repository,
+        "get_latest_document",
+        lambda tid, dt, token: {
+            "id": "doc-old",
+            "version": 1,
+            "variables_snapshot": FULL_OUTPUT,
+            "prompt_hash": "hash-origen",
+            "prompt_version": "v9",
+            "rag_chunks_ids": ["chunk-1"],
+            "model_version": "gemini-x",
+        },
+    )
+    monkeypatch.setattr(
+        repository,
+        "get_onboarding_data",
+        lambda tid, token: {"document_codes": {"politica_seguridad": "PO-99"}},
+    )
+    monkeypatch.setattr(repository, "get_checklist", lambda dt, token: CHECKLIST)
+    monkeypatch.setattr(repository, "next_version", lambda tid, dt, token: 2)
+
+    captured: dict = {}
+
+    def fake_upload(tid, dt, v, content, token, engine="docx"):
+        captured["content"] = content
+        return f"{tid}/{dt}/v{v}.{engine}"
+
+    monkeypatch.setattr(repository, "upload_document", fake_upload)
+
+    def fake_insert(record, token):
+        captured["record"] = record
+        return {"id": "doc-new", **record}
+
+    monkeypatch.setattr(repository, "insert_document", fake_insert)
+    monkeypatch.setattr(repository, "upsert_document_status", lambda *a, **k: None)
+
+    doc = await service.rerender_from_snapshot("politica_seguridad", TENANT_A, "tok")
+
+    assert doc.version == 2
+    assert doc.template_version == "politica-seguridad-docx-v4"
+    assert doc.completeness == 100.0
+    # Procedencia de las VARIABLES conservada del registro origen.
+    record = captured["record"]
+    assert record["prompt_hash"] == "hash-origen"
+    assert record["prompt_version"] == "v9"
+    assert record["rag_chunks_ids"] == ["chunk-1"]
+    assert record["model_version"] == "gemini-x"
+    # El render actual aplicó el código del catálogo y la paginación cacheada.
+    rendered = Document(io.BytesIO(captured["content"]))
+    header_parts = [p.text for p in rendered.sections[0].header.paragraphs]
+    for table in rendered.sections[0].header.tables:
+        for row in table.rows:
+            header_parts.extend(c.text for c in row.cells)
+    header = "\n".join(header_parts)
+    assert "Código: PO-99" in header
+    assert "Página 1 de 1" in header
+
+
 def test_completeness_ignores_checklist_fields_outside_model():
     """La checklist puede ir por delante del modelo de variables (0025: campos
     de levantamiento de PL-01 aún sin variable/plantilla). Esos field_key no
