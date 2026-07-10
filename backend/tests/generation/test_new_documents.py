@@ -63,6 +63,8 @@ def test_ma02_full_document():
                 reports_to="Junta de socios",
             )
         ],
+        legal_representative="María Gómez",
+        approval_date="2026-01-15",
     )
     result = ProfilesManualGenerator().generate(variables)
 
@@ -72,6 +74,9 @@ def test_ma02_full_document():
     assert "Aprobar la política de seguridad" in txt
     assert "CONTROL DE CAMBIOS" in txt
     assert "Firmas" in txt
+    # "Aprobado por" con el representante legal (consistente con PO-01/PL-01).
+    assert "María Gómez" in txt
+    assert "2026-01-15" in txt
     assert _normal_font(result.content) == "Calibri"  # formato Felipe
 
 
@@ -150,6 +155,8 @@ def test_pr07_full_document():
         representation="Representante del personal en el comité.",
         performance_evaluation="Encuesta anual de comunicación.",
         records="Actas de reunión y registros de asistencia.",
+        legal_representative="María Gómez",
+        approval_date="2026-01-15",
     )
     result = CommunicationProcedureGenerator().generate(variables)
 
@@ -207,6 +214,8 @@ def test_ma03_uses_real_equipment_per_activity():
             ),
         ],
         maintenance_types=["Revisión previa a uso", "Revisión periódica trimestral"],
+        legal_representative="María Gómez",
+        approval_date="2026-01-15",
     )
     result = EquipmentManualGenerator().generate(variables)
 
@@ -309,6 +318,6 @@ def test_ma02_endpoint_flow(client, make_token, monkeypatch):
     body = resp.json()
     assert captured["engine"] == "docx"
     assert body["storage_path"].endswith("v1.docx")
-    assert body["template_version"] == "manual-perfiles-docx-v2"
+    assert body["template_version"] == "manual-perfiles-docx-v3"
     assert body["completeness"] == 100.0
     assert captured["numerales"] == ["5.3", "7.2"]  # RAG multi-numeral

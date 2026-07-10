@@ -20,7 +20,7 @@ from app.modules.generation.schemas import ProfilesManualVariables, RoleProfile
 
 
 class ProfilesManualGenerator(DocumentGenerator):
-    template_version = "manual-perfiles-docx-v2"
+    template_version = "manual-perfiles-docx-v3"
     engine = "docx"
     custom_fields = frozenset({"role_profiles"})
 
@@ -56,19 +56,26 @@ class ProfilesManualGenerator(DocumentGenerator):
             f = resolved[key]
             return f.value if isinstance(f.value, str) else "\n".join(f.value)
 
+        # Aprobación: real si el cliente la dio; si no, [PENDIENTE]. El firmante
+        # "Aprobado por" es el representante legal (consistente con PO-01/PL-01).
+        approval_date = (variables.approval_date or "").strip() or (
+            "[PENDIENTE: fecha de aprobación]"
+        )
+        legal_rep = (variables.legal_representative or "").strip()
+
         b = FelipeDocxBuilder(
             code="MA-02",
             title="Manual de perfiles y funciones de cargo",
             company=val("company_name"),
             norm_reference="NTC-ISO 21101 — numerales 5.3 y 7.2",
-            approval_date="[PENDIENTE: fecha de aprobación]",
+            approval_date=approval_date,
         )
         b.section("1. Objetivo", val("objective"))
         b.section("2. Alcance", val("scope"))
         b.section("3. Estructura organizacional", val("org_structure"))
         b.heading("4. Perfiles y funciones por cargo")
         self._profiles(b, variables.role_profiles)
-        b.signatures()
+        b.signatures(approved=(legal_rep, "Representante legal" if legal_rep else ""))
         b.change_control()
         return b.render()
 

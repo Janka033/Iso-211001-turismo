@@ -28,6 +28,10 @@ está aquí, NO se inventa — se pregunta o se deja [PENDIENTE].
   cargo aparte.
 - **Jerarquía de reporte:** el Coordinador supervisa a los 4 Guías. Contador, Mecánico y
   Vendedor reportan directo al representante legal (Felipe / la Dirección).
+- **Niveles de los cargos (confirmado 2026-07-10):** Directivo SOLO la Dirección
+  (representante legal). Contador y Vendedor = **Administrativo**; Coordinador, Guía y
+  Mecánico = **Operativo**. Reportar directo al representante legal NO hace directivo a
+  un cargo.
 - **Contactos de emergencia:** línea local 3136551967, hospital 0367693000, cuadrante de
   policía 3113449100. ⚠️ El formato del número del hospital se ve atípico para Colombia —
   si genera error, PREGUNTAR a Janka antes de descartarlo (no eliminarlo por cuenta propia).

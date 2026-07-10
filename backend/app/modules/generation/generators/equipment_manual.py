@@ -32,7 +32,7 @@ _EQUIP_COLUMNS: list[tuple[str, str]] = [
 
 
 class EquipmentManualGenerator(DocumentGenerator):
-    template_version = "manual-equipos-docx-v2"
+    template_version = "manual-equipos-docx-v3"
     engine = "docx"
     custom_fields = frozenset({"equipment_items"})
 
@@ -69,12 +69,19 @@ class EquipmentManualGenerator(DocumentGenerator):
             f = resolved[key]
             return f.value if isinstance(f.value, list) else [f.value]
 
+        # Aprobación: real si el cliente la dio; si no, [PENDIENTE]. El firmante
+        # "Aprobado por" es el representante legal (consistente con PO-01/PL-01).
+        approval_date = (variables.approval_date or "").strip() or (
+            "[PENDIENTE: fecha de aprobación]"
+        )
+        legal_rep = (variables.legal_representative or "").strip()
+
         b = FelipeDocxBuilder(
             code="MA-03",
             title="Manual de inspección y mantenimiento de equipos",
             company=val("company_name"),
             norm_reference="NTC-ISO 21101 — numeral 8.1 y Anexo A",
-            approval_date="[PENDIENTE: fecha de aprobación]",
+            approval_date=approval_date,
         )
         b.section("1. Objetivo", val("objective"))
         b.section("2. Alcance", val("scope"))
@@ -82,7 +89,7 @@ class EquipmentManualGenerator(DocumentGenerator):
         b.heading("4. Control de equipos")
         self._equipment_table(b, variables.equipment_items)
         b.bullet_list("5. Tipos de mantenimiento", items("maintenance_types"))
-        b.signatures()
+        b.signatures(approved=(legal_rep, "Representante legal" if legal_rep else ""))
         b.change_control()
         return b.render()
 

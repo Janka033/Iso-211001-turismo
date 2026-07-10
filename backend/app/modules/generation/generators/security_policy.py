@@ -21,7 +21,7 @@ from app.modules.generation.schemas import SecurityPolicyVariables
 
 
 class SecurityPolicyGenerator(DocumentGenerator):
-    template_version = "politica-seguridad-docx-v2"
+    template_version = "politica-seguridad-docx-v3"
     engine = "docx"
 
     def _render(
@@ -73,16 +73,22 @@ class SecurityPolicyGenerator(DocumentGenerator):
         meta.add_run("Conforme a la NTC-ISO 21101 — numeral 5.2").italic = True
 
         # --- Cuerpo -----------------------------------------------------
+        # Las secciones 4-7 son los 4 principios del 5.2 en su orden: (a)
+        # apropiación del propósito, (b) marco para objetivos, (c) cumplimiento
+        # de requisitos, (d) mejora continua. La 3 (compromiso) los introduce.
         b.section("1. Alcance", val("scope"))
         b.bullet_list("2. Actividades de turismo de aventura", items("activities"))
         b.section("3. Compromiso de la alta dirección", val("management_commitment"))
-        b.bullet_list("4. Objetivos de seguridad", items("safety_objectives"))
         b.section(
-            "5. Compromiso de cumplimiento legal y reglamentario",
+            "4. Apropiación del propósito organizacional", val("purpose_alignment")
+        )
+        b.bullet_list("5. Objetivos de seguridad", items("safety_objectives"))
+        b.section(
+            "6. Compromiso de cumplimiento legal y reglamentario",
             val("legal_commitment"),
         )
-        b.section("6. Compromiso de mejora continua", val("continuous_improvement"))
-        b.section("7. Comunicación y disponibilidad", val("communication"))
+        b.section("7. Compromiso de mejora continua", val("continuous_improvement"))
+        b.section("8. Comunicación y disponibilidad", val("communication"))
 
         # --- Cierre estándar del sistema documental ----------------------
         b.signatures(approved=(legal_rep, "Representante legal" if legal_rep else ""))

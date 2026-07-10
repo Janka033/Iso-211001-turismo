@@ -31,7 +31,7 @@ _COMM_COLUMNS: list[tuple[str, str]] = [
 
 
 class CommunicationProcedureGenerator(DocumentGenerator):
-    template_version = "pr-comunicacion-docx-v2"
+    template_version = "pr-comunicacion-docx-v3"
     engine = "docx"
     custom_fields = frozenset({"communication_matrix"})
 
@@ -64,12 +64,19 @@ class CommunicationProcedureGenerator(DocumentGenerator):
             f = resolved[key]
             return f.value if isinstance(f.value, str) else "\n".join(f.value)
 
+        # Aprobación: real si el cliente la dio; si no, [PENDIENTE]. El firmante
+        # "Aprobado por" es el representante legal (consistente con PO-01/PL-01).
+        approval_date = (variables.approval_date or "").strip() or (
+            "[PENDIENTE: fecha de aprobación]"
+        )
+        legal_rep = (variables.legal_representative or "").strip()
+
         b = FelipeDocxBuilder(
             code="PR-07",
             title="Procedimiento de comunicación, participación y consulta",
             company=val("company_name"),
             norm_reference="NTC-ISO 21101 — numeral 7.4",
-            approval_date="[PENDIENTE: fecha de aprobación]",
+            approval_date=approval_date,
         )
         b.section("1. Objetivo", val("objective"))
         b.section("2. Alcance", val("scope"))
@@ -82,7 +89,7 @@ class CommunicationProcedureGenerator(DocumentGenerator):
         b.section("4.4 Representación en asuntos de seguridad", val("representation"), level=2)
         b.section("5. Evaluación del desempeño", val("performance_evaluation"))
         b.section("6. Registros", val("records"))
-        b.signatures()
+        b.signatures(approved=(legal_rep, "Representante legal" if legal_rep else ""))
         b.change_control()
         return b.render()
 

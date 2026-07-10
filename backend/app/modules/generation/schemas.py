@@ -90,6 +90,13 @@ class SecurityPolicyVariables(AIVariablesModel):
         default=None,
         description="Compromiso de la alta dirección con la seguridad.",
     )
+    purpose_alignment: str | None = Field(
+        default=None,
+        description=(
+            "Apropiación del propósito organizacional (principio 5.2.a): cómo "
+            "la política se alinea con el propósito de la organización."
+        ),
+    )
     safety_objectives: list[str] = Field(
         default_factory=list,
         description="Objetivos de seguridad de la organización.",
@@ -111,7 +118,12 @@ class SecurityPolicyVariables(AIVariablesModel):
         description="Representante legal que aprueba la política.",
     )
     approval_date: str | None = Field(
-        default=None, description="Fecha de aprobación (YYYY-MM-DD)."
+        default=None,
+        description=(
+            "Fecha de aprobación de ESTE documento (YYYY-MM-DD), SOLO si el "
+            "cliente la indicó explícitamente. NUNCA derivarla de otras fechas "
+            "del contexto (p. ej. la fecha de aprobación del SGS)."
+        ),
     )
 
 
@@ -211,7 +223,12 @@ class EmergencyPlanVariables(AIVariablesModel):
         default=None, description="Alcance del plan: actividades y ubicaciones cubiertas."
     )
     general_objective: str | None = Field(
-        default=None, description="Objetivo general del plan de emergencias."
+        default=None,
+        description=(
+            "Objetivo general DEL PLAN DE EMERGENCIAS (prepararse y responder "
+            "ante emergencias). NUNCA copiar objetivos etiquetados para otros "
+            "documentos del contexto (p. ej. el del manual de inspección MA-03)."
+        ),
     )
     emergency_scenarios: list[EmergencyScenario] = Field(
         default_factory=list,
@@ -242,7 +259,12 @@ class EmergencyPlanVariables(AIVariablesModel):
         default=None, description="Representante legal que aprueba el plan."
     )
     approval_date: str | None = Field(
-        default=None, description="Fecha de aprobación (YYYY-MM-DD)."
+        default=None,
+        description=(
+            "Fecha de aprobación de ESTE documento (YYYY-MM-DD), SOLO si el "
+            "cliente la indicó explícitamente. NUNCA derivarla de otras fechas "
+            "del contexto (p. ej. la fecha de aprobación del SGS)."
+        ),
     )
 
 
@@ -286,7 +308,12 @@ class IncidentManagementVariables(AIVariablesModel):
         default=None, description="Representante legal que aprueba el procedimiento."
     )
     approval_date: str | None = Field(
-        default=None, description="Fecha de aprobación (YYYY-MM-DD)."
+        default=None,
+        description=(
+            "Fecha de aprobación de ESTE documento (YYYY-MM-DD), SOLO si el "
+            "cliente la indicó explícitamente. NUNCA derivarla de otras fechas "
+            "del contexto (p. ej. la fecha de aprobación del SGS)."
+        ),
     )
 
 
@@ -302,7 +329,12 @@ class RoleProfile(AIVariablesModel):
         default=None, description="Cargo (p.ej. Gerente, Coordinador Operativo, Guía)."
     )
     level: str | None = Field(
-        default=None, description="Nivel: Directivo u Operativo."
+        default=None,
+        description=(
+            "Nivel: Directivo, Administrativo u Operativo. Directivo SOLO para "
+            "la dirección/gerencia; reportar al representante legal no hace "
+            "Directivo a un cargo."
+        ),
     )
     purpose: str | None = Field(
         default=None, description="Objetivo o propósito del cargo."
@@ -338,6 +370,16 @@ class ProfilesManualVariables(AIVariablesModel):
     )
     role_profiles: list[RoleProfile] = Field(
         default_factory=list, description="Perfil y funciones por cada cargo."
+    )
+    legal_representative: str | None = Field(
+        default=None, description="Representante legal que aprueba el manual."
+    )
+    approval_date: str | None = Field(
+        default=None,
+        description=(
+            "Fecha de aprobación de ESTE documento (YYYY-MM-DD), SOLO si el "
+            "cliente la indicó explícitamente; nunca derivada de otras fechas."
+        ),
     )
 
 
@@ -392,6 +434,16 @@ class CommunicationProcedureVariables(AIVariablesModel):
     records: str | None = Field(
         default=None, description="Registros que deja el procedimiento."
     )
+    legal_representative: str | None = Field(
+        default=None, description="Representante legal que aprueba el procedimiento."
+    )
+    approval_date: str | None = Field(
+        default=None,
+        description=(
+            "Fecha de aprobación de ESTE documento (YYYY-MM-DD), SOLO si el "
+            "cliente la indicó explícitamente; nunca derivada de otras fechas."
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -445,4 +497,14 @@ class EquipmentManualVariables(AIVariablesModel):
     maintenance_types: list[str] = Field(
         default_factory=list,
         description="Tipos de mantenimiento (revisión previa a uso, especial, periódica).",
+    )
+    legal_representative: str | None = Field(
+        default=None, description="Representante legal que aprueba el manual."
+    )
+    approval_date: str | None = Field(
+        default=None,
+        description=(
+            "Fecha de aprobación de ESTE documento (YYYY-MM-DD), SOLO si el "
+            "cliente la indicó explícitamente; nunca derivada de otras fechas."
+        ),
     )
