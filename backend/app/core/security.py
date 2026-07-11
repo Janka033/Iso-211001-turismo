@@ -17,6 +17,18 @@ from app.config import get_settings
 
 _bearer = HTTPBearer(auto_error=True)
 
+# Catálogo de roles de la app (claim user_role).
+TENANT_ROLES = ("gerente", "coordinador", "recepcionista", "guia")
+PLATFORM_ROLES = ("admin", "superadmin")
+# 'empresa' es el rol legado pre-0031: es el dueño del tenant => gerente.
+_LEGACY_ROLES = {"empresa": "gerente"}
+
+
+def normalize_role(role: str) -> str:
+    """Rol efectivo: mapea roles legados al catálogo vigente (espejo de la
+    función SQL ``current_user_role()`` que usan las policies RLS)."""
+    return _LEGACY_ROLES.get(role, role)
+
 
 class CurrentUser(BaseModel):
     user_id: str
@@ -91,10 +103,15 @@ async def get_tenant_id(user: CurrentUser = Depends(get_current_user)) -> str:
 
 
 def require_role(*roles: str):
-    """Dependencia que exige uno de los roles dados (claim user_role)."""
+    """Dependencia que exige uno de los roles dados (claim user_role).
+
+    Compara roles NORMALIZADOS: un token legado con 'empresa' satisface
+    ``require_role("gerente", ...)``.
+    """
+    allowed = {normalize_role(r) for r in roles}
 
     async def _checker(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
-        if user.role not in roles:
+        if normalize_role(user.role) not in allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Rol no autorizado"
             )

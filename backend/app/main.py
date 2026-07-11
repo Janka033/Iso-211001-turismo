@@ -11,6 +11,8 @@ from app.modules.generation.router import router as generation_router
 from app.modules.inventory.router import router as inventory_router
 from app.modules.onboarding.router import router as onboarding_router
 from app.modules.quality.router import router as quality_router
+from app.modules.salidas.router import public_router as salidas_public_router
+from app.modules.salidas.router import router as salidas_router
 
 settings = get_settings()
 
@@ -38,6 +40,8 @@ app.include_router(generation_router)
 app.include_router(inventory_router)
 app.include_router(onboarding_router)
 app.include_router(quality_router)
+app.include_router(salidas_router)
+app.include_router(salidas_public_router)
 
 
 @app.get("/health", tags=["health"])
