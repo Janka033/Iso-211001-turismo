@@ -23,6 +23,11 @@ out/
 # Base de conocimiento (PDFs con copyright ICONTEC — no se versionan)
 knowledge-base/*.pdf
 knowledge-base/*.PDF
+knowledge-base/formatos/**/*.pdf
+knowledge-base/formatos/**/*.PDF
+
+# Script temporal de descarga puntual del kit (utilidad de un solo uso)
+scripts/_tmp_download_missing.py
 
 # Videos/transcripciones de capacitaciones (datos de la empresa — no versionar)
 knowledge-base/capacitaciones/*
