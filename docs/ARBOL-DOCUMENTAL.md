@@ -129,44 +129,97 @@ el molde MinCIT que el auditor espera ver.
 | MANUAL NTC ISO 21101 (docx, 6 MB) | KB | RAG — manual completo de implementación del programa |
 | Guías de implementación / indicadores / integración (PDF) | KB | RAG (no versionadas en git) |
 
-## 4. El flujo operativo diario (la historia end-to-end)
+## 4. El flujo operativo (la historia end-to-end)
 
-Cada paso deja registro con **quién + fecha + hora + evidencia**, que es lo
-que el auditor quiere ver meses después:
+> Ajuste tras retroalimentación de Felipe (2026-07-12): el flujo NO inicia
+> en la salida. Inicia en la **venta**, y hay operación diaria que existe
+> **haya o no salidas** (revisión matinal de equipos, mantenimiento,
+> capacitaciones). La salida es solo el punto donde el ciclo comercial y la
+> operación diaria se encuentran. Y el ciclo no termina en el tour: la
+> **retroalimentación** (incidentes, encuestas, indicadores) alimenta de
+> vuelta la matriz de riesgos, el mantenimiento y la formación — eso ES la
+> mejora continua del numeral 10.
 
+El sistema opera en **tres planos** que se cruzan:
+
+| Plano | Ritmo | Quién |
+|---|---|---|
+| **A. Ciclo comercial** | por reserva/venta | recepción → turista → guía |
+| **B. Operación diaria** | todos los días, exista o no salida | logística/mecánico, coordinación |
+| **C. Ciclo de mejora** | transversal y permanente | coordinación, gerencia |
+
+Cada paso deja registro con **quién + fecha + hora + evidencia** — lo que el
+auditor quiere ver meses después. Flujograma completo:
+
+```mermaid
+flowchart TD
+    subgraph A["A · CICLO COMERCIAL (por reserva)"]
+        V1["Venta / reserva<br/>(cliente pide la actividad)"] --> V2["Recepción crea la salida:<br/>actividad, fecha, cupo ✅"]
+        V2 --> V3["Link/QR al turista<br/>por WhatsApp ✅"]
+        V3 --> T1["Turista diligencia ficha médica<br/>+ datos + contactos ✅"]
+        T1 --> T2["Turista firma consentimiento<br/>informado (inmutable) ✅"]
+    end
+
+    subgraph B["B · OPERACIÓN DIARIA (haya o no salida)"]
+        O1["Revisión matinal de equipos<br/>B/C/MC + foto + hora ✅ 0032"]
+        O2["Mantenimiento programado<br/>P vs E (GAP sprint 2)"]
+        O3["Capacitaciones, asistencia,<br/>entrega EPP (GAP sprint 2)"]
+    end
+
+    subgraph D["DESPACHO (por salida)"]
+        D1["Revisión PRE de los equipos<br/>que salen ✅ 0032"] --> D2["Briefing: inducción de riesgos<br/>registrada por turista ✅ 0032"]
+        D2 --> D3["Check-in y arranque ✅"]
+    end
+
+    subgraph R["EN RUTA (offline-first)"]
+        R1["Puntos de control<br/>y novedades ✅"]
+        R1 -- "incidente" --> R2["ACTIVAR PON: checklist del plan<br/>de emergencias + red de apoyo ✅ 0032"]
+        R2 --> R3["Atención prehospitalaria<br/>+ evidencia foto/video"]
+    end
+
+    subgraph P["CIERRE (por salida)"]
+        P1["Revisión POST<br/>de equipos ✅ 0032"]
+        P2["Reporte de incidente 8.3<br/>pre-llenado por el sistema ✅ 0032"]
+        P3["Encuesta de experiencia<br/>al turista (GAP sprint 2)"]
+    end
+
+    subgraph C["C · RETROALIMENTACIÓN (mejora continua, numeral 10)"]
+        M1["Investigación y cierre<br/>del incidente ✅ 0032"]
+        M2["Indicadores auto-calculados<br/>(GAP sprint 3)"]
+        M3["Acciones correctivas 10.1<br/>(GAP sprint 3)"]
+        M4["Actualiza matriz de riesgos MT-04<br/>si el riesgo NO estaba identificado"]
+    end
+
+    AUD["📄 PAQUETE DE AUDITORÍA<br/>export de todo al molde MinCIT<br/>(GAP sprint 5)"]
+
+    T2 --> D1
+    B -. "equipos aptos, personal formado" .-> D
+    D3 --> R1
+    R1 --> P1
+    R3 --> P2
+    P1 --> M2
+    P2 --> M1
+    P3 --> M2
+    M1 --> M3
+    M1 --> M4
+    M2 --> M3
+    M3 -. "corrige y previene" .-> B
+    M4 -. "briefing actualizado" .-> D2
+    P1 --> AUD
+    M3 --> AUD
 ```
-[VENTAS / recepcionista]
- 1. Crea la salida (actividad, fecha, cupo)            → salidas ✅
- 2. Envía link/QR al turista por WhatsApp              → qr_token ✅
-[TURISTA — sin cuenta, endpoint público]
- 3. Diligencia ficha médica + datos                    → participantes + participante_salud ✅
- 4. Firma consentimiento informado (riesgos, datos)    → consentimientos (inmutable) ✅
-[MECÁNICO / LOGÍSTICA — en la mañana]
- 5. Revisión PRE-operacional de equipos: estado B/C/MC
-    por equipo, foto/video, observación, hora          → GAP: equipment_checks ⭐
-[GUÍA — antes de salir]
- 6. Selecciona vehículos/equipos que se lleva          → GAP: salida_equipos
- 7. Briefing de riesgos a los turistas: registra la
-    inducción (asistencia digital = "SÍ se le realizó
-    inducción" del Anexo A)                            → GAP: induction en participantes
- 8. Asigna EPP a participantes                         → GAP (cubre entrega EPP a clientes)
- 9. Check-in y arranque                                → salida_eventos ✅
-[DURANTE EL TOUR]
-10. Puntos de control, novedades                       → salida_eventos ✅ (offline-first)
-11. INCIDENTE: el guía activa el PON del plan de
-    emergencias (checklist antes/durante/después),
-    atención prehospitalaria, llama red de apoyo       → GAP: PON checklist + emergency_activations ⭐
-[DESPUÉS]
-12. Formato de registro e investigación del incidente:
-    qué pasó, con quién se comunicó, quién contestó,
-    testigos, fotos/videos como evidencia              → GAP: incident_reports ⭐
-13. Revisión POST-operacional de equipos               → equipment_checks (mismo GAP 5)
-14. Encuesta de experiencia al turista (WhatsApp)      → GAP: surveys
-15. Todo alimenta indicadores y acciones correctivas   → GAP: dashboard + corrective_actions
-[DÍA DE LA AUDITORÍA]
-16. Botón "paquete de auditoría": exporta cada formato
-    vivo al molde MinCIT (.xlsx/.docx) con el histórico → GAP: builders de export
-```
+
+Lectura del flujograma:
+- **La venta dispara el ciclo comercial**, no la salida: la salida es el
+  contenedor operativo que recepción crea para esa reserva.
+- **El plano B corre solo**: el mecánico revisa equipos cada mañana aunque
+  no haya tours; el cronograma de mantenimiento y las capacitaciones son de
+  calendario, no de salida. (Por eso `equipment_checks.salida_id` es
+  opcional en la 0032.)
+- **El plano C cierra el lazo**: un incidente cuyo riesgo no estaba en la
+  matriz obliga a actualizar MT-04 y el próximo briefing; una encuesta mala
+  o un indicador rojo generan acción correctiva que corrige la operación
+  diaria. Nada muere en un archivo.
 
 ## 5. Formatos vivos: estructura de campos extraída del kit
 
@@ -178,8 +231,8 @@ con clasificación **B** (buen estado), **C** (cambio de equipo), **MC**
 (mantenimiento correctivo), observaciones y nombre del responsable.
 Los equipos se alimentan del formato "Identificación y descripción de equipos".
 
-Digitalización propuesta (`equipment_checks`):
-- `salida_id` (o fecha+actividad si es revisión general de la mañana)
+Digitalización (`equipment_checks`, **implementada en 0032**):
+- `salida_id` opcional: la revisión matinal general no depende de una salida
 - `item_id` → `operational_items` (categoría `equipo` ya existe)
 - `phase`: `pre` | `post`
 - `status`: `B` | `C` | `MC`
@@ -225,20 +278,21 @@ Cada paso marcado queda en `salida_eventos` con hora.
 - Fuente de la información; **¿el riesgo ya estaba identificado en la matriz?**
   (sí/no — conecta con MT-04); investigadores (nombres y cargos); observaciones
 
-Digitalización (`incident_reports`): la mitad se **pre-llena sola** (salida,
-actividad, guías, participantes, hora, eventos del log); el guía narra y sube
-evidencia; el coordinador completa la investigación. Si "riesgo no
-identificado" → dispara actualización de la matriz de riesgos y una acción
-correctiva (10.1).
+Digitalización (`incident_reports`, **implementada en 0032**): la mitad se
+**pre-llena sola** (salida, actividad, autoría, hora); el guía narra y sube
+evidencia (su reporte nace en `borrador` y solo él lo edita en ese estado);
+el coordinador completa la investigación y lo cierra (`en_investigacion` →
+`cerrado`, sin reapertura). Si "riesgo no identificado" → dispara
+actualización de la matriz de riesgos y una acción correctiva (10.1). Los
+PONs también quedaron en 0032 como eventos (`emergencia_activada`,
+`pon_paso`, `emergencia_cerrada`).
 
 ### 5.4 Registro de participantes — Anexo A (8.1/8.2)
 
-Ya cubierto en 0031. Gaps vs el molde MinCIT:
-- campo **ARL** (además de EPS) en `participante_salud`
-- registro explícito de la **inducción de riesgos** ("se le realizó inducción
-  sobre el riesgo, cuidados y planes de emergencia": sí/no) — hoy no existe;
-  proponemos evento `induccion` en `salida_eventos` ligado al participante o
-  columna en `participantes`
+Ya cubierto en 0031, gaps cerrados en 0032:
+- campo **ARL** (además de EPS) en `participante_salud` ✅ 0032
+- la **inducción de riesgos** del Anexo A se deriva del evento `induccion`
+  en `salida_eventos` ligado al participante ✅ 0032
 - el texto de tratamiento de datos del molde sirve de base para el
   `consent_template` (pendiente el texto definitivo de Felipe — PO-02)
 
@@ -291,9 +345,10 @@ ColAdventure salen gratis de los datos vivos:
 **Regla intacta:** no construir el árbol completo hasta validar el núcleo
 (PO-01, MT-04, PL-01, PR-02) — CLAUDE.md. Este roadmap ordena lo que sigue.
 
-1. **Sprint terreno 1 (la demo que vende):** `equipment_checks` +
-   `incident_reports` + inducción del participante + PON checklist.
-   Con esto la historia completa del §4 es demostrable de punta a punta.
+1. **Sprint terreno 1 (la demo que vende)** ✅ HECHO (migración 0032 +
+   endpoints, 2026-07-12): `equipment_checks` + `incident_reports` +
+   inducción del participante + eventos PON. Falta del sprint: subida de
+   evidencia (signed URLs), pantallas móviles y aplicar 0032 al remoto.
 2. **Sprint terreno 2:** ciclo de vida de equipos (mantenimiento §5.2) +
    entrega EPP + encuesta post-tour (reutiliza el patrón token público).
 3. **Sprint gestión:** capacitaciones, proveedores, gestión de cambio,
@@ -317,7 +372,6 @@ diligenciamiento de cada formato).
 - El formato de listado maestro (7.5.1) lo generamos automático desde
   `documents`/`document_status` — ningún competidor de papel puede hacerlo.
 - Los datos de salud del Anexo A confirman la separación
-  `participantes`/`participante_salud` (Ley 1581/2012).
 - La firma de recibido/asistencia/consentimiento aparece en 5 formatos →
   patrón único de firma digital (trazo + hash + timestamp, Ley 527/1999),
   ya modelado en `consentimientos`.

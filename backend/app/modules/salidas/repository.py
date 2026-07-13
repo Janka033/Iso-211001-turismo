@@ -205,6 +205,24 @@ def list_equipment_checks(
     return query.order("checked_at").execute().data or []
 
 
+def list_general_equipment_checks(
+    tenant_id: str, token: str, desde: str | None = None, hasta: str | None = None
+) -> list[dict]:
+    """Revisiones matinales generales (sin salida), acotables por rango."""
+    client = get_user_client(token)
+    query = (
+        client.table("equipment_checks")
+        .select(_CHECK_COLS)
+        .eq("tenant_id", tenant_id)
+        .is_("salida_id", "null")
+    )
+    if desde:
+        query = query.gte("checked_at", desde)
+    if hasta:
+        query = query.lte("checked_at", hasta)
+    return query.order("checked_at").execute().data or []
+
+
 def insert_incident(tenant_id: str, data: dict, token: str) -> dict:
     client = get_user_client(token)
     return (

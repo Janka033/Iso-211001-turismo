@@ -85,6 +85,16 @@ def client(monkeypatch: pytest.MonkeyPatch, state: dict):
             and (phase is None or c["phase"] == phase)
         ]
 
+    def fake_list_general_equipment_checks(tenant_id, token, desde=None, hasta=None):
+        return [
+            c
+            for c in state["checks"].values()
+            if c["tenant_id"] == tenant_id
+            and c["salida_id"] is None
+            and (desde is None or c["checked_at"] >= desde)
+            and (hasta is None or c["checked_at"] <= hasta)
+        ]
+
     def fake_insert_incident(tenant_id, data, token):
         iid = str(uuid.uuid4())
         now = datetime.now(UTC).isoformat()
@@ -143,6 +153,7 @@ def client(monkeypatch: pytest.MonkeyPatch, state: dict):
         "get_activity_profile": fake_get_activity_profile,
         "insert_equipment_checks": fake_insert_equipment_checks,
         "list_equipment_checks": fake_list_equipment_checks,
+        "list_general_equipment_checks": fake_list_general_equipment_checks,
         "insert_incident": fake_insert_incident,
         "get_incident": fake_get_incident,
         "list_incidents": fake_list_incidents,
@@ -253,6 +264,32 @@ def test_list_checks_filtra_por_fase(client):
     r = client.get(f"/salidas/{SALIDA_ID}/equipos/revisiones", params={"phase": "post"})
     assert r.status_code == 200
     assert [c["phase"] for c in r.json()] == ["post"]
+
+
+def test_revision_matinal_general_no_requiere_salida(client, state):
+    # La operación diaria existe haya o no salidas (retroalimentación Felipe).
+    _as("coordinador", user_id="mecanico-1")
+    check = _check_payload()
+    r = client.post("/equipos/revisiones", json={"checks": [check]})
+    assert r.status_code == 200, r.text
+    row = state["checks"][check["id"]]
+    assert row["salida_id"] is None
+    assert row["checked_by"] == "mecanico-1"
+
+    # Reintento idempotente también sin salida.
+    r2 = client.post("/equipos/revisiones", json={"checks": [check]})
+    assert r2.json() == {"received": 1, "inserted": 0}
+
+
+def test_list_revisiones_generales_solo_sin_salida(client):
+    _as("coordinador")
+    client.post("/equipos/revisiones", json={"checks": [_check_payload()]})
+    client.post(
+        f"/salidas/{SALIDA_ID}/equipos/revisiones", json={"checks": [_check_payload()]}
+    )
+    r = client.get("/equipos/revisiones")
+    assert r.status_code == 200
+    assert len(r.json()) == 1  # la de la salida no aparece en las generales
 
 
 # ---------------------------------------------------------------------------

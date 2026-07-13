@@ -8,6 +8,8 @@ Dos routers:
   por IP (main.py) también cubre esta ruta.
 """
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, status
 
 from app.core.security import CurrentUser, get_current_user, get_tenant_id, require_role
@@ -154,6 +156,33 @@ async def list_equipment_checks(
     tenant_id: str = Depends(get_tenant_id),
 ) -> list[EquipmentCheckOut]:
     return await service.list_equipment_checks(salida_id, tenant_id, user.token, phase)
+
+
+# La operación diaria existe haya o no salidas (retroalimentación de
+# Felipe): la revisión matinal general del mecánico/logística va SIN salida.
+equipos_router = APIRouter(prefix="/equipos/revisiones", tags=["equipos"])
+
+
+@equipos_router.post("", response_model=EquipmentChecksSyncOut)
+async def sync_general_checks(
+    payload: EquipmentChecksSyncIn,
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+) -> EquipmentChecksSyncOut:
+    # RLS: sin salida solo escriben gerente/coordinador (rol del mecánico hoy).
+    return await service.sync_general_equipment_checks(
+        payload, tenant_id, user.user_id, user.token
+    )
+
+
+@equipos_router.get("", response_model=list[EquipmentCheckOut])
+async def list_general_checks(
+    desde: datetime | None = None,
+    hasta: datetime | None = None,
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+) -> list[EquipmentCheckOut]:
+    return await service.list_general_equipment_checks(tenant_id, user.token, desde, hasta)
 
 
 # ---------------------------------------------------------------------------

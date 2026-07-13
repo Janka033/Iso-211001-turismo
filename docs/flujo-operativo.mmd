@@ -1,0 +1,74 @@
+---
+title: "ColAdventure — Flujo operativo NTC-ISO 21101 (v2, retroalimentación Felipe)"
+config:
+  theme: base
+  themeVariables:
+    fontFamily: "Segoe UI, Arial, sans-serif"
+    fontSize: "15px"
+    primaryColor: "#e8f1fb"
+    primaryBorderColor: "#2563eb"
+    primaryTextColor: "#1e293b"
+    lineColor: "#475569"
+    clusterBkg: "#f8fafc"
+    clusterBorder: "#94a3b8"
+---
+flowchart TD
+    subgraph A["A · CICLO COMERCIAL — por reserva"]
+        V1["1. Venta / reserva<br/>(el cliente pide la actividad)"] --> V2["2. Recepción crea la salida:<br/>actividad, fecha, cupo"]
+        V2 --> V3["3. Link/QR al turista<br/>por WhatsApp"]
+        V3 --> T1["4. Turista: ficha médica,<br/>datos y contactos de emergencia"]
+        T1 --> T2["5. Turista firma consentimiento<br/>informado (inmutable)"]
+    end
+
+    subgraph B["B · OPERACIÓN DIARIA — haya o no salida"]
+        O1["Revisión matinal de equipos<br/>B / C / MC + foto + hora"]
+        O2["Mantenimiento programado<br/>(programado vs ejecutado)"]
+        O3["Capacitaciones, asistencia,<br/>entrega de EPP con firma"]
+    end
+
+    subgraph D["DESPACHO — por salida"]
+        D1["6. Revisión PRE de los<br/>equipos que salen"] --> D2["7. Briefing: inducción de riesgos<br/>registrada por cada turista"]
+        D2 --> D3["8. Check-in y arranque"]
+    end
+
+    subgraph R["EN RUTA — offline, sin señal"]
+        R1["9. Puntos de control<br/>y novedades"]
+        R1 -- "¿incidente?" --> R2["10. ACTIVAR PON: checklist del plan<br/>de emergencias + llamada a red de apoyo"]
+        R2 --> R3["11. Atención prehospitalaria<br/>+ evidencia foto/video"]
+    end
+
+    subgraph P["CIERRE — por salida"]
+        P1["12. Revisión POST<br/>de equipos"]
+        P2["13. Reporte de incidente (8.3)<br/>pre-llenado por el sistema"]
+        P3["14. Encuesta de experiencia<br/>al turista por WhatsApp"]
+    end
+
+    subgraph C["C · RETROALIMENTACIÓN — mejora continua (numeral 10)"]
+        M1["15. Investigación y<br/>cierre del incidente"]
+        M2["16. Indicadores<br/>auto-calculados (9.1)"]
+        M3["17. Acciones correctivas<br/>y de mejora (10.1)"]
+        M4["18. Actualiza matriz de riesgos<br/>si el riesgo NO estaba identificado"]
+    end
+
+    AUD["PAQUETE DE AUDITORÍA<br/>todo exportado al formato MinCIT,<br/>con fecha, hora, responsable y evidencia"]
+
+    T2 --> D1
+    B -. "equipos aptos,<br/>personal formado" .-> D
+    D3 --> R1
+    R1 --> P1
+    R1 --> P3
+    R3 --> P2
+    P1 --> M2
+    P3 --> M2
+    P2 --> M1
+    M1 --> M3
+    M1 --> M4
+    M2 --> M3
+    M3 -. "corrige y previene" .-> B
+    M4 -. "el próximo briefing<br/>incluye el riesgo nuevo" .-> D2
+    P1 --> AUD
+    M3 --> AUD
+
+    style AUD fill:#fef3c7,stroke:#d97706,stroke-width:2px
+    style R2 fill:#fee2e2,stroke:#dc2626
+    style R3 fill:#fee2e2,stroke:#dc2626

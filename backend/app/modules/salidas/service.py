@@ -336,22 +336,13 @@ async def sync_eventos(
 # ---------------------------------------------------------------------------
 
 
-async def sync_equipment_checks(
-    salida_id: str,
-    payload: EquipmentChecksSyncIn,
-    tenant_id: str,
-    user_id: str,
-    token: str,
-) -> EquipmentChecksSyncOut:
-    salida = await _run(repository.get_salida, tenant_id, salida_id, token)
-    if salida is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Salida no encontrada."
-        )
+def _check_rows(
+    payload: EquipmentChecksSyncIn, tenant_id: str, salida_id: str | None, user_id: str
+) -> list[dict]:
     # tenant, salida y responsable los pone el SERVIDOR; del dispositivo
     # llegan el id idempotente, el equipo, el estado B/C/MC, la evidencia
     # y la hora real de la revisión.
-    rows = [
+    return [
         {
             "id": c.id,
             "tenant_id": tenant_id,
@@ -367,6 +358,49 @@ async def sync_equipment_checks(
         }
         for c in payload.checks
     ]
+
+
+def _to_check_out(r: dict) -> EquipmentCheckOut:
+    return EquipmentCheckOut(
+        id=r["id"],
+        item_id=r["item_id"],
+        phase=r["phase"],
+        status=r["status"],
+        quantity=r.get("quantity"),
+        note=r.get("note"),
+        evidence_paths=r.get("evidence_paths") or [],
+        checked_by=r["checked_by"],
+        checked_at=r["checked_at"],
+    )
+
+
+async def sync_equipment_checks(
+    salida_id: str,
+    payload: EquipmentChecksSyncIn,
+    tenant_id: str,
+    user_id: str,
+    token: str,
+) -> EquipmentChecksSyncOut:
+    salida = await _run(repository.get_salida, tenant_id, salida_id, token)
+    if salida is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Salida no encontrada."
+        )
+    rows = _check_rows(payload, tenant_id, salida_id, user_id)
+    try:
+        inserted = await _run(repository.insert_equipment_checks, rows, token)
+    except APIError as exc:
+        raise _map_db_error(exc) from exc
+    return EquipmentChecksSyncOut(received=len(rows), inserted=inserted)
+
+
+async def sync_general_equipment_checks(
+    payload: EquipmentChecksSyncIn, tenant_id: str, user_id: str, token: str
+) -> EquipmentChecksSyncOut:
+    """Revisión matinal SIN salida: la operación diaria del mecánico existe
+    haya o no tours (retroalimentación de Felipe). RLS exige rol
+    gerente/coordinador cuando no hay salida de por medio."""
+    rows = _check_rows(payload, tenant_id, None, user_id)
     try:
         inserted = await _run(repository.insert_equipment_checks, rows, token)
     except APIError as exc:
@@ -383,20 +417,23 @@ async def list_equipment_checks(
             status_code=status.HTTP_404_NOT_FOUND, detail="Salida no encontrada."
         )
     rows = await _run(repository.list_equipment_checks, tenant_id, salida_id, token, phase)
-    return [
-        EquipmentCheckOut(
-            id=r["id"],
-            item_id=r["item_id"],
-            phase=r["phase"],
-            status=r["status"],
-            quantity=r.get("quantity"),
-            note=r.get("note"),
-            evidence_paths=r.get("evidence_paths") or [],
-            checked_by=r["checked_by"],
-            checked_at=r["checked_at"],
-        )
-        for r in rows
-    ]
+    return [_to_check_out(r) for r in rows]
+
+
+async def list_general_equipment_checks(
+    tenant_id: str,
+    token: str,
+    desde: datetime | None = None,
+    hasta: datetime | None = None,
+) -> list[EquipmentCheckOut]:
+    rows = await _run(
+        repository.list_general_equipment_checks,
+        tenant_id,
+        token,
+        desde.isoformat() if desde else None,
+        hasta.isoformat() if hasta else None,
+    )
+    return [_to_check_out(r) for r in rows]
 
 
 # ---------------------------------------------------------------------------
