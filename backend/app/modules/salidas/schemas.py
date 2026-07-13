@@ -13,8 +13,21 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 
 SalidaStatus = Literal["programada", "en_curso", "finalizada", "cancelada"]
 EventType = Literal[
-    "check_in", "inicio_recorrido", "punto_control", "novedad", "fin_recorrido"
+    "check_in",
+    "inicio_recorrido",
+    "punto_control",
+    "novedad",
+    "induccion",
+    "emergencia_activada",
+    "pon_paso",
+    "emergencia_cerrada",
+    "fin_recorrido",
 ]
+CheckPhase = Literal["pre", "post"]
+# Clasificación del molde MinCIT: B = buen estado, C = cambio de equipo,
+# MC = mantenimiento correctivo.
+CheckStatus = Literal["B", "C", "MC"]
+IncidentStatus = Literal["borrador", "en_investigacion", "cerrado"]
 DocumentType = Literal["CC", "TI", "CE", "PA"]
 BloodType = Literal["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 
@@ -127,6 +140,7 @@ class RegistroTuristaIn(BaseModel):
 
     # Sección B — salud (datos sensibles → participante_salud)
     eps: str = Field(min_length=2, max_length=120)
+    arl: str | None = Field(default=None, max_length=120)
     blood_type: BloodType
     allergies: str = Field(min_length=2, max_length=500)  # "Ninguna" explícito
     medical_conditions: MedicalConditions
@@ -167,6 +181,7 @@ class RegistroTuristaOut(BaseModel):
 
 class SaludOut(BaseModel):
     eps: str
+    arl: str | None = None
     blood_type: str
     allergies: str
     medical_conditions: MedicalConditions
@@ -214,3 +229,136 @@ class EventosSyncIn(BaseModel):
 class EventosSyncOut(BaseModel):
     received: int
     inserted: int
+
+
+# ---------------------------------------------------------------------------
+# Revisión pre/post operacional de equipos (molde MinCIT 8.1, offline-first)
+# ---------------------------------------------------------------------------
+
+
+class EquipmentCheckIn(BaseModel):
+    # El id lo genera el DISPOSITIVO: reintentos de sync = inserts idempotentes.
+    id: str = Field(min_length=32, max_length=40)
+    item_id: str
+    phase: CheckPhase
+    status: CheckStatus
+    quantity: int | None = Field(default=None, gt=0, le=10_000)
+    note: str | None = Field(default=None, max_length=2000)
+    evidence_paths: list[str] = Field(default_factory=list, max_length=20)
+    checked_at: datetime
+
+
+class EquipmentChecksSyncIn(BaseModel):
+    checks: list[EquipmentCheckIn] = Field(min_length=1, max_length=500)
+
+
+class EquipmentChecksSyncOut(BaseModel):
+    received: int
+    inserted: int
+
+
+class EquipmentCheckOut(BaseModel):
+    id: str
+    item_id: str
+    phase: str
+    status: str
+    quantity: int | None = None
+    note: str | None = None
+    evidence_paths: list[str] = Field(default_factory=list)
+    checked_by: str
+    checked_at: str
+
+
+# ---------------------------------------------------------------------------
+# Registro e investigación de incidentes (molde MinCIT 8.3)
+# ---------------------------------------------------------------------------
+
+
+class PersonRef(BaseModel):
+    nombre: str = Field(min_length=1, max_length=160)
+    telefono: str | None = Field(default=None, max_length=20)
+
+
+class InvolvedParticipant(PersonRef):
+    participante_id: str | None = None
+
+
+class WitnessRef(PersonRef):
+    version: str | None = Field(default=None, max_length=4000)
+
+
+class InvestigatorRef(BaseModel):
+    nombre: str = Field(min_length=1, max_length=160)
+    cargo: str = Field(min_length=1, max_length=120)
+
+
+class IncidentCreate(BaseModel):
+    """Reporte inicial en terreno: lo mínimo que el guía sabe en caliente.
+
+    El servidor pre-llena actividad y guía líder desde la salida; la
+    investigación (causas, plan de acción…) llega después vía PATCH.
+    """
+
+    occurred_at: datetime
+    location: str = Field(min_length=2, max_length=300)
+    circumstances: str = Field(min_length=10, max_length=8000)
+    involved_participants: list[InvolvedParticipant] = Field(
+        default_factory=list, max_length=50
+    )
+    emergency_response: str | None = Field(default=None, max_length=8000)
+    evidence_paths: list[str] = Field(default_factory=list, max_length=30)
+
+
+class IncidentUpdate(BaseModel):
+    """Campos de la investigación (molde 8.3); todos opcionales, se
+    completan por etapas. El cambio de estado viaja aparte para que las
+    transiciones sean explícitas."""
+
+    status: IncidentStatus | None = None
+    location: str | None = Field(default=None, min_length=2, max_length=300)
+    lead_guide_name: str | None = Field(default=None, max_length=160)
+    lead_guide_phone: str | None = Field(default=None, max_length=20)
+    other_staff: list[PersonRef] | None = None
+    involved_participants: list[InvolvedParticipant] | None = None
+    witnesses: list[WitnessRef] | None = None
+    environmental_conditions: str | None = Field(default=None, max_length=4000)
+    equipment_state: str | None = Field(default=None, max_length=4000)
+    circumstances: str | None = Field(default=None, min_length=10, max_length=8000)
+    probable_causes: str | None = Field(default=None, max_length=8000)
+    emergency_response: str | None = Field(default=None, max_length=8000)
+    consequences: str | None = Field(default=None, max_length=8000)
+    action_plan: str | None = Field(default=None, max_length=8000)
+    info_source: str | None = Field(default=None, max_length=500)
+    risk_was_identified: bool | None = None
+    investigators: list[InvestigatorRef] | None = None
+    observations: str | None = Field(default=None, max_length=4000)
+    evidence_paths: list[str] | None = Field(default=None, max_length=30)
+
+
+class IncidentOut(BaseModel):
+    id: str
+    salida_id: str | None = None
+    activity_type: str
+    occurred_at: str
+    location: str
+    status: str
+    lead_guide_name: str | None = None
+    lead_guide_phone: str | None = None
+    other_staff: list[PersonRef] = Field(default_factory=list)
+    involved_participants: list[InvolvedParticipant] = Field(default_factory=list)
+    witnesses: list[WitnessRef] = Field(default_factory=list)
+    environmental_conditions: str | None = None
+    equipment_state: str | None = None
+    circumstances: str | None = None
+    probable_causes: str | None = None
+    emergency_response: str | None = None
+    consequences: str | None = None
+    action_plan: str | None = None
+    info_source: str | None = None
+    risk_was_identified: bool | None = None
+    investigators: list[InvestigatorRef] = Field(default_factory=list)
+    observations: str | None = None
+    evidence_paths: list[str] = Field(default_factory=list)
+    reported_by: str
+    created_at: str
+    updated_at: str

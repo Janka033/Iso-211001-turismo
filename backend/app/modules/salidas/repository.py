@@ -23,8 +23,20 @@ _PARTICIPANTE_COLS = (
     "has_medical_alert, guardian, emergency_contacts"
 )
 _SALUD_COLS = (
-    "participante_id, eps, blood_type, allergies, medical_conditions, "
+    "participante_id, eps, arl, blood_type, allergies, medical_conditions, "
     "current_medications, activity_specific"
+)
+_CHECK_COLS = (
+    "id, item_id, phase, status, quantity, note, evidence_paths, "
+    "checked_by, checked_at"
+)
+_INCIDENT_COLS = (
+    "id, salida_id, activity_type, occurred_at, location, status, "
+    "lead_guide_name, lead_guide_phone, other_staff, involved_participants, "
+    "witnesses, environmental_conditions, equipment_state, circumstances, "
+    "probable_causes, emergency_response, consequences, action_plan, "
+    "info_source, risk_was_identified, investigators, observations, "
+    "evidence_paths, reported_by, created_at, updated_at"
 )
 
 
@@ -163,6 +175,83 @@ def list_salud(tenant_id: str, participante_ids: list[str], token: str) -> list[
         .data
         or []
     )
+
+
+def insert_equipment_checks(rows: list[dict], token: str) -> int:
+    """Sync append-only de revisiones de equipos: upsert que IGNORA
+    duplicados (id del dispositivo => reintentos idempotentes). Devuelve
+    cuántas revisiones eran nuevas."""
+    client = get_user_client(token)
+    res = (
+        client.table("equipment_checks")
+        .upsert(rows, on_conflict="id", ignore_duplicates=True)
+        .execute()
+    )
+    return len(res.data or [])
+
+
+def list_equipment_checks(
+    tenant_id: str, salida_id: str, token: str, phase: str | None = None
+) -> list[dict]:
+    client = get_user_client(token)
+    query = (
+        client.table("equipment_checks")
+        .select(_CHECK_COLS)
+        .eq("tenant_id", tenant_id)
+        .eq("salida_id", salida_id)
+    )
+    if phase:
+        query = query.eq("phase", phase)
+    return query.order("checked_at").execute().data or []
+
+
+def insert_incident(tenant_id: str, data: dict, token: str) -> dict:
+    client = get_user_client(token)
+    return (
+        client.table("incident_reports")
+        .insert({"tenant_id": tenant_id, **data})
+        .execute()
+        .data[0]
+    )
+
+
+def get_incident(tenant_id: str, incident_id: str, token: str) -> dict | None:
+    client = get_user_client(token)
+    res = (
+        client.table("incident_reports")
+        .select(_INCIDENT_COLS)
+        .eq("tenant_id", tenant_id)
+        .eq("id", incident_id)
+        .limit(1)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def list_incidents(
+    tenant_id: str, token: str, status: str | None = None
+) -> list[dict]:
+    client = get_user_client(token)
+    query = (
+        client.table("incident_reports").select(_INCIDENT_COLS).eq("tenant_id", tenant_id)
+    )
+    if status:
+        query = query.eq("status", status)
+    return query.order("occurred_at", desc=True).execute().data or []
+
+
+def update_incident(
+    tenant_id: str, incident_id: str, changes: dict, token: str
+) -> dict | None:
+    client = get_user_client(token)
+    res = (
+        client.table("incident_reports")
+        .update(changes)
+        .eq("tenant_id", tenant_id)
+        .eq("id", incident_id)
+        .execute()
+    )
+    return res.data[0] if res.data else None
 
 
 def insert_eventos(rows: list[dict], token: str) -> int:

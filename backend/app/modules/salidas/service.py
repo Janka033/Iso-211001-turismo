@@ -21,10 +21,16 @@ from postgrest.exceptions import APIError
 
 from app.modules.salidas import repository
 from app.modules.salidas.schemas import (
+    EquipmentCheckOut,
+    EquipmentChecksSyncIn,
+    EquipmentChecksSyncOut,
     EventosSyncIn,
     EventosSyncOut,
     GuiaAssignIn,
     GuiaOut,
+    IncidentCreate,
+    IncidentOut,
+    IncidentUpdate,
     ManifiestoOut,
     ParticipanteOut,
     RegistroTuristaIn,
@@ -50,6 +56,13 @@ _NO_ALLERGY = {"ninguna", "ninguno", "no", "n/a", "na", "no aplica"}
 _STATUS_TRANSITIONS: dict[str, set[str]] = {
     "programada": {"en_curso", "cancelada"},
     "en_curso": {"finalizada"},
+}
+
+# Un incidente menor puede cerrarse directo desde borrador; uno cerrado no
+# se reabre (se documenta en acciones correctivas, no reescribiendo el acta).
+_INCIDENT_TRANSITIONS: dict[str, set[str]] = {
+    "borrador": {"en_investigacion", "cerrado"},
+    "en_investigacion": {"cerrado"},
 }
 
 
@@ -269,6 +282,7 @@ async def manifiesto(salida_id: str, tenant_id: str, token: str) -> ManifiestoOu
                 emergency_contacts=p["emergency_contacts"],
                 salud=SaludOut(
                     eps=salud["eps"],
+                    arl=salud.get("arl"),
                     blood_type=salud["blood_type"],
                     allergies=salud["allergies"],
                     medical_conditions=salud["medical_conditions"],
@@ -315,6 +329,199 @@ async def sync_eventos(
     except APIError as exc:
         raise _map_db_error(exc) from exc
     return EventosSyncOut(received=len(rows), inserted=inserted)
+
+
+# ---------------------------------------------------------------------------
+# Revisión pre/post operacional de equipos (offline-first)
+# ---------------------------------------------------------------------------
+
+
+async def sync_equipment_checks(
+    salida_id: str,
+    payload: EquipmentChecksSyncIn,
+    tenant_id: str,
+    user_id: str,
+    token: str,
+) -> EquipmentChecksSyncOut:
+    salida = await _run(repository.get_salida, tenant_id, salida_id, token)
+    if salida is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Salida no encontrada."
+        )
+    # tenant, salida y responsable los pone el SERVIDOR; del dispositivo
+    # llegan el id idempotente, el equipo, el estado B/C/MC, la evidencia
+    # y la hora real de la revisión.
+    rows = [
+        {
+            "id": c.id,
+            "tenant_id": tenant_id,
+            "salida_id": salida_id,
+            "item_id": c.item_id,
+            "phase": c.phase,
+            "status": c.status,
+            "quantity": c.quantity,
+            "note": c.note,
+            "evidence_paths": c.evidence_paths,
+            "checked_by": user_id,
+            "checked_at": c.checked_at.isoformat(),
+        }
+        for c in payload.checks
+    ]
+    try:
+        inserted = await _run(repository.insert_equipment_checks, rows, token)
+    except APIError as exc:
+        raise _map_db_error(exc) from exc
+    return EquipmentChecksSyncOut(received=len(rows), inserted=inserted)
+
+
+async def list_equipment_checks(
+    salida_id: str, tenant_id: str, token: str, phase: str | None = None
+) -> list[EquipmentCheckOut]:
+    salida = await _run(repository.get_salida, tenant_id, salida_id, token)
+    if salida is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Salida no encontrada."
+        )
+    rows = await _run(repository.list_equipment_checks, tenant_id, salida_id, token, phase)
+    return [
+        EquipmentCheckOut(
+            id=r["id"],
+            item_id=r["item_id"],
+            phase=r["phase"],
+            status=r["status"],
+            quantity=r.get("quantity"),
+            note=r.get("note"),
+            evidence_paths=r.get("evidence_paths") or [],
+            checked_by=r["checked_by"],
+            checked_at=r["checked_at"],
+        )
+        for r in rows
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Registro e investigación de incidentes (molde 8.3)
+# ---------------------------------------------------------------------------
+
+
+def _to_incident_out(row: dict) -> IncidentOut:
+    return IncidentOut(
+        id=row["id"],
+        salida_id=row.get("salida_id"),
+        activity_type=row["activity_type"],
+        occurred_at=row["occurred_at"],
+        location=row["location"],
+        status=row["status"],
+        lead_guide_name=row.get("lead_guide_name"),
+        lead_guide_phone=row.get("lead_guide_phone"),
+        other_staff=row.get("other_staff") or [],
+        involved_participants=row.get("involved_participants") or [],
+        witnesses=row.get("witnesses") or [],
+        environmental_conditions=row.get("environmental_conditions"),
+        equipment_state=row.get("equipment_state"),
+        circumstances=row.get("circumstances"),
+        probable_causes=row.get("probable_causes"),
+        emergency_response=row.get("emergency_response"),
+        consequences=row.get("consequences"),
+        action_plan=row.get("action_plan"),
+        info_source=row.get("info_source"),
+        risk_was_identified=row.get("risk_was_identified"),
+        investigators=row.get("investigators") or [],
+        observations=row.get("observations"),
+        evidence_paths=row.get("evidence_paths") or [],
+        reported_by=row["reported_by"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+    )
+
+
+async def create_incident(
+    salida_id: str,
+    payload: IncidentCreate,
+    tenant_id: str,
+    user_id: str,
+    token: str,
+) -> IncidentOut:
+    salida = await _run(repository.get_salida, tenant_id, salida_id, token)
+    if salida is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Salida no encontrada."
+        )
+    # Pre-llenado del servidor: la actividad sale de la ficha técnica de la
+    # salida — el guía en caliente solo narra qué pasó.
+    profile = await _run(
+        repository.get_activity_profile, tenant_id, salida["activity_profile_id"], token
+    )
+    data = {
+        "salida_id": salida_id,
+        "activity_type": profile["name"] if profile else "[PENDIENTE: actividad]",
+        "occurred_at": payload.occurred_at.isoformat(),
+        "location": payload.location,
+        "circumstances": payload.circumstances,
+        "involved_participants": [
+            p.model_dump() for p in payload.involved_participants
+        ],
+        "emergency_response": payload.emergency_response,
+        "evidence_paths": payload.evidence_paths,
+        "reported_by": user_id,
+    }
+    try:
+        row = await _run(repository.insert_incident, tenant_id, data, token)
+    except APIError as exc:
+        raise _map_db_error(exc) from exc
+    return _to_incident_out(row)
+
+
+async def list_incidents(
+    tenant_id: str, token: str, status_filter: str | None = None
+) -> list[IncidentOut]:
+    rows = await _run(repository.list_incidents, tenant_id, token, status_filter)
+    return [_to_incident_out(r) for r in rows]
+
+
+async def get_incident(incident_id: str, tenant_id: str, token: str) -> IncidentOut:
+    row = await _run(repository.get_incident, tenant_id, incident_id, token)
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Incidente no encontrado."
+        )
+    return _to_incident_out(row)
+
+
+async def update_incident(
+    incident_id: str, payload: IncidentUpdate, tenant_id: str, token: str
+) -> IncidentOut:
+    current = await _run(repository.get_incident, tenant_id, incident_id, token)
+    if current is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Incidente no encontrado."
+        )
+    changes = payload.model_dump(exclude_unset=True, exclude_none=True)
+    if not changes:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Nada para actualizar.",
+        )
+    new_status = changes.get("status")
+    if new_status and new_status != current["status"]:
+        allowed = _INCIDENT_TRANSITIONS.get(current["status"], set())
+        if new_status not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Transición inválida: {current['status']} → {new_status}.",
+            )
+    try:
+        updated = await _run(
+            repository.update_incident, tenant_id, incident_id, changes, token
+        )
+    except APIError as exc:
+        raise _map_db_error(exc) from exc
+    if updated is None:
+        # RLS filtró el UPDATE: el guía solo edita su reporte en borrador.
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Operación no permitida."
+        )
+    return _to_incident_out(updated)
 
 
 # ---------------------------------------------------------------------------
@@ -413,6 +620,7 @@ async def registro_publico(
         "participante_id": row["id"],
         "tenant_id": tenant_id,
         "eps": payload.eps,
+        "arl": payload.arl,
         "blood_type": payload.blood_type,
         "allergies": payload.allergies,
         "medical_conditions": payload.medical_conditions.model_dump(),

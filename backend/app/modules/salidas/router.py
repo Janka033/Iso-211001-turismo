@@ -13,10 +13,18 @@ from fastapi import APIRouter, Depends, status
 from app.core.security import CurrentUser, get_current_user, get_tenant_id, require_role
 from app.modules.salidas import service
 from app.modules.salidas.schemas import (
+    CheckPhase,
+    EquipmentCheckOut,
+    EquipmentChecksSyncIn,
+    EquipmentChecksSyncOut,
     EventosSyncIn,
     EventosSyncOut,
     GuiaAssignIn,
     GuiaOut,
+    IncidentCreate,
+    IncidentOut,
+    IncidentStatus,
+    IncidentUpdate,
     ManifiestoOut,
     RegistroTuristaIn,
     RegistroTuristaOut,
@@ -116,6 +124,93 @@ async def sync_eventos(
     return await service.sync_eventos(
         salida_id, payload, tenant_id, user.user_id, user.token
     )
+
+
+# ---------------------------------------------------------------------------
+# Revisión pre/post operacional de equipos (molde MinCIT 8.1)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{salida_id}/equipos/revisiones", response_model=EquipmentChecksSyncOut)
+async def sync_equipment_checks(
+    salida_id: str,
+    payload: EquipmentChecksSyncIn,
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+) -> EquipmentChecksSyncOut:
+    # Escribe quien revisa: gerente/coordinador (mecánico/logística) o el
+    # guía asignado — RLS lo refuerza. Sync idempotente, nunca se bloquea
+    # por suscripción vencida.
+    return await service.sync_equipment_checks(
+        salida_id, payload, tenant_id, user.user_id, user.token
+    )
+
+
+@router.get("/{salida_id}/equipos/revisiones", response_model=list[EquipmentCheckOut])
+async def list_equipment_checks(
+    salida_id: str,
+    phase: CheckPhase | None = None,
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+) -> list[EquipmentCheckOut]:
+    return await service.list_equipment_checks(salida_id, tenant_id, user.token, phase)
+
+
+# ---------------------------------------------------------------------------
+# Registro e investigación de incidentes (molde MinCIT 8.3)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{salida_id}/incidentes",
+    response_model=IncidentOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_incident(
+    salida_id: str,
+    payload: IncidentCreate,
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+) -> IncidentOut:
+    # El guía de la salida o gerente/coordinador (RLS refuerza). El servidor
+    # pre-llena actividad y autoría; el reporte nace en 'borrador'.
+    return await service.create_incident(
+        salida_id, payload, tenant_id, user.user_id, user.token
+    )
+
+
+incidents_router = APIRouter(prefix="/incidentes", tags=["incidentes"])
+
+
+@incidents_router.get("", response_model=list[IncidentOut])
+async def list_incidents(
+    status_filter: IncidentStatus | None = None,
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+) -> list[IncidentOut]:
+    # RLS acota: gestión ve todo; el guía, sus salidas o lo que él reportó.
+    return await service.list_incidents(tenant_id, user.token, status_filter)
+
+
+@incidents_router.get("/{incident_id}", response_model=IncidentOut)
+async def get_incident(
+    incident_id: str,
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+) -> IncidentOut:
+    return await service.get_incident(incident_id, tenant_id, user.token)
+
+
+@incidents_router.patch("/{incident_id}", response_model=IncidentOut)
+async def update_incident(
+    incident_id: str,
+    payload: IncidentUpdate,
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+) -> IncidentOut:
+    # Gerente/coordinador investigan y cierran; el reportante solo edita su
+    # borrador (RLS). Las transiciones de estado las valida el service.
+    return await service.update_incident(incident_id, payload, tenant_id, user.token)
 
 
 # ---------------------------------------------------------------------------
