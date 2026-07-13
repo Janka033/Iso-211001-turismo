@@ -1,0 +1,38 @@
+---
+title: "Escenario 3 — ATENCIÓN AL CLIENTE (pre-venta, venta y post-venta)"
+config:
+  theme: base
+  themeVariables:
+    fontFamily: "Segoe UI, Arial, sans-serif"
+    fontSize: "16px"
+    primaryColor: "#dbeafe"
+    primaryBorderColor: "#1d4ed8"
+    primaryTextColor: "#1e293b"
+    lineColor: "#334155"
+---
+flowchart TD
+    INICIO([INICIO]) --> A["El cliente pregunta por la actividad<br/>(WhatsApp, redes, agencia, presencial)"]
+    A --> B["Informar con la ficha técnica:<br/>actividad, requisitos, riesgos y tarifa"]
+    B --> C{"¿El cliente<br/>reserva?"}
+    C -- "No" --> D["Guardar el contacto<br/>para seguimiento"]
+    D --> FIN1([FIN])
+    C -- "Sí" --> E["Crear la reserva en la app<br/>y enviar el link por WhatsApp"]
+    E --> F["El cliente llena la ficha médica y<br/>firma consentimiento y contrato"]
+    F --> G{"¿Completo<br/>y apto?"}
+    G -- "No" --> H["Contactar al cliente:<br/>completar datos o no apto por seguridad"]
+    H --> F
+    G -- "Sí" --> I["Confirmar cupo:<br/>el cliente queda en la salida"]
+    I --> J["(Sale el tour a cargo del guía)"]
+    J --> K["Enviar la encuesta de<br/>experiencia por WhatsApp"]
+    K --> L{"¿Queja o<br/>calificación baja?"}
+    L -- "Sí" --> M["Registrar PQRS y crear<br/>acción de mejora"]
+    M --> FIN2([FIN])
+    L -- "No" --> FIN2
+
+    style INICIO fill:#dcfce7,stroke:#16a34a
+    style FIN1 fill:#fee2e2,stroke:#dc2626
+    style FIN2 fill:#fee2e2,stroke:#dc2626
+    style C fill:#fef9c3,stroke:#ca8a04
+    style G fill:#fef9c3,stroke:#ca8a04
+    style L fill:#fef9c3,stroke:#ca8a04
+    style J fill:#f1f5f9,stroke:#94a3b8,stroke-dasharray: 5 5

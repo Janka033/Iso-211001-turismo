@@ -129,6 +129,14 @@ el molde MinCIT que el auditor espera ver.
 | MANUAL NTC ISO 21101 (docx, 6 MB) | KB | RAG — manual completo de implementación del programa |
 | Guías de implementación / indicadores / integración (PDF) | KB | RAG (no versionadas en git) |
 
+### Moldes de la empresa piloto (`empresa-piloto/`, recibidos 2026-07-13)
+
+| Archivo | Clase | Destino |
+|---|---|---|
+| Consentimiento Informado y Asunción de Riesgos | APP ⭐ | **Resuelve el pendiente PO-02**: es el texto del `consent_template` que firma el turista (5 secciones: salud, asunción de riesgos, cumplimiento, datos Ley 1581, firma digital Ley 527). Ya viene redactado para la plataforma. Siguiente paso: sembrarlo como plantilla v1 por tenant |
+| Contrato de alquiler de cuatrimotos 2026 (bilingüe ES/EN) | GEN nuevo | Tipo documental nuevo: **contrato de servicio/alquiler por actividad** con base legal colombiana (Ley 1480, C.C., Res. 23385/2020). Las partes, depósito y política de cancelación son variables del tenant/actividad; se firma digital en el mismo flujo del consentimiento |
+| Ejemplo de flujograma (referencia visual) | KB | El estilo que Felipe espera para los flujogramas de cara al empresario (clásico, rombos Sí/No) — aplicado en `docs/flujogramas/` |
+
 ## 4. El flujo operativo (la historia end-to-end)
 
 > Ajuste tras retroalimentación de Felipe (2026-07-12): el flujo NO inicia
@@ -139,6 +147,18 @@ el molde MinCIT que el auditor espera ver.
 > **retroalimentación** (incidentes, encuestas, indicadores) alimenta de
 > vuelta la matriz de riesgos, el mantenimiento y la formación — eso ES la
 > mejora continua del numeral 10.
+
+> Segunda retroalimentación de Felipe (2026-07-13): el diagrama global de
+> abajo es **espec interna** — para el empresario es demasiado desarrollado.
+> Los flujogramas oficiales de cara al cliente son **simples, por escenario
+> y estilo clásico** (INICIO → proceso → rombo ¿todo bien? Sí/No → FIN, con
+> flechas que devuelven): `docs/flujogramas/` — 1. Equipos
+> (mecánico/mantenimiento), 2. Guía, 3. Atención al cliente (pre-venta,
+> venta, post-venta). La comunicación cruzada guía↔mecánico aparece en
+> ambos. **Nota de diseño:** los roles son sombreros, no personas — en
+> empresas pequeñas una sola persona de logística los usa todos; la app
+> debe permitir un usuario con varios roles (pendiente en el modelo:
+> `user_profiles.role` es único hoy).
 
 El sistema opera en **tres planos** que se cruzan:
 

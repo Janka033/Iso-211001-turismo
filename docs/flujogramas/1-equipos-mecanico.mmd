@@ -1,0 +1,30 @@
+---
+title: "Escenario 1 — EQUIPOS (mecánico / personal de mantenimiento)"
+config:
+  theme: base
+  themeVariables:
+    fontFamily: "Segoe UI, Arial, sans-serif"
+    fontSize: "16px"
+    primaryColor: "#dbeafe"
+    primaryBorderColor: "#1d4ed8"
+    primaryTextColor: "#1e293b"
+    lineColor: "#334155"
+---
+flowchart TD
+    INICIO([INICIO]) --> A["Abrir en la app la lista de<br/>equipos y vehículos del día"]
+    A --> B["Revisar cada equipo y registrar<br/>estado con foto y observación"]
+    B --> C{"¿Todo en<br/>buen estado?"}
+    C -- "Sí" --> D["Marcar disponible (B)<br/>para la salida"]
+    D --> E["Avisar al guía:<br/>equipos listos ✔"]
+    E --> FIN([FIN])
+    C -- "No" --> F["Marcar C (cambio) o<br/>MC (mantenimiento) con foto"]
+    F --> G{"¿Se puede<br/>reparar hoy?"}
+    G -- "Sí" --> H["Reparar y registrar<br/>el mantenimiento"]
+    H --> B
+    G -- "No" --> I["Sacar de servicio y avisar<br/>al guía para reemplazo"]
+    I --> E
+
+    style INICIO fill:#dcfce7,stroke:#16a34a
+    style FIN fill:#fee2e2,stroke:#dc2626
+    style C fill:#fef9c3,stroke:#ca8a04
+    style G fill:#fef9c3,stroke:#ca8a04

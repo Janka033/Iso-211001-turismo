@@ -1,0 +1,34 @@
+---
+title: "Escenario 2 — GUÍA"
+config:
+  theme: base
+  themeVariables:
+    fontFamily: "Segoe UI, Arial, sans-serif"
+    fontSize: "16px"
+    primaryColor: "#dbeafe"
+    primaryBorderColor: "#1d4ed8"
+    primaryTextColor: "#1e293b"
+    lineColor: "#334155"
+---
+flowchart TD
+    INICIO([INICIO]) --> A["Recibir la salida asignada<br/>en la app"]
+    A --> B["Verificar los equipos y<br/>vehículos que se llevan"]
+    B --> C{"¿Todo<br/>bien?"}
+    C -- "No" --> D["Avisar al mecánico<br/>y pedir cambio o reparación"]
+    D --> B
+    C -- "Sí" --> E["Dar la charla de seguridad y<br/>registrar la inducción de cada turista"]
+    E --> F["Entregar equipo de protección<br/>y hacer check-in"]
+    F --> G["Iniciar el recorrido<br/>(puntos de control en la app)"]
+    G --> H{"¿Se presenta<br/>un problema?"}
+    H -- "No" --> I["Terminar el recorrido"]
+    H -- "Sí" --> J["ACTIVAR el plan de emergencia:<br/>atender y llamar a la red de apoyo"]
+    J --> K["Registrar el incidente<br/>con fotos y datos"]
+    K --> I
+    I --> L["Revisar los equipos al regreso<br/>y reportar novedades al mecánico"]
+    L --> FIN([FIN])
+
+    style INICIO fill:#dcfce7,stroke:#16a34a
+    style FIN fill:#fee2e2,stroke:#dc2626
+    style C fill:#fef9c3,stroke:#ca8a04
+    style H fill:#fef9c3,stroke:#ca8a04
+    style J fill:#fee2e2,stroke:#dc2626
