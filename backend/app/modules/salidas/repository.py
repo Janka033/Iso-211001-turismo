@@ -60,6 +60,23 @@ def get_activity_profile(tenant_id: str, activity_profile_id: str, token: str) -
     return res.data[0] if res.data else None
 
 
+def list_activity_profiles(tenant_id: str, token: str) -> list[dict]:
+    client = get_user_client(token)
+    return (
+        client.table("activity_profiles")
+        .select(
+            "id, name, activity_type, min_age, max_age, difficulty, "
+            "duration_minutes, location"
+        )
+        .eq("tenant_id", tenant_id)
+        .eq("is_active", True)
+        .order("name")
+        .execute()
+        .data
+        or []
+    )
+
+
 def insert_salida(tenant_id: str, data: dict, token: str) -> dict:
     client = get_user_client(token)
     return (

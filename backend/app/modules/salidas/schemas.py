@@ -85,6 +85,20 @@ class GuiaOut(BaseModel):
     is_lead: bool
 
 
+class ActivityProfileOut(BaseModel):
+    """Ficha técnica resumida para que recepción elija actividad al crear
+    una salida. Solo se listan las activas."""
+
+    id: str
+    name: str
+    activity_type: str
+    min_age: int | None = None
+    max_age: int | None = None
+    difficulty: str | None = None
+    duration_minutes: int | None = None
+    location: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Registro público del turista (link/QR, sin auth)
 # ---------------------------------------------------------------------------

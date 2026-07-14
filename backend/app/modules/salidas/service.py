@@ -23,6 +23,7 @@ from postgrest.exceptions import APIError
 
 from app.modules.salidas import repository
 from app.modules.salidas.schemas import (
+    ActivityProfileOut,
     ConsentTemplateCreate,
     ConsentTemplateOut,
     EquipmentCheckOut,
@@ -121,6 +122,23 @@ def _to_salida_out(row: dict) -> SalidaOut:
 # ---------------------------------------------------------------------------
 # Salidas (staff)
 # ---------------------------------------------------------------------------
+
+
+async def list_activity_profiles(tenant_id: str, token: str) -> list[ActivityProfileOut]:
+    rows = await _run(repository.list_activity_profiles, tenant_id, token)
+    return [
+        ActivityProfileOut(
+            id=r["id"],
+            name=r["name"],
+            activity_type=r["activity_type"],
+            min_age=r.get("min_age"),
+            max_age=r.get("max_age"),
+            difficulty=r.get("difficulty"),
+            duration_minutes=r.get("duration_minutes"),
+            location=r.get("location"),
+        )
+        for r in rows
+    ]
 
 
 async def create_salida(

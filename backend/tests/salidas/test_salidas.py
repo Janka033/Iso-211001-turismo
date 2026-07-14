@@ -72,6 +72,22 @@ def client(monkeypatch: pytest.MonkeyPatch, state: dict):
     def fake_get_activity_profile(tenant_id, activity_profile_id, token):
         return state["activities"].get(activity_profile_id)
 
+    def fake_list_activity_profiles(tenant_id, token):
+        return [
+            {
+                "id": a["id"],
+                "name": a["name"],
+                "activity_type": a.get("activity_type", "atv"),
+                "min_age": a["min_age"],
+                "max_age": a["max_age"],
+                "difficulty": a.get("difficulty"),
+                "duration_minutes": a.get("duration_minutes"),
+                "location": a.get("location"),
+            }
+            for a in state["activities"].values()
+            if a["is_active"]
+        ]
+
     def fake_insert_salida(tenant_id, data, token):
         sid = str(uuid.uuid4())
         row = {
@@ -174,6 +190,7 @@ def client(monkeypatch: pytest.MonkeyPatch, state: dict):
 
     for name, fn in {
         "get_activity_profile": fake_get_activity_profile,
+        "list_activity_profiles": fake_list_activity_profiles,
         "insert_salida": fake_insert_salida,
         "list_salidas": fake_list_salidas,
         "get_salida": fake_get_salida,
@@ -247,6 +264,20 @@ def _registro_payload(**overrides) -> dict:
     }
     payload.update(overrides)
     return payload
+
+
+# ---------------------------------------------------------------------------
+# Actividades (para que recepción elija al crear salida)
+# ---------------------------------------------------------------------------
+
+
+def test_list_activity_profiles_solo_activas(client):
+    _as("recepcionista")
+    r = client.get("/activity-profiles")
+    assert r.status_code == 200, r.text
+    ids = [a["id"] for a in r.json()]
+    assert ACTIVITY_ID in ids
+    assert INACTIVE_ACTIVITY_ID not in ids
 
 
 # ---------------------------------------------------------------------------

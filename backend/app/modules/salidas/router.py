@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, File, Request, UploadFile, status
 from app.core.security import CurrentUser, get_current_user, get_tenant_id, require_role
 from app.modules.salidas import service
 from app.modules.salidas.schemas import (
+    ActivityProfileOut,
     CheckPhase,
     ConsentTemplateCreate,
     ConsentTemplateOut,
@@ -45,6 +46,20 @@ from app.modules.salidas.schemas import (
 
 router = APIRouter(prefix="/salidas", tags=["salidas"])
 public_router = APIRouter(prefix="/public/salidas", tags=["public"])
+
+# Fichas técnicas de actividad: recepción las lista para elegir al crear salida.
+activity_profiles_router = APIRouter(
+    prefix="/activity-profiles", tags=["actividades"]
+)
+
+
+@activity_profiles_router.get("", response_model=list[ActivityProfileOut])
+async def list_activity_profiles(
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+) -> list[ActivityProfileOut]:
+    # Todos los roles del tenant listan las actividades activas.
+    return await service.list_activity_profiles(tenant_id, user.token)
 
 
 @router.post("", response_model=SalidaCreatedOut, status_code=status.HTTP_201_CREATED)
