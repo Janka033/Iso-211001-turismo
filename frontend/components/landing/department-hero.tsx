@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
 import {
@@ -10,6 +9,7 @@ import {
   getDepartment,
 } from "@/lib/departments";
 
+import { LandingCta } from "./ui";
 import { LiveDocument } from "./live-document";
 import { Scene } from "./scenes";
 
@@ -46,13 +46,13 @@ export function DepartmentHero() {
       {/* Selector de departamento */}
       <div className="mb-10">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-accent-400">
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-naranja-400">
             Hecho para tu región
           </p>
           <button
             type="button"
             onClick={detectRegion}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-1 text-sm font-medium text-white/70 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-1 text-sm font-medium text-white/70 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-naranja-400"
           >
             <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
               <path
@@ -78,9 +78,9 @@ export function DepartmentHero() {
                 type="button"
                 onClick={() => setSelected(d.id)}
                 aria-pressed={active}
-                className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 ${
+                className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-naranja-400 ${
                   active
-                    ? "bg-accent-500 text-brand-950 shadow-glow"
+                    ? "bg-naranja-500 text-marca-950 shadow-glow-naranja"
                     : "border border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white"
                 }`}
               >
@@ -103,7 +103,7 @@ export function DepartmentHero() {
             <br />
             es tuya.
             <br />
-            <span className="text-accent-400">El papeleo,
+            <span className="text-naranja-400">El papeleo,
             <br />
             nuestro.</span>
           </h1>
@@ -128,15 +128,12 @@ export function DepartmentHero() {
           </div>
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
-            <Link href="/login" className="btn-accent btn-lg">
+            <LandingCta href="/login" size="lg">
               Crear mi expediente gratis
-            </Link>
-            <Link
-              href="#como-funciona"
-              className="btn btn-lg border border-white/25 text-white hover:bg-white/10"
-            >
+            </LandingCta>
+            <LandingCta href="#como-funciona" size="lg" variant="outline">
               Ver cómo funciona
-            </Link>
+            </LandingCta>
           </div>
 
           <p className="mt-7 font-mono text-xs tracking-wide text-white/45">
@@ -154,7 +151,7 @@ export function DepartmentHero() {
               uid={dept.id}
               className="aspect-[16/10] w-full"
             />
-            <div className="absolute right-4 top-4 rounded-xl bg-brand-950/75 px-3.5 py-2.5 text-white backdrop-blur">
+            <div className="absolute right-4 top-4 rounded-xl bg-marca-950/75 px-3.5 py-2.5 text-white backdrop-blur">
               <div className="flex items-center gap-2">
                 <span
                   className="h-2 w-2 rounded-full"

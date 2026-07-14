@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { NumeralChip } from "./ui";
+
 /**
  * La firma de la landing: un documento del expediente que se escribe solo.
  * Lo que el operador dice con sus palabras (arriba) se convierte en cláusulas
@@ -123,7 +125,7 @@ export function LiveDocument() {
 
   return (
     <div
-      className="relative w-full max-w-md rounded-2xl bg-white shadow-card-hover ring-1 ring-brand-950/10"
+      className="relative w-full max-w-md rounded-2xl bg-white shadow-card-marca-hover ring-1 ring-marca-950/10"
       aria-label={`Ejemplo: ${script.title} generándose desde las palabras del operador`}
     >
       {/* Pestaña del expediente */}
@@ -131,19 +133,19 @@ export function LiveDocument() {
         <span className="font-mono text-[11px] font-semibold tracking-[0.18em] text-slate-500">
           {script.title}
         </span>
-        <span className="numeral-chip">NTC-ISO 21101 · {script.numeral}</span>
+        <NumeralChip>NTC-ISO 21101 · {script.numeral}</NumeralChip>
       </div>
 
       <div className="space-y-4 px-5 py-5">
         {/* Lo que dijo el operador */}
-        <div className="rounded-xl bg-brand-50 px-4 py-3">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-600">
+        <div className="rounded-xl bg-marca-50 px-4 py-3">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-marca-600">
             Tú lo cuentas
           </p>
-          <p className="mt-1 min-h-[3.5rem] text-[15px] leading-snug text-brand-900">
+          <p className="mt-1 min-h-[3.5rem] text-[15px] leading-snug text-marca-900">
             {typedText}
             {!showAll && typed < script.spoken.length && (
-              <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 bg-brand-600 animate-caret" />
+              <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 bg-marca-600 animate-caret" />
             )}
           </p>
         </div>
@@ -157,7 +159,7 @@ export function LiveDocument() {
             {script.lines.slice(0, visibleLines).map((line, i) => (
               <p
                 key={`${scriptIdx}-${i}`}
-                className={`border-l-2 border-brand-200 pl-3 text-[13.5px] leading-snug text-slate-700 ${
+                className={`border-l-2 border-marca-200 pl-3 text-[13.5px] leading-snug text-slate-700 ${
                   showAll ? "" : "animate-doc-line"
                 }`}
               >
@@ -180,7 +182,7 @@ export function LiveDocument() {
         </span>
         {showStamp && (
           <span
-            className={`rounded border-2 border-brand-600 px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-widest text-brand-600 ${
+            className={`rounded border-2 border-cielo-600 px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-widest text-cielo-600 ${
               showAll ? "-rotate-3" : "animate-stamp-in"
             }`}
           >
