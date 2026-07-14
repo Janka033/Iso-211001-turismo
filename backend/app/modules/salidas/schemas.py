@@ -175,6 +175,66 @@ class RegistroTuristaOut(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Consentimiento informado (texto versionado + firma digital del turista)
+# ---------------------------------------------------------------------------
+
+
+class ConsentTemplateOut(BaseModel):
+    id: str
+    version: int
+    body_md: str
+    effective_from: str
+
+
+class ConsentTemplateCreate(BaseModel):
+    """Nueva versión del texto (solo gerente). Nunca se edita una versión
+    publicada: cada cambio es una fila nueva."""
+
+    body_md: str = Field(min_length=200, max_length=50_000)
+
+
+class PublicConsentOut(BaseModel):
+    """Lo que el turista lee antes de firmar."""
+
+    activity_name: str | None = None
+    template_version: int
+    body_md: str
+
+
+class FirmaConsentimientoIn(BaseModel):
+    participante_id: str
+    accepted_privacy: bool
+    accepted_risk_info: bool
+    # Trazo de la firma como PNG en base64 (con o sin prefijo data-URL).
+    signature_png_base64: str = Field(min_length=100, max_length=500_000)
+
+    @model_validator(mode="after")
+    def _aceptaciones_obligatorias(self) -> "FirmaConsentimientoIn":
+        if not (self.accepted_privacy and self.accepted_risk_info):
+            raise ValueError(
+                "Debe aceptar el tratamiento de datos y la información de "
+                "riesgos para firmar."
+            )
+        return self
+
+
+class FirmaConsentimientoOut(BaseModel):
+    consentimiento_id: str
+    participante_id: str
+    template_version: int
+    signed_by_guardian: bool
+    signed_at: str
+    participante_status: str
+
+
+class EvidenciaOut(BaseModel):
+    """Ruta en el bucket privado, para referenciar en evidence_paths de
+    checks e incidentes."""
+
+    storage_path: str
+
+
+# ---------------------------------------------------------------------------
 # Manifiesto de ruta
 # ---------------------------------------------------------------------------
 

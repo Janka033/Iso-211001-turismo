@@ -8,6 +8,8 @@ de creación de la salida; en DB vive su hash.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import functools
 import hashlib
 import secrets
@@ -21,11 +23,15 @@ from postgrest.exceptions import APIError
 
 from app.modules.salidas import repository
 from app.modules.salidas.schemas import (
+    ConsentTemplateCreate,
+    ConsentTemplateOut,
     EquipmentCheckOut,
     EquipmentChecksSyncIn,
     EquipmentChecksSyncOut,
     EventosSyncIn,
     EventosSyncOut,
+    FirmaConsentimientoIn,
+    FirmaConsentimientoOut,
     GuiaAssignIn,
     GuiaOut,
     IncidentCreate,
@@ -33,6 +39,7 @@ from app.modules.salidas.schemas import (
     IncidentUpdate,
     ManifiestoOut,
     ParticipanteOut,
+    PublicConsentOut,
     RegistroTuristaIn,
     RegistroTuristaOut,
     SalidaCreate,
@@ -437,6 +444,52 @@ async def list_general_equipment_checks(
 
 
 # ---------------------------------------------------------------------------
+# Evidencia de terreno (fotos/videos de checks e incidentes)
+# ---------------------------------------------------------------------------
+
+_MAX_EVIDENCE_BYTES = 25 * 1024 * 1024  # videos cortos de terreno
+_ALLOWED_EVIDENCE_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "video/mp4",
+    "video/quicktime",
+}
+
+
+async def upload_evidencia(
+    salida_id: str, filename: str, content: bytes, content_type: str,
+    tenant_id: str, token: str,
+) -> str:
+    salida = await _run(repository.get_salida, tenant_id, salida_id, token)
+    if salida is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Salida no encontrada."
+        )
+    if content_type not in _ALLOWED_EVIDENCE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Formato no permitido (use JPG, PNG, WebP, HEIC, MP4 o MOV).",
+        )
+    if len(content) > _MAX_EVIDENCE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="El archivo supera el máximo de 25 MB.",
+        )
+    safe_name = (filename or "evidencia").replace("/", "_").replace("\\", "_")[-80:]
+    unique_name = f"{secrets.token_hex(8)}-{safe_name}"
+    return await _run(
+        repository.upload_salida_evidence,
+        tenant_id,
+        salida_id,
+        unique_name,
+        content,
+        content_type,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Registro e investigación de incidentes (molde 8.3)
 # ---------------------------------------------------------------------------
 
@@ -562,6 +615,46 @@ async def update_incident(
 
 
 # ---------------------------------------------------------------------------
+# Plantillas de consentimiento (staff)
+# ---------------------------------------------------------------------------
+
+
+async def list_consent_templates(tenant_id: str, token: str) -> list[ConsentTemplateOut]:
+    rows = await _run(repository.list_consent_templates, tenant_id, token)
+    return [
+        ConsentTemplateOut(
+            id=r["id"],
+            version=r["version"],
+            body_md=r["body_md"],
+            effective_from=r["effective_from"],
+        )
+        for r in rows
+    ]
+
+
+async def create_consent_template(
+    payload: ConsentTemplateCreate, tenant_id: str, token: str
+) -> ConsentTemplateOut:
+    existing = await _run(repository.list_consent_templates, tenant_id, token)
+    next_version = (existing[0]["version"] + 1) if existing else 1
+    data = {
+        "version": next_version,
+        "body_md": payload.body_md,
+        "content_hash": hashlib.sha256(payload.body_md.encode()).hexdigest(),
+    }
+    try:
+        row = await _run(repository.insert_consent_template, tenant_id, data, token)
+    except APIError as exc:
+        raise _map_db_error(exc) from exc
+    return ConsentTemplateOut(
+        id=row["id"],
+        version=row["version"],
+        body_md=row["body_md"],
+        effective_from=row["effective_from"],
+    )
+
+
+# ---------------------------------------------------------------------------
 # Registro público del turista
 # ---------------------------------------------------------------------------
 
@@ -579,25 +672,29 @@ def _has_medical_alert(payload: RegistroTuristaIn) -> bool:
     )
 
 
-async def registro_publico(
-    public_token: str, payload: RegistroTuristaIn
-) -> RegistroTuristaOut:
+async def _salida_from_public_token(public_token: str) -> dict:
+    """Resuelve y valida la salida del link/QR. El tenant SIEMPRE se deriva
+    de la salida encontrada por hash, nunca del body."""
     token_hash = hashlib.sha256(public_token.encode()).hexdigest()
     salida = await _run(repository.get_salida_by_token_hash, token_hash)
     if salida is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Enlace de registro inválido."
         )
-
-    # El tenant se deriva de la salida encontrada por hash. Nunca del body.
-    tenant_id = salida["tenant_id"]
-
     expires_at = datetime.fromisoformat(salida["qr_token_expires_at"])
     if salida["status"] != "programada" or datetime.now(UTC) >= expires_at:
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
             detail="El registro para esta salida ya no está disponible.",
         )
+    return salida
+
+
+async def registro_publico(
+    public_token: str, payload: RegistroTuristaIn
+) -> RegistroTuristaOut:
+    salida = await _salida_from_public_token(public_token)
+    tenant_id = salida["tenant_id"]
 
     count = await _run(repository.count_participantes_public, salida["id"])
     if count >= salida["capacity"]:
@@ -675,4 +772,151 @@ async def registro_publico(
 
     return RegistroTuristaOut(
         participante_id=row["id"], salida_id=salida["id"], status=row["status"]
+    )
+
+
+# ---------------------------------------------------------------------------
+# Consentimiento informado del turista (lectura + firma digital)
+# ---------------------------------------------------------------------------
+
+_PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+_MAX_SIGNATURE_BYTES = 300 * 1024
+
+
+def _decode_signature(b64: str) -> bytes:
+    raw = b64.split(",", 1)[-1]  # tolera el prefijo data-URL del canvas
+    try:
+        content = base64.b64decode(raw, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La firma no es base64 válido.",
+        ) from exc
+    if len(content) > _MAX_SIGNATURE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La firma supera el tamaño máximo (300 KB).",
+        )
+    if not content.startswith(_PNG_MAGIC):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La firma debe ser una imagen PNG.",
+        )
+    return content
+
+
+async def consentimiento_publico(public_token: str) -> PublicConsentOut:
+    """El texto que el turista lee antes de firmar (versión vigente)."""
+    salida = await _salida_from_public_token(public_token)
+    template = await _run(
+        repository.get_latest_consent_template_public, salida["tenant_id"]
+    )
+    if template is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="La empresa aún no ha publicado su consentimiento informado.",
+        )
+    profile = await _run(
+        repository.get_activity_profile_public, salida["activity_profile_id"]
+    )
+    return PublicConsentOut(
+        activity_name=profile["name"] if profile else None,
+        template_version=template["version"],
+        body_md=template["body_md"],
+    )
+
+
+async def firmar_consentimiento_publico(
+    public_token: str,
+    payload: FirmaConsentimientoIn,
+    ip_address: str | None,
+    user_agent: str | None,
+) -> FirmaConsentimientoOut:
+    salida = await _salida_from_public_token(public_token)
+    tenant_id = salida["tenant_id"]
+
+    participante = await _run(repository.get_participante_public, payload.participante_id)
+    if participante is None or participante["salida_id"] != salida["id"]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Participante no encontrado en esta salida.",
+        )
+    if participante["status"] != "registrado":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El consentimiento de este participante ya fue firmado.",
+        )
+
+    template = await _run(repository.get_latest_consent_template_public, tenant_id)
+    if template is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="La empresa aún no ha publicado su consentimiento informado.",
+        )
+
+    # Menor de edad: firma el acudiente registrado (es quien asume).
+    birth = date.fromisoformat(participante["birth_date"])
+    if _age_at(birth, datetime.now(UTC).date()) < _ADULT_AGE:
+        guardian = participante.get("guardian")
+        if not guardian:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="El menor no tiene acudiente registrado; no puede firmar.",
+            )
+        signer_name = guardian["nombre"]
+        signer_document = guardian["documento"]
+        signed_by_guardian = True
+    else:
+        signer_name = participante["full_name"]
+        signer_document = participante["document_number"]
+        signed_by_guardian = False
+
+    content = _decode_signature(payload.signature_png_base64)
+    signature_path = await _run(
+        repository.upload_signature_public, tenant_id, participante["id"], content
+    )
+
+    signed_at = datetime.now(UTC)
+    # Hash de evidencia: amarra QUÉ texto (content_hash de la versión), QUIÉN
+    # (participante + documento del firmante) y CUÁNDO. Verificable después.
+    signed_document_hash = hashlib.sha256(
+        f"{template['content_hash']}:{participante['id']}:"
+        f"{signer_document}:{signed_at.isoformat()}".encode()
+    ).hexdigest()
+
+    row_data = {
+        "tenant_id": tenant_id,
+        "participante_id": participante["id"],
+        "consent_template_id": template["id"],
+        "signed_document_hash": signed_document_hash,
+        "signature_path": signature_path,
+        "signer_name": signer_name,
+        "signer_document": signer_document,
+        "signed_by_guardian": signed_by_guardian,
+        "accepted_privacy": payload.accepted_privacy,
+        "accepted_risk_info": payload.accepted_risk_info,
+        "signed_at": signed_at.isoformat(),
+        "ip_address": ip_address,
+        "user_agent": user_agent,
+    }
+    try:
+        row = await _run(repository.insert_consentimiento_public, row_data)
+    except APIError as exc:
+        if exc.code == "23505":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="El consentimiento de este participante ya fue firmado.",
+            ) from exc
+        raise _map_db_error(exc) from exc
+
+    await _run(
+        repository.update_participante_status_public, participante["id"], "firmado"
+    )
+    return FirmaConsentimientoOut(
+        consentimiento_id=row["id"],
+        participante_id=participante["id"],
+        template_version=template["version"],
+        signed_by_guardian=signed_by_guardian,
+        signed_at=row["signed_at"],
+        participante_status="firmado",
     )

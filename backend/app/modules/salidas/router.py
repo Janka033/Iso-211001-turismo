@@ -10,17 +10,22 @@ Dos routers:
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, File, Request, UploadFile, status
 
 from app.core.security import CurrentUser, get_current_user, get_tenant_id, require_role
 from app.modules.salidas import service
 from app.modules.salidas.schemas import (
     CheckPhase,
+    ConsentTemplateCreate,
+    ConsentTemplateOut,
     EquipmentCheckOut,
     EquipmentChecksSyncIn,
     EquipmentChecksSyncOut,
     EventosSyncIn,
     EventosSyncOut,
+    EvidenciaOut,
+    FirmaConsentimientoIn,
+    FirmaConsentimientoOut,
     GuiaAssignIn,
     GuiaOut,
     IncidentCreate,
@@ -28,6 +33,7 @@ from app.modules.salidas.schemas import (
     IncidentStatus,
     IncidentUpdate,
     ManifiestoOut,
+    PublicConsentOut,
     RegistroTuristaIn,
     RegistroTuristaOut,
     SalidaCreate,
@@ -158,6 +164,31 @@ async def list_equipment_checks(
     return await service.list_equipment_checks(salida_id, tenant_id, user.token, phase)
 
 
+@router.post(
+    "/{salida_id}/evidencias",
+    response_model=EvidenciaOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_evidencia(
+    salida_id: str,
+    file: UploadFile = File(...),
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+) -> EvidenciaOut:
+    # Foto/video de terreno; la ruta devuelta se referencia en
+    # evidence_paths de revisiones e incidentes.
+    content = await file.read()
+    path = await service.upload_evidencia(
+        salida_id,
+        file.filename or "evidencia",
+        content,
+        file.content_type or "application/octet-stream",
+        tenant_id,
+        user.token,
+    )
+    return EvidenciaOut(storage_path=path)
+
+
 # La operación diaria existe haya o no salidas (retroalimentación de
 # Felipe): la revisión matinal general del mecánico/logística va SIN salida.
 equipos_router = APIRouter(prefix="/equipos/revisiones", tags=["equipos"])
@@ -256,3 +287,55 @@ async def registro_turista(
     public_token: str, payload: RegistroTuristaIn
 ) -> RegistroTuristaOut:
     return await service.registro_publico(public_token, payload)
+
+
+@public_router.get("/{public_token}/consentimiento", response_model=PublicConsentOut)
+async def leer_consentimiento(public_token: str) -> PublicConsentOut:
+    # El turista lee la versión vigente antes de firmar.
+    return await service.consentimiento_publico(public_token)
+
+
+@public_router.post(
+    "/{public_token}/consentimientos",
+    response_model=FirmaConsentimientoOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def firmar_consentimiento(
+    public_token: str, payload: FirmaConsentimientoIn, request: Request
+) -> FirmaConsentimientoOut:
+    # Evidencia legal (Ley 527/1999): trazo + hash + IP + user-agent. La fila
+    # es inmutable (trigger de 0031); si es menor, firma el acudiente.
+    return await service.firmar_consentimiento_publico(
+        public_token,
+        payload,
+        request.client.host if request.client else None,
+        request.headers.get("user-agent"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Plantillas del consentimiento (staff — el texto es dato versionado)
+# ---------------------------------------------------------------------------
+
+consent_router = APIRouter(prefix="/consent-templates", tags=["consentimiento"])
+
+
+@consent_router.get("", response_model=list[ConsentTemplateOut])
+async def list_consent_templates(
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),
+) -> list[ConsentTemplateOut]:
+    return await service.list_consent_templates(tenant_id, user.token)
+
+
+@consent_router.post(
+    "", response_model=ConsentTemplateOut, status_code=status.HTTP_201_CREATED
+)
+async def create_consent_template(
+    payload: ConsentTemplateCreate,
+    user: CurrentUser = Depends(require_role("gerente")),
+    tenant_id: str = Depends(get_tenant_id),
+) -> ConsentTemplateOut:
+    # Nueva versión = nueva fila (inmutables); el turista siempre firma la
+    # vigente. RLS refuerza que solo el gerente publica.
+    return await service.create_consent_template(payload, tenant_id, user.token)

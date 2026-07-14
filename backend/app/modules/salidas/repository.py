@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from app.core.supabase import get_service_client, get_user_client
 
+EVIDENCE_BUCKET = "evidence"
+
 _SALIDA_COLS = (
     "id, activity_profile_id, route_name, scheduled_start, capacity, status, "
     "qr_token_expires_at, started_at, finished_at, created_at"
@@ -306,6 +308,34 @@ def get_profile_for_tenant(tenant_id: str, user_id: str) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
+# Plantillas de consentimiento (staff: user client => RLS)
+# ---------------------------------------------------------------------------
+
+
+def list_consent_templates(tenant_id: str, token: str) -> list[dict]:
+    client = get_user_client(token)
+    return (
+        client.table("consent_templates")
+        .select("id, version, body_md, effective_from")
+        .eq("tenant_id", tenant_id)
+        .order("version", desc=True)
+        .execute()
+        .data
+        or []
+    )
+
+
+def insert_consent_template(tenant_id: str, data: dict, token: str) -> dict:
+    client = get_user_client(token)
+    return (
+        client.table("consent_templates")
+        .insert({"tenant_id": tenant_id, **data})
+        .execute()
+        .data[0]
+    )
+
+
+# ---------------------------------------------------------------------------
 # Flujo público del turista (service client; el tenant sale del token del QR)
 # ---------------------------------------------------------------------------
 
@@ -363,3 +393,74 @@ def delete_participante_public(participante_id: str) -> None:
     se revierte (PostgREST no da transacciones entre las dos escrituras)."""
     client = get_service_client()
     client.table("participantes").delete().eq("id", participante_id).execute()
+
+
+def upload_salida_evidence(
+    tenant_id: str, salida_id: str, filename: str, content: bytes, content_type: str
+) -> str:
+    """Foto/video de terreno (checks, incidentes) al bucket privado. Ruta
+    acotada al tenant del JWT; el nombre lleva uuid para no pisar archivos."""
+    path = f"{tenant_id}/salidas/{salida_id}/{filename}"
+    client = get_service_client()
+    client.storage.from_(EVIDENCE_BUCKET).upload(
+        path=path,
+        file=content,
+        file_options={"content-type": content_type, "upsert": "true"},
+    )
+    return path
+
+
+# --- Firma del consentimiento (turista, service client) ---
+
+
+def get_latest_consent_template_public(tenant_id: str) -> dict | None:
+    client = get_service_client()
+    res = (
+        client.table("consent_templates")
+        .select("id, version, body_md, content_hash")
+        .eq("tenant_id", tenant_id)
+        .order("version", desc=True)
+        .limit(1)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def get_participante_public(participante_id: str) -> dict | None:
+    client = get_service_client()
+    res = (
+        client.table("participantes")
+        .select(
+            "id, tenant_id, salida_id, full_name, document_type, "
+            "document_number, birth_date, guardian, status"
+        )
+        .eq("id", participante_id)
+        .limit(1)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def upload_signature_public(tenant_id: str, participante_id: str, content: bytes) -> str:
+    """Trazo de la firma al bucket privado; ruta acotada al tenant (derivado
+    del token de la salida, nunca del body)."""
+    path = f"{tenant_id}/firmas/{participante_id}.png"
+    client = get_service_client()
+    client.storage.from_(EVIDENCE_BUCKET).upload(
+        path=path,
+        file=content,
+        file_options={"content-type": "image/png", "upsert": "true"},
+    )
+    return path
+
+
+def insert_consentimiento_public(data: dict) -> dict:
+    client = get_service_client()
+    return client.table("consentimientos").insert(data).execute().data[0]
+
+
+def update_participante_status_public(participante_id: str, new_status: str) -> None:
+    client = get_service_client()
+    client.table("participantes").update({"status": new_status}).eq(
+        "id", participante_id
+    ).execute()

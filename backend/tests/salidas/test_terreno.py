@@ -148,6 +148,11 @@ def client(monkeypatch: pytest.MonkeyPatch, state: dict):
                 inserted += 1
         return inserted
 
+    def fake_upload_salida_evidence(tenant_id, salida_id, filename, content, content_type):
+        path = f"{tenant_id}/salidas/{salida_id}/{filename}"
+        state.setdefault("uploads", {})[path] = content
+        return path
+
     for name, fn in {
         "get_salida": fake_get_salida,
         "get_activity_profile": fake_get_activity_profile,
@@ -159,6 +164,7 @@ def client(monkeypatch: pytest.MonkeyPatch, state: dict):
         "list_incidents": fake_list_incidents,
         "update_incident": fake_update_incident,
         "insert_eventos": fake_insert_eventos,
+        "upload_salida_evidence": fake_upload_salida_evidence,
     }.items():
         monkeypatch.setattr(repository, name, fn)
 
@@ -396,6 +402,28 @@ def test_eventos_induccion_y_pon_aceptados(client, state):
     r = client.post(f"/salidas/{SALIDA_ID}/eventos", json={"eventos": eventos})
     assert r.status_code == 200, r.text
     assert r.json() == {"received": 4, "inserted": 4}
+
+
+def test_subir_evidencia_devuelve_ruta_del_bucket(client, state):
+    _as("guia", user_id="guia-77")
+    r = client.post(
+        f"/salidas/{SALIDA_ID}/evidencias",
+        files={"file": ("casco.jpg", b"\xff\xd8\xff" + b"0" * 100, "image/jpeg")},
+    )
+    assert r.status_code == 201, r.text
+    path = r.json()["storage_path"]
+    assert path.startswith(f"{FAKE_TENANT}/salidas/{SALIDA_ID}/")
+    assert path.endswith("-casco.jpg")
+    assert path in state["uploads"]
+
+
+def test_evidencia_formato_no_permitido_422(client):
+    _as("guia")
+    r = client.post(
+        f"/salidas/{SALIDA_ID}/evidencias",
+        files={"file": ("nota.txt", b"hola", "text/plain")},
+    )
+    assert r.status_code == 422
 
 
 def test_evento_tipo_invalido_es_422(client):
