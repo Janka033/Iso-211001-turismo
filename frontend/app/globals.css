@@ -34,6 +34,16 @@
   .btn-lg {
     @apply rounded-xl px-5 py-3 text-base;
   }
+  /* Sistema DESIGN.md (azul): CTA primario de las pantallas nuevas
+     (registro del turista, operación en terreno). marca = blue. */
+  .btn-marca {
+    @apply btn rounded-xl bg-marca-600 px-5 py-3 text-base text-white hover:bg-marca-700
+      focus-visible:ring-marca-500 active:scale-[0.99];
+  }
+  .btn-naranja {
+    @apply btn rounded-xl bg-naranja-500 px-5 py-3 text-base text-marca-950 hover:bg-naranja-400
+      focus-visible:ring-naranja-400 active:scale-[0.99];
+  }
 
   .input {
     @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900
