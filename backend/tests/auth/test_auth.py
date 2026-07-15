@@ -1,4 +1,42 @@
+import httpx
+from supabase_auth.errors import AuthApiError
+
+from app.modules.auth import repository as auth_repo
+
 TENANT_A = "11111111-1111-1111-1111-111111111111"
+
+_SIGNUP_BODY = {"email": "nuevo@empresa.co", "password": "secret123", "company_name": "ACME SAS"}
+
+
+def test_signup_email_ya_registrado_es_409(client, monkeypatch):
+    async def _boom(payload):
+        raise AuthApiError(
+            "A user with this email address has already been registered", 422,
+            "user_already_exists",
+        )
+
+    monkeypatch.setattr(auth_repo, "provision", _boom)
+    r = client.post("/auth/signup", json=_SIGNUP_BODY)
+    assert r.status_code == 409
+    assert "correo" in r.json()["detail"].lower()
+
+
+def test_signup_error_auth_generico_es_400(client, monkeypatch):
+    async def _boom(payload):
+        raise AuthApiError("Password should be at least 6 characters", 400, "weak_password")
+
+    monkeypatch.setattr(auth_repo, "provision", _boom)
+    r = client.post("/auth/signup", json=_SIGNUP_BODY)
+    assert r.status_code == 400
+
+
+def test_signup_auth_caido_es_503(client, monkeypatch):
+    async def _boom(payload):
+        raise httpx.ConnectTimeout("timed out")
+
+    monkeypatch.setattr(auth_repo, "provision", _boom)
+    r = client.post("/auth/signup", json=_SIGNUP_BODY)
+    assert r.status_code == 503
 
 
 def test_health(client):
