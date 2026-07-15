@@ -13,7 +13,7 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [profileRes, companyRes, statusesRes, docsRes] = await Promise.all([
+  const [profileRes, companyRes, statusesRes, docsRes, reviewsRes] = await Promise.all([
     supabase.from("user_profiles").select("tenant_id, role").single(),
     supabase.from("companies").select("name").limit(1).maybeSingle(),
     supabase
@@ -21,7 +21,13 @@ export default async function DashboardPage() {
       .select("document_type, status, completeness, updated_at"),
     supabase
       .from("documents")
-      .select("document_type, version, storage_path, created_at")
+      .select("id, document_type, version, storage_path, created_at")
+      .order("created_at", { ascending: false }),
+    // Score del Auditor por documento (última evaluación). Es el Nivel de
+    // Cumplimiento Normativo que ve el panel, NO la completitud.
+    supabase
+      .from("quality_reviews")
+      .select("document_id, score, created_at")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -29,10 +35,11 @@ export default async function DashboardPage() {
   const company = companyRes.data;
   const statuses = statusesRes.data;
   const docs = docsRes.data;
+  const reviews = reviewsRes.data;
 
   // Un error de consulta NO puede pasar en silencio: pintaría "Pendiente" y 0%
   // sobre documentos que sí existen. Se loguea y se avisa en la UI.
-  const queryErrors = [profileRes, companyRes, statusesRes, docsRes]
+  const queryErrors = [profileRes, companyRes, statusesRes, docsRes, reviewsRes]
     .map((r) => r.error)
     .filter((e): e is NonNullable<typeof e> => Boolean(e));
   if (queryErrors.length > 0) {
@@ -42,12 +49,28 @@ export default async function DashboardPage() {
     );
   }
 
+  // Score del Auditor (última evaluación) por tipo de documento. Los reviews
+  // vienen ordenados desc por created_at; se resuelve document_id → tipo y se
+  // conserva el primero (más reciente) por tipo.
+  const docTypeById = new Map<string, DocumentType>();
+  for (const d of docs ?? []) {
+    docTypeById.set(d.id as string, d.document_type as DocumentType);
+  }
+  const complianceByType = new Map<DocumentType, number>();
+  for (const r of reviews ?? []) {
+    const type = docTypeById.get(r.document_id as string);
+    if (type && !complianceByType.has(type)) {
+      complianceByType.set(type, r.score as number);
+    }
+  }
+
   // Estado inicial por tipo de documento (último estado + último documento).
   const initial: Partial<Record<DocumentType, DocState>> = {};
   for (const s of statuses ?? []) {
     initial[s.document_type as DocumentType] = {
       status: s.status as DocStatus,
       completeness: s.completeness ?? null,
+      complianceScore: complianceByType.get(s.document_type as DocumentType) ?? null,
       version: null,
       storagePath: null,
       pendingFields: null,
@@ -58,6 +81,7 @@ export default async function DashboardPage() {
     const entry = (initial[type] ??= {
       status: "generated",
       completeness: null,
+      complianceScore: complianceByType.get(type) ?? null,
       version: null,
       storagePath: null,
       pendingFields: null,

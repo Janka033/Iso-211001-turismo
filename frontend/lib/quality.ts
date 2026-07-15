@@ -67,3 +67,29 @@ export const REVIEW_STATUS_LABEL: Record<ReviewStatus, string> = {
   rejected: "Rechazado",
   needs_correction: "Corrección solicitada",
 };
+
+/**
+ * Nivel de cumplimiento normativo a partir del score del Auditor (0-100).
+ * Un score no es "completitud": un documento puede tener 100% de campos con
+ * texto y aun así incumplir la norma. Umbrales de producto:
+ *   Rojo    0-59  → requiere ajustes críticos
+ *   Amarillo 60-89 → aceptable con observaciones
+ *   Verde   90-100 → cumplimiento óptimo
+ */
+export interface ComplianceLevel {
+  label: string;
+  /** clase de color de la barra (fondo). */
+  bar: string;
+  /** clase de color del texto del porcentaje. */
+  text: string;
+}
+
+export function complianceLevel(score: number): ComplianceLevel {
+  if (score >= 90) {
+    return { label: "Cumplimiento óptimo", bar: "bg-emerald-500", text: "text-emerald-700" };
+  }
+  if (score >= 60) {
+    return { label: "Aceptable con observaciones", bar: "bg-amber-500", text: "text-amber-700" };
+  }
+  return { label: "Requiere ajustes críticos", bar: "bg-rose-500", text: "text-rose-700" };
+}

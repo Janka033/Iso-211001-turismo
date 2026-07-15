@@ -11,6 +11,7 @@ import {
   DocumentType,
   STATUS_LABEL,
 } from "@/lib/documents";
+import { complianceLevel } from "@/lib/quality";
 import { createClient } from "@/lib/supabase/client";
 
 // Un único cliente del navegador para todo el grid (no uno por tarjeta).
@@ -19,6 +20,9 @@ const supabase = createClient();
 export interface DocState {
   status: DocStatus;
   completeness: number | null;
+  // Score del Auditor (0-100): Nivel de Cumplimiento Normativo. null = aún no
+  // evaluado por el Auditor (distinto de 0).
+  complianceScore: number | null;
   version: number | null;
   storagePath: string | null;
   pendingFields: string[] | null;
@@ -27,6 +31,7 @@ export interface DocState {
 const EMPTY: DocState = {
   status: "pending",
   completeness: null,
+  complianceScore: null,
   version: null,
   storagePath: null,
   pendingFields: null,
@@ -75,6 +80,10 @@ function DocumentCard({ meta, initial }: { meta: DocumentMeta; initial: DocState
       setState({
         status: body.status ?? "generated",
         completeness: body.completeness ?? null,
+        // El documento cambió: el score del Auditor previo queda obsoleto. Se
+        // limpia hasta que se vuelva a evaluar en Calidad (no mostrar un nivel
+        // de cumplimiento que ya no corresponde a este contenido).
+        complianceScore: null,
         version: body.version ?? null,
         storagePath: body.storage_path ?? null,
         pendingFields: body.pending_fields ?? [],
@@ -127,13 +136,16 @@ function DocumentCard({ meta, initial }: { meta: DocumentMeta; initial: DocState
       <h3 className="mt-3 text-base font-semibold text-slate-900">{meta.title}</h3>
       <p className="mt-1 flex-1 text-sm text-slate-500">{meta.description}</p>
 
-      {state.completeness !== null && (
+      {generatedOnce && (
         <div className="mt-4">
-          <div className="mb-1 flex items-center justify-between text-xs">
-            <span className="text-slate-500">Completitud</span>
-            <span className="font-medium text-slate-700">{state.completeness}%</span>
-          </div>
-          <CompletenessBar value={state.completeness} />
+          {state.complianceScore !== null ? (
+            <ComplianceBar value={state.complianceScore} />
+          ) : (
+            <p className="text-xs text-slate-400">
+              Sin evaluación del Auditor. Evalúa el cumplimiento en{" "}
+              <span className="font-medium text-slate-500">Calidad</span>.
+            </p>
+          )}
         </div>
       )}
 
@@ -179,15 +191,27 @@ function StatusBadge({ status }: { status: DocStatus }) {
   return <span className={`badge ${styles[status]}`}>{STATUS_LABEL[status]}</span>;
 }
 
-function CompletenessBar({ value }: { value: number }) {
-  const color =
-    value >= 80 ? "bg-brand-500" : value >= 40 ? "bg-accent-500" : "bg-rose-400";
+/**
+ * Nivel de Cumplimiento Normativo: refleja el score del Auditor (no la
+ * completitud). Colores por umbral de producto (ver complianceLevel):
+ * rojo 0-59, amarillo 60-89, verde 90-100.
+ */
+function ComplianceBar({ value }: { value: number }) {
+  const level = complianceLevel(value);
+  const pct = Math.min(Math.max(value, 0), 100);
   return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-      <div
-        className={`h-full rounded-full ${color} transition-all`}
-        style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
-      />
+    <div>
+      <div className="mb-1 flex items-center justify-between text-xs">
+        <span className="text-slate-500">Nivel de cumplimiento normativo</span>
+        <span className={`font-semibold ${level.text}`}>{value}%</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+        <div
+          className={`h-full rounded-full ${level.bar} transition-all`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className={`mt-1 text-xs font-medium ${level.text}`}>{level.label}</p>
     </div>
   );
 }
