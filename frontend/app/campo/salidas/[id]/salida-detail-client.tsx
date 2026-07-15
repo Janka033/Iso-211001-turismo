@@ -8,6 +8,11 @@ import {
   CampoHeader,
   CampoMain,
   ErrorNote,
+  IconAlertTriangle,
+  IconCheck,
+  IconFlag,
+  IconPin,
+  IconWrench,
   OkNote,
   StatusBadge,
 } from "@/components/campo/ui";
@@ -147,7 +152,9 @@ export function SalidaDetailClient({ salidaId }: { salidaId: string }) {
           href="/campo/equipos"
           className="card mt-4 flex items-center gap-3 p-4 transition-shadow hover:shadow-card-hover active:scale-[0.99]"
         >
-          <span className="text-2xl">🛠️</span>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-marca-50 text-marca-600">
+            <IconWrench className="h-5 w-5" />
+          </span>
           <span className="text-sm text-slate-600">
             Verifica los equipos y vehículos antes de salir
           </span>
@@ -194,13 +201,15 @@ export function SalidaDetailClient({ salidaId }: { salidaId: string }) {
             onClick={() => logEvent("punto_control")}
             className="btn-secondary w-full"
           >
-            📍 Registrar punto de control
+            <IconPin className="h-4 w-4" />
+            Registrar punto de control
           </button>
           <button
             onClick={() => logEvent("fin_recorrido", { key: "fin_recorrido" })}
             className="btn-secondary w-full"
           >
-            🏁 Fin del recorrido
+            <IconFlag className="h-4 w-4" />
+            Fin del recorrido
           </button>
         </section>
 
@@ -219,7 +228,8 @@ export function SalidaDetailClient({ salidaId }: { salidaId: string }) {
               }}
               className="btn mt-3 w-full rounded-xl bg-flag-500 px-5 py-3 text-base text-white hover:bg-flag-600 active:scale-[0.99]"
             >
-              🚨 Activar emergencia y reportar
+              <IconAlertTriangle className="h-5 w-5" />
+              Activar emergencia y reportar
             </button>
           ) : (
             <IncidentForm
@@ -260,8 +270,9 @@ function ParticipanteRow({
           </p>
         </div>
         {p.has_medical_alert && (
-          <span className="shrink-0 rounded-full bg-flag-100 px-2 py-0.5 text-xs font-medium text-flag-600">
-            ⚠ Alerta médica
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-flag-100 px-2 py-0.5 text-xs font-medium text-flag-600">
+            <IconAlertTriangle className="h-3.5 w-3.5" />
+            Alerta médica
           </span>
         )}
       </div>
@@ -269,24 +280,26 @@ function ParticipanteRow({
         <button
           onClick={onInduccion}
           disabled={inducted}
-          className={`rounded-lg px-3 py-2 text-sm font-medium ${
+          className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium ${
             inducted
               ? "bg-cielo-100 text-cielo-700"
               : "border border-slate-300 text-slate-700 hover:bg-slate-50"
           }`}
         >
-          {inducted ? "✓ Inducción" : "Inducción"}
+          {inducted && <IconCheck className="h-4 w-4" />}
+          Inducción
         </button>
         <button
           onClick={onCheckIn}
           disabled={checked}
-          className={`rounded-lg px-3 py-2 text-sm font-medium ${
+          className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium ${
             checked
               ? "bg-cielo-100 text-cielo-700"
               : "border border-slate-300 text-slate-700 hover:bg-slate-50"
           }`}
         >
-          {checked ? "✓ Check-in" : "Check-in"}
+          {checked && <IconCheck className="h-4 w-4" />}
+          Check-in
         </button>
       </div>
     </div>

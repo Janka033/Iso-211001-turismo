@@ -4,19 +4,24 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { CampoHeader, CampoMain } from "@/components/campo/ui";
+import {
+  CampoHeader,
+  CampoMain,
+  IconCompass,
+  IconWrench,
+} from "@/components/campo/ui";
 import { authToken } from "@/lib/campo";
 
 const TILES = [
   {
     href: "/campo/equipos",
-    emoji: "🛠️",
+    Icon: IconWrench,
     title: "Revisión de equipos",
     desc: "Revisa equipos y vehículos: buen estado, cambio o mantenimiento.",
   },
   {
     href: "/campo/salidas",
-    emoji: "🧭",
+    Icon: IconCompass,
     title: "Salidas",
     desc: "Crea salidas, comparte el enlace de registro y opera el recorrido.",
   },
@@ -52,8 +57,8 @@ export default function CampoHub() {
               href={t.href}
               className="card flex items-center gap-4 p-5 transition-shadow hover:shadow-card-hover active:scale-[0.99]"
             >
-              <span className="text-3xl" aria-hidden>
-                {t.emoji}
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-marca-50 text-marca-600">
+                <t.Icon className="h-6 w-6" />
               </span>
               <span className="min-w-0">
                 <span className="block font-display text-base font-bold text-marca-950">

@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { CampoHeader, CampoMain, ErrorNote, StatusBadge } from "@/components/campo/ui";
+import {
+  CampoHeader,
+  CampoMain,
+  ErrorNote,
+  IconCheckCircle,
+  StatusBadge,
+} from "@/components/campo/ui";
 import {
   authToken,
   createSalida,
@@ -250,7 +256,7 @@ function ShareLink({
   return (
     <div className="card space-y-4 p-5">
       <div className="flex items-center gap-2">
-        <span className="text-2xl">✅</span>
+        <IconCheckCircle className="h-6 w-6 text-cielo-600" />
         <h2 className="font-display text-base font-bold text-marca-950">
           Salida creada
         </h2>

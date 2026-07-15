@@ -85,3 +85,65 @@ export function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
+
+/**
+ * Iconografía de operación en terreno. Trazo fino sobre `currentColor` (mismo
+ * lenguaje que el sidebar): sin emojis, para una lectura sobria y profesional.
+ */
+type IconProps = { className?: string };
+const SVG = (props: IconProps & { children: React.ReactNode }) => (
+  <svg
+    viewBox="0 0 20 20"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={props.className ?? "h-5 w-5"}
+    aria-hidden="true"
+  >
+    {props.children}
+  </svg>
+);
+
+export const IconWrench = (p: IconProps) => (
+  <SVG {...p}>
+    <path d="M13.6 6.4a3.2 3.2 0 0 1-4.1 4.1l-4.2 4.2a1.5 1.5 0 0 1-2.1-2.1l4.2-4.2a3.2 3.2 0 0 1 4.1-4.1l-2 2 1.9 1.9 2.2-1.8Z" />
+  </SVG>
+);
+export const IconCompass = (p: IconProps) => (
+  <SVG {...p}>
+    <circle cx="10" cy="10" r="7.5" />
+    <path d="m13 7-2 4-4 2 2-4 4-2Z" />
+  </SVG>
+);
+export const IconCheckCircle = (p: IconProps) => (
+  <SVG {...p}>
+    <circle cx="10" cy="10" r="7.5" />
+    <path d="m6.6 10.3 2.2 2.2 4.6-4.8" />
+  </SVG>
+);
+export const IconCheck = (p: IconProps) => (
+  <SVG {...p}>
+    <path d="m4.5 10.5 3.2 3.2 7.8-7.8" />
+  </SVG>
+);
+export const IconPin = (p: IconProps) => (
+  <SVG {...p}>
+    <path d="M10 2.6c-2.8 0-4.8 2-4.8 4.7 0 3.3 4.8 9.4 4.8 9.4s4.8-6.1 4.8-9.4c0-2.7-2-4.7-4.8-4.7Z" />
+    <circle cx="10" cy="7.3" r="1.8" />
+  </SVG>
+);
+export const IconFlag = (p: IconProps) => (
+  <SVG {...p}>
+    <path d="M5 3v14" />
+    <path d="M5 3.6h9.2l-2.1 3 2.1 3H5" />
+  </SVG>
+);
+export const IconAlertTriangle = (p: IconProps) => (
+  <SVG {...p}>
+    <path d="M10 3.2 17.6 16.4H2.4L10 3.2Z" />
+    <path d="M10 8.4v3.4" />
+    <path d="M10 14.1h.01" />
+  </SVG>
+);
