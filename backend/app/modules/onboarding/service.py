@@ -359,6 +359,7 @@ async def chat(
 
     extracted: dict[str, str] = {}
     ai_out: OnboardingExtraction | None = None
+    rejected = False  # el interceptor de seguridad rechazó la respuesta
 
     # Solo llamamos a la IA si hay una respuesta del cliente que interpretar.
     if payload.message and payload.message.strip():
@@ -403,20 +404,27 @@ async def chat(
                 detail=f"La IA devolvió un JSON que no cumple el schema: {exc}",
             ) from exc
 
-        extracted = _sanitize_extracted(ai_out.extracted, activity_keys)
-        _apply_extracted(data, extracted, activity_keys)
+        # INTERCEPTOR de seguridad: si la respuesta describe una práctica que
+        # incumple un requisito obligatorio de la norma, este turno NO extrae ni
+        # guarda nada del cliente (solo se conserva el estado ya persistido). El
+        # turno se marca como rechazado y más abajo se re-pregunta el MISMO campo
+        # con la explicación del requisito ISO.
+        rejected = not ai_out.compliant
+        if not rejected:
+            extracted = _sanitize_extracted(ai_out.extracted, activity_keys)
+            _apply_extracted(data, extracted, activity_keys)
 
-        # Organigrama: la IA lo devuelve estructurado (cargo -> nº) en su propio
-        # campo; se fusiona con lo ya capturado. Alimenta MA-02.
-        clean_roles = {
-            str(k).strip(): str(v).strip()
-            for k, v in ai_out.staff_roles.items()
-            if str(k).strip() and str(v).strip()
-        }
-        if clean_roles:
-            merged_roles = dict(data.get("staff_roles") or {})
-            merged_roles.update(clean_roles)
-            data["staff_roles"] = merged_roles
+            # Organigrama: la IA lo devuelve estructurado (cargo -> nº) en su
+            # propio campo; se fusiona con lo ya capturado. Alimenta MA-02.
+            clean_roles = {
+                str(k).strip(): str(v).strip()
+                for k, v in ai_out.staff_roles.items()
+                if str(k).strip() and str(v).strip()
+            }
+            if clean_roles:
+                merged_roles = dict(data.get("staff_roles") or {})
+                merged_roles.update(clean_roles)
+                data["staff_roles"] = merged_roles
 
     # Persistir el estado ya fusionado.
     saved_payload = OnboardingPayload.model_validate(data)
@@ -431,7 +439,6 @@ async def chat(
     pct, completed = _measure_dynamic(data, checklist)
 
     next_field_row = pending_after[0] if pending_after else None
-    next_question = _resolve_question(next_field_row, ai_out)
     next_field = (
         OnboardingField(
             field_key=next_field_row["field_key"], activity=next_field_row["activity"]
@@ -440,6 +447,23 @@ async def chat(
         else None
     )
 
+    # Turno rechazado por el interceptor: se re-pregunta el MISMO campo (nada se
+    # aplicó, así que ``next_field_row`` sigue siendo el pendiente en curso) y la
+    # "pregunta" pasa a ser la explicación del requisito ISO + cómo replantear.
+    if rejected and ai_out is not None:
+        safety_note = _safety_message(ai_out)
+        return OnboardingChatResponse(
+            next_question=safety_note,
+            next_field=next_field,
+            extracted={},
+            data=saved_payload,
+            completeness=pct,
+            completed=False,
+            blocked=True,
+            safety_note=safety_note,
+        )
+
+    next_question = _resolve_question(next_field_row, ai_out)
     return OnboardingChatResponse(
         next_question=next_question,
         next_field=next_field,
@@ -448,6 +472,32 @@ async def chat(
         completeness=pct,
         completed=completed,
     )
+
+
+def _safety_message(ai_out: OnboardingExtraction) -> str:
+    """Rechazo cortés y accionable: qué incumple + requisito ISO + cómo replantear.
+
+    Todo sale del veredicto de la IA (que se apoya en la norma del RAG); si algún
+    tramo falta, se omite sin romper el mensaje."""
+    issue = (ai_out.safety_issue or "").strip()
+    requirement = (ai_out.iso_requirement or "").strip()
+    hint = (ai_out.rephrase_hint or "").strip()
+
+    parts: list[str] = []
+    if issue:
+        parts.append(f"Esa respuesta no puedo registrarla tal cual: {issue}")
+    else:
+        parts.append(
+            "Esa respuesta describe una práctica que no cumple la norma, así que "
+            "no puedo registrarla tal cual."
+        )
+    if requirement:
+        parts.append(f"La NTC-ISO 21101 exige: {requirement}")
+    if hint:
+        parts.append(f"¿Podrías replantearla así? {hint}")
+    else:
+        parts.append("¿Podrías replantear tu respuesta para que cumpla ese requisito?")
+    return " ".join(parts)
 
 
 def _resolve_question(

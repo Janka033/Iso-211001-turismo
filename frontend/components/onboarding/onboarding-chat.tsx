@@ -92,11 +92,16 @@ interface ChatResponse {
   data: OnboardingData;
   completeness: number;
   completed: boolean;
+  // Interceptor de seguridad: true si la respuesta se rechazó por incumplir la
+  // norma (no se guardó nada); safety_note explica el requisito ISO.
+  blocked?: boolean;
+  safety_note?: string | null;
 }
 
 interface Bubble {
   role: "ai" | "user";
   text: string;
+  tone?: "warning";
 }
 
 const GREETING =
@@ -166,7 +171,11 @@ export function OnboardingChat() {
       ...h,
       {
         role: "ai",
+        // Si el interceptor rechazó la respuesta, se marca como advertencia y el
+        // texto es la explicación del requisito ISO + cómo replantear.
+        tone: resp.blocked ? "warning" : undefined,
         text:
+          resp.safety_note ??
           resp.next_question ??
           "¡Listo! Con esto puedo preparar tus documentos. Lo que falte lo marcaré como [PENDIENTE] para que lo completes.",
       },
@@ -256,8 +265,14 @@ export function OnboardingChat() {
           {history.map((b, i) =>
             b.role === "ai" ? (
               <div key={i} className="flex items-start gap-3">
-                <Avatar />
-                <div className="max-w-[80%] rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-2.5 text-sm text-slate-700">
+                <Avatar tone={b.tone} />
+                <div
+                  className={`max-w-[80%] rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm ${
+                    b.tone === "warning"
+                      ? "border border-amber-200 bg-amber-50 text-amber-800"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
                   {b.text}
                 </div>
               </div>
@@ -378,7 +393,22 @@ function formatValue(value: unknown): string | null {
   return str.length ? str : null;
 }
 
-function Avatar() {
+function Avatar({ tone }: { tone?: "warning" }) {
+  if (tone === "warning") {
+    return (
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600 shadow-card">
+        <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+          <path
+            d="M10 7v4m0 3h.01M10 2.5 18 16H2L10 2.5Z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+    );
+  }
   return (
     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-gradient text-white shadow-card">
       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">

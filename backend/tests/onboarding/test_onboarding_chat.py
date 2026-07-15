@@ -288,6 +288,69 @@ def test_backend_overrides_ai_next_field(client, make_token, wire):
     assert body["completed"] is False  # el backend reconfirma, no confía en la IA
 
 
+# ---------------------------------------------------------------------------
+# Interceptor de seguridad: una respuesta que viola la norma se rechaza, no se
+# guarda nada y se re-pregunta el MISMO campo con la explicación ISO.
+# ---------------------------------------------------------------------------
+
+
+def test_safety_interceptor_blocks_and_saves_nothing(client, make_token, wire):
+    wire(
+        ai_output={
+            "compliant": False,
+            "safety_issue": "trasladar al participante la decisión sobre restricciones de salud",
+            "iso_requirement": "definir y aplicar restricciones de salud por actividad",
+            "rephrase_hint": "indica qué condiciones de salud impiden participar",
+            # Aunque la IA (mal) devuelva un dato, no debe guardarse.
+            "extracted": {"existing_controls": "que las embarazadas monten bajo su propio riesgo"},
+            "next_field_key": "existing_controls",
+            "completed": False,
+        },
+        stored={"activities": ["rafting"]},
+    )
+    resp = client.post(
+        "/onboarding/chat",
+        json={"message": "Que las embarazadas monten bajo su propio riesgo."},
+        headers=_auth(make_token),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    # Se bloqueó: nada extraído ni guardado.
+    assert body["blocked"] is True
+    assert body["extracted"] == {}
+    assert body["data"].get("existing_controls") in (None, "")
+    assert body["completed"] is False
+    # La explicación ISO viaja en safety_note y como próxima "pregunta".
+    assert body["safety_note"]
+    assert "NTC-ISO 21101" in body["safety_note"]
+    # Se re-pregunta el MISMO campo pendiente (el primero: main_region no tiene dato).
+    assert body["next_field"]["field_key"] == "main_region"
+
+
+def test_compliant_answer_is_not_blocked(client, make_token, wire):
+    # compliant por defecto (o true) => flujo normal, sin bloqueo.
+    wire(
+        ai_output={
+            "compliant": True,
+            "extracted": {"main_region": "Santander"},
+            "next_field_key": "locations",
+            "next_question": "¿En qué ubicaciones operan?",
+            "completed": False,
+        },
+        stored={"activities": ["rafting"]},
+    )
+    resp = client.post(
+        "/onboarding/chat",
+        json={"message": "Operamos en Santander."},
+        headers=_auth(make_token),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["blocked"] is False
+    assert body["safety_note"] is None
+    assert body["data"]["main_region"] == "Santander"
+
+
 def test_invalid_ai_json_is_502(client, make_token, wire):
     wire(ai_output={"extracted": "no-soy-un-dict"}, stored={"activities": ["rafting"]})
     resp = client.post(

@@ -175,7 +175,39 @@ class OnboardingExtraction(BaseModel):
     La IA solo EXTRAE lo que el cliente dijo (nunca inventa) y REDACTA la
     siguiente pregunta; NO decide el flujo: el backend valida ``next_field_key``
     contra los campos realmente pendientes y manda si difiere.
+
+    Además actúa como INTERCEPTOR de seguridad: antes de extraer, juzga si la
+    respuesta describe una práctica que VIOLA un requisito obligatorio de la
+    NTC-ISO 21101 (contexto normativo provisto). Si es así, marca
+    ``compliant=false`` y NO extrae el dato ofensivo; el backend rechaza el
+    turno y pide replantear (nunca guarda una práctica no conforme).
     """
+
+    # --- Interceptor de cumplimiento (se evalúa ANTES de extraer) ---
+    compliant: bool = Field(
+        default=True,
+        description=(
+            "false SOLO si la respuesta describe una práctica que incumple un "
+            "requisito obligatorio de seguridad de la norma (p. ej. renunciar a "
+            "restricciones de edad/salud, atención de heridos improvisada). En "
+            "duda, true."
+        ),
+    )
+    safety_issue: str | None = Field(
+        default=None,
+        max_length=600,
+        description="Qué de la respuesta incumple la norma (frase breve). Solo si compliant=false.",
+    )
+    iso_requirement: str | None = Field(
+        default=None,
+        max_length=600,
+        description="Requisito de la NTC-ISO 21101 que aplica (breve). Solo si compliant=false.",
+    )
+    rephrase_hint: str | None = Field(
+        default=None,
+        max_length=600,
+        description="Cómo debería replantear su respuesta el cliente. Solo si compliant=false.",
+    )
 
     extracted: dict[str, str] = Field(
         default_factory=dict,
@@ -213,3 +245,14 @@ class OnboardingChatResponse(BaseModel):
     data: OnboardingPayload = Field(description="Estado completo actualizado del onboarding.")
     completeness: float = Field(description="% de campos esperados con dato (0-100).")
     completed: bool = Field(description="True si no quedan campos esperados por responder.")
+    # Interceptor de seguridad: true si la respuesta se rechazó por no conforme
+    # con la norma. Cuando es true, NO se guardó nada y ``next_field`` re-pregunta
+    # el mismo campo; ``safety_note`` explica el requisito ISO.
+    blocked: bool = Field(
+        default=False,
+        description="True si la respuesta fue rechazada por incumplir la norma (nada se guardó).",
+    )
+    safety_note: str | None = Field(
+        default=None,
+        description="Explicación del rechazo por seguridad (requisito ISO + cómo replantear).",
+    )
