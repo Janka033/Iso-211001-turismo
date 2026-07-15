@@ -126,6 +126,34 @@ export function OnboardingChat() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [history, loading]);
 
+  // Precarga las actividades ya persistidas (onboarding_data) del tenant: así el
+  // botón "Agregar o modificar actividades" arranca con la selección real y se
+  // refleja lo que ya quedó guardado. No fuerza fase: el empresario confirma con
+  // "Comenzar" (que re-persiste e inicializa el chat estrictamente con ellas).
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+      try {
+        const res = await fetch(`${apiBase()}/onboarding`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!res.ok) return;
+        const state = (await res.json()) as { data?: OnboardingData };
+        const acts = state.data?.activities;
+        if (alive && Array.isArray(acts) && acts.length > 0) setSelected(acts);
+      } catch {
+        /* sin precarga: el empresario elige desde cero */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // Un turno contra el backend. `message` null en el turno inicial.
   async function postChat(body: { message: string | null; activities?: string[] }) {
     setLoading(true);
@@ -182,10 +210,25 @@ export function OnboardingChat() {
     ]);
   }
 
-  async function startChat() {
+  // Confirma la selección de actividades: las PERSISTE (el turno inicial guarda
+  // onboarding_data) e inicializa el chat estrictamente con ese contexto. Sirve
+  // para el primer arranque y para volver tras modificarlas (conserva el
+  // historial en ese caso, solo cambia el set de actividades).
+  async function commitActivities() {
     if (selected.length === 0) return;
+    const firstTime = history.length === 0;
     setPhase("chat");
-    setHistory([{ role: "ai", text: GREETING }]);
+    setHistory((h) =>
+      firstTime
+        ? [{ role: "ai", text: GREETING }]
+        : [
+            ...h,
+            {
+              role: "ai",
+              text: "Actualicé tus actividades. Con base en ellas, seguimos.",
+            },
+          ],
+    );
     const resp = await postChat({ message: null, activities: selected });
     if (resp) applyResponse(resp);
   }
@@ -235,7 +278,7 @@ export function OnboardingChat() {
         <button
           type="button"
           disabled={selected.length === 0}
-          onClick={startChat}
+          onClick={commitActivities}
           className="btn-primary mt-6"
         >
           Comenzar ({selected.length})
@@ -331,6 +374,15 @@ export function OnboardingChat() {
           Lo que la IA va capturando de tu operación.
         </p>
         <ExtractedPanel data={data} activities={selected} />
+        {/* Permite volver a la selección para ajustar el set de actividades;
+            al confirmar se re-persiste y el chat continúa con el nuevo contexto. */}
+        <button
+          type="button"
+          onClick={() => setPhase("activities")}
+          className="btn-secondary mt-5 w-full justify-center"
+        >
+          Agregar o modificar actividades
+        </button>
       </aside>
     </div>
   );
