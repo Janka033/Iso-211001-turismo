@@ -88,7 +88,11 @@ def wire(monkeypatch):
 
     captured: dict = {}
 
-    def setup(ai_output: dict, document: dict | None = DOCUMENT):
+    def setup(
+        ai_output: dict,
+        document: dict | None = DOCUMENT,
+        checklist: list[dict] = CHECKLIST,
+    ):
         provider = FakeProvider(ai_output)
         captured["provider"] = provider
         monkeypatch.setattr(service, "get_ai_provider", lambda: provider)
@@ -100,7 +104,7 @@ def wire(monkeypatch):
             repository, "get_active_quality_prompt",
             lambda token: {"version": "v1", "content": PROMPT_CONTENT},
         )
-        monkeypatch.setattr(repository, "get_checklist", lambda dt, token: CHECKLIST)
+        monkeypatch.setattr(repository, "get_checklist", lambda dt, token: checklist)
         monkeypatch.setattr(
             repository, "get_generation_patterns", lambda dt, token: PATTERNS
         )
@@ -201,6 +205,63 @@ def test_evaluate_document_persists_snapshot(client, make_token, wire):
     assert "scope: Alcance (obligatorio)" in prompt           # extraction_checklist
     assert "La política debe definir el alcance." in prompt   # RAG (norma)
     assert "v3" in prompt                                     # versión del documento
+
+
+def test_completeness_is_deterministic_not_ai(client, make_token, wire):
+    """La completitud la decide el sistema sobre variables_snapshot: si la IA
+    reporta faltantes fantasma (o omite reales), se sobrescribe con el cálculo
+    determinista antes de persistir."""
+    wrong = {
+        **EVALUATION,
+        "completeness": {
+            # La IA "alucina" un field_key del onboarding y omite el faltante real.
+            "missing_required_fields": ["brigada_emergencias"],
+            "missing_optional_fields": ["hospital_cercano"],
+            "comment": "Juicio de la IA (se ignora en las listas).",
+        },
+    }
+    captured = wire(wrong)
+    resp = client.post(f"/quality/evaluations/{DOC_ID}", headers=_auth(make_token))
+
+    assert resp.status_code == 201, resp.text
+    completeness = resp.json()["evaluation"]["completeness"]
+    # scope es el único obligatorio de la checklist sin dato en el snapshot.
+    assert completeness["missing_required_fields"] == ["scope"]
+    assert completeness["missing_optional_fields"] == []
+    # Lo persistido también lleva las listas deterministas (subsanación fiable).
+    persisted = captured["record"]["evaluation"]["completeness"]
+    assert persisted["missing_required_fields"] == ["scope"]
+
+
+def test_prompt_checklist_excludes_onboarding_keys_and_annotates(
+    client, make_token, wire
+):
+    """Las filas de la checklist que son field_keys de captura del onboarding
+    (no variables del documento) no entran al prompt del evaluador, y cada
+    fila aplicable lleva su veredicto CON DATO / SIN DATO."""
+    checklist = CHECKLIST + [
+        {
+            # Universo onboarding: jamás aparece en variables_snapshot.
+            "field_key": "brigada_emergencias",
+            "description": "Brigada de emergencias",
+            "required": True,
+            "numeral": "8.2",
+        }
+    ]
+    captured = wire(EVALUATION, checklist=checklist)
+    resp = client.post(f"/quality/evaluations/{DOC_ID}", headers=_auth(make_token))
+
+    assert resp.status_code == 201, resp.text
+    prompt = captured["provider"].last_prompt
+    assert "brigada_emergencias" not in prompt
+    assert "company_name: Razón social (obligatorio) — CON DATO" in prompt
+    assert (
+        "scope: Alcance (obligatorio) — SIN DATO: el documento lo muestra "
+        "como [PENDIENTE]" in prompt
+    )
+    # Y el faltante del onboarding no contamina las listas deterministas.
+    missing = resp.json()["evaluation"]["completeness"]["missing_required_fields"]
+    assert missing == ["scope"]
 
 
 def test_invalid_ai_json_is_502(client, make_token, wire):

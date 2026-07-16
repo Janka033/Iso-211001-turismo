@@ -98,6 +98,19 @@ async def evaluate(document_id: str, tenant_id: str, token: str) -> QualityRevie
         repository.get_generation_patterns, document["document_type"], token
     )
 
+    # La checklist mezcla dos universos: variables del documento y field_keys
+    # de captura del onboarding (brigada_emergencias, equipo_<actividad>, …)
+    # que JAMÁS aparecen en variables_snapshot. Aquí se evalúa el DOCUMENTO,
+    # así que solo aplican las filas que son variables del modelo (mismo
+    # criterio que generation._completeness); juzgar las otras produce falsos
+    # faltantes y castiga el score injustamente.
+    variables = document.get("variables_snapshot") or {}
+    model_fields = set(spec.variables_model.model_fields)
+    doc_checklist = [c for c in checklist if c["field_key"] in model_fields]
+    missing_required, missing_optional = _deterministic_missing(
+        doc_checklist, variables
+    )
+
     provider = get_ai_provider()
 
     # RAG: contexto normativo de los numerales del documento, para juzgar la
@@ -132,8 +145,8 @@ async def evaluate(document_id: str, tenant_id: str, token: str) -> QualityRevie
         numeral=spec.numeral,
         document_type=document["document_type"],
         document_version=document["version"],
-        variables=document.get("variables_snapshot") or {},
-        checklist=checklist,
+        variables=variables,
+        checklist=doc_checklist,
         patterns=patterns,
         chunks=chunks,
     )
@@ -157,6 +170,14 @@ async def evaluate(document_id: str, tenant_id: str, token: str) -> QualityRevie
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"La IA devolvió un JSON que no cumple el schema: {exc.errors()}",
         ) from exc
+
+    # La completitud es un chequeo mecánico (¿la variable tiene dato o no?):
+    # la decide el SISTEMA, no la IA — la IA aporta coherencia, alertas y
+    # correcciones. Sobrescribir con el cálculo determinista garantiza que la
+    # subsanación reciba faltantes reales y que el score no se ancle en
+    # faltantes fantasma.
+    evaluation.completeness.missing_required_fields = missing_required
+    evaluation.completeness.missing_optional_fields = missing_optional
 
     # Persistir con snapshot de reproducibilidad (regla de oro 6).
     settings = get_settings()
@@ -341,8 +362,35 @@ async def remediate(
 
 
 # ---------------------------------------------------------------------------
-# Helper de ensamblado de prompt
+# Helpers de completitud determinista y ensamblado de prompt
 # ---------------------------------------------------------------------------
+
+
+def _has_data(value: object) -> bool:
+    """Un campo tiene dato si no es null, cadena vacía, lista/dict vacíos."""
+    return value not in (None, "", [], {})
+
+
+def _deterministic_missing(
+    doc_checklist: list[dict], variables: dict
+) -> tuple[list[str], list[str]]:
+    """Faltantes (obligatorios, opcionales) medidos SOBRE variables_snapshot.
+
+    Chequeo mecánico campo a campo — sin IA: la misma semántica con la que
+    generation calcula ``pending_fields``/completeness, para que generación y
+    evaluación nunca se contradigan sobre qué falta.
+    """
+    missing_required = [
+        c["field_key"]
+        for c in doc_checklist
+        if c.get("required") and not _has_data(variables.get(c["field_key"]))
+    ]
+    missing_optional = [
+        c["field_key"]
+        for c in doc_checklist
+        if not c.get("required") and not _has_data(variables.get(c["field_key"]))
+    ]
+    return missing_required, missing_optional
 
 
 def _assemble_prompt(
@@ -365,10 +413,23 @@ def _assemble_prompt(
     variables_json = json.dumps(variables, ensure_ascii=False, indent=2)
 
     if checklist:
-        checklist_lines = "\n".join(
+        # Presencia verificada EN CÓDIGO sobre variables_snapshot: la IA no
+        # debe re-derivar qué falta (no lo hace de forma fiable con nombres
+        # que no calzan 1:1); recibe el veredicto por campo como dato.
+        rows = "\n".join(
             f"- {c['field_key']}: {c.get('description', '')} "
-            f"({'obligatorio' if c.get('required') else 'opcional'})"
+            f"({'obligatorio' if c.get('required') else 'opcional'}) — "
+            + (
+                "CON DATO"
+                if _has_data(variables.get(c["field_key"]))
+                else "SIN DATO: el documento lo muestra como [PENDIENTE]"
+            )
             for c in checklist
+        )
+        checklist_lines = (
+            "La presencia de dato por campo ya fue verificada por el sistema "
+            "(CON DATO / SIN DATO). En `completeness` reporta exactamente los "
+            "campos marcados SIN DATO; no agregues ni quites campos.\n" + rows
         )
     else:
         checklist_lines = "(sin checklist)"
