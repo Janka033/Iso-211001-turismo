@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { apiBase } from "@/lib/api";
 import { DOCUMENTS, type DocumentMeta } from "@/lib/documents";
@@ -27,6 +27,30 @@ async function authToken(): Promise<string | null> {
   return session?.access_token ?? null;
 }
 
+/** Estado por el que se puede filtrar: los de revisión + "sin evaluar". */
+type StatusFilter = "all" | "unevaluated" | ReviewStatus;
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: "all", label: "Todos" },
+  { key: "unevaluated", label: "Sin evaluar" },
+  { key: "pending_review", label: REVIEW_STATUS_LABEL.pending_review },
+  { key: "approved", label: REVIEW_STATUS_LABEL.approved },
+  { key: "needs_correction", label: REVIEW_STATUS_LABEL.needs_correction },
+  { key: "rejected", label: REVIEW_STATUS_LABEL.rejected },
+];
+
+/** Un tipo de documento con todas sus versiones (la vigente primero). */
+interface DocumentGroup {
+  type: string;
+  versions: ReviewableDocument[];
+  latest: ReviewableDocument;
+}
+
+/** El estado del grupo es el de su versión vigente: es lo accionable. */
+function groupStatus(group: DocumentGroup): StatusFilter {
+  return group.latest.review?.review_status ?? "unevaluated";
+}
+
 export function QualityClient({
   documents,
   canDecide,
@@ -36,10 +60,38 @@ export function QualityClient({
 }) {
   const [docs, setDocs] = useState(documents);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [filter, setFilter] = useState<StatusFilter>("all");
 
   function setReview(docId: string, review: QualityReview) {
     setDocs((xs) => xs.map((d) => (d.id === docId ? { ...d, review } : d)));
   }
+
+  // Una tarjeta por tipo de documento; dentro, sus versiones. El orden de los
+  // grupos hereda el del server (created_at desc): lo último generado, arriba.
+  const groups = useMemo<DocumentGroup[]>(() => {
+    const byType = new Map<string, ReviewableDocument[]>();
+    for (const d of docs) {
+      const xs = byType.get(d.document_type) ?? [];
+      xs.push(d);
+      byType.set(d.document_type, xs);
+    }
+    return Array.from(byType.entries()).map(([type, versions]) => {
+      const sorted = [...versions].sort((a, b) => b.version - a.version);
+      return { type, versions: sorted, latest: sorted[0] };
+    });
+  }, [docs]);
+
+  const counts = useMemo(() => {
+    const c = new Map<StatusFilter, number>([["all", groups.length]]);
+    for (const g of groups) {
+      const s = groupStatus(g);
+      c.set(s, (c.get(s) ?? 0) + 1);
+    }
+    return c;
+  }, [groups]);
+
+  const visible =
+    filter === "all" ? groups : groups.filter((g) => groupStatus(g) === filter);
 
   if (docs.length === 0) {
     return (
@@ -54,28 +106,153 @@ export function QualityClient({
 
   return (
     <div className="space-y-4">
-      {docs.map((doc) => (
-        <DocumentRow
-          key={doc.id}
-          doc={doc}
-          canDecide={canDecide}
-          expanded={expanded === doc.id}
-          onToggle={() => setExpanded(expanded === doc.id ? null : doc.id)}
-          onReview={(r) => setReview(doc.id, r)}
-        />
-      ))}
+      {/* Filtro por estado (de la versión vigente de cada documento) */}
+      <div
+        className="flex flex-wrap gap-2"
+        role="group"
+        aria-label="Filtrar documentos por estado"
+      >
+        {STATUS_FILTERS.map(({ key, label }) => {
+          const n = counts.get(key) ?? 0;
+          const active = filter === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              aria-pressed={active}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                active
+                  ? "bg-slate-900 text-white"
+                  : "bg-white text-slate-600 shadow-sm hover:bg-slate-50"
+              }`}
+            >
+              {label}
+              <span
+                className={`ml-1.5 ${active ? "text-slate-300" : "text-slate-400"}`}
+              >
+                {n}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="card p-8 text-center">
+          <p className="text-sm text-slate-500">
+            Ningún documento con este estado.
+          </p>
+          <button
+            onClick={() => setFilter("all")}
+            className="mt-2 text-sm font-medium text-slate-700 underline underline-offset-2 hover:text-slate-900"
+          >
+            Ver todos
+          </button>
+        </div>
+      ) : (
+        visible.map((group) => (
+          <DocumentGroupCard
+            key={group.type}
+            group={group}
+            canDecide={canDecide}
+            expandedId={expanded}
+            onToggle={(id) => setExpanded(expanded === id ? null : id)}
+            onReview={setReview}
+          />
+        ))
+      )}
     </div>
   );
 }
 
-function DocumentRow({
+function DocumentGroupCard({
+  group,
+  canDecide,
+  expandedId,
+  onToggle,
+  onReview,
+}: {
+  group: DocumentGroup;
+  canDecide: boolean;
+  expandedId: string | null;
+  onToggle: (id: string) => void;
+  onReview: (docId: string, review: QualityReview) => void;
+}) {
+  // Versión seleccionada en las pestañas; null = la vigente.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const shown =
+    group.versions.find((v) => v.id === selectedId) ?? group.latest;
+
+  const meta = META.get(group.type);
+  const title = meta?.title ?? group.type;
+
+  return (
+    <article className="card overflow-hidden">
+      {/* Encabezado del documento (común a todas sus versiones) */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-5 py-4">
+        {meta && (
+          <span className="badge bg-slate-100 text-slate-600">
+            {meta.numeral}
+          </span>
+        )}
+        <h3 className="min-w-0 truncate text-base font-semibold text-slate-900">
+          {title}
+        </h3>
+      </div>
+
+      {/* Pestañas de versión (solo si hay más de una) */}
+      {group.versions.length > 1 && (
+        <div
+          className="flex flex-wrap items-center gap-1.5 px-5 pt-4"
+          role="tablist"
+          aria-label={`Versiones de ${title}`}
+        >
+          {group.versions.map((v) => {
+            const active = v.id === shown.id;
+            return (
+              <button
+                key={v.id}
+                role="tab"
+                aria-selected={active}
+                onClick={() =>
+                  setSelectedId(v.id === group.latest.id ? null : v.id)
+                }
+                className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                  active
+                    ? "bg-slate-900 text-white"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                }`}
+              >
+                v{v.version}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <VersionRow
+        key={shown.id}
+        doc={shown}
+        isLatest={shown.id === group.latest.id}
+        canDecide={canDecide}
+        expanded={expandedId === shown.id}
+        onToggle={() => onToggle(shown.id)}
+        onReview={(r) => onReview(shown.id, r)}
+      />
+    </article>
+  );
+}
+
+function VersionRow({
   doc,
+  isLatest,
   canDecide,
   expanded,
   onToggle,
   onReview,
 }: {
   doc: ReviewableDocument;
+  isLatest: boolean;
   canDecide: boolean;
   expanded: boolean;
   onToggle: () => void;
@@ -84,8 +261,6 @@ function DocumentRow({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const meta = META.get(doc.document_type);
-  const title = meta?.title ?? doc.document_type;
   const review = doc.review;
 
   async function evaluate() {
@@ -121,25 +296,25 @@ function DocumentRow({
   }
 
   return (
-    <article className="card overflow-hidden">
-      {/* Encabezado de la fila */}
+    <>
       <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            {meta && (
-              <span className="badge bg-slate-100 text-slate-600">
-                {meta.numeral}
-              </span>
-            )}
             <span className="badge bg-slate-100 text-slate-500">
               v{doc.version}
             </span>
+            <span
+              className={`badge ${
+                isLatest
+                  ? "bg-sky-50 text-sky-700"
+                  : "bg-slate-100 text-slate-400"
+              }`}
+            >
+              {isLatest ? "Vigente" : "Versión anterior"}
+            </span>
             <ReviewStatusBadge status={review?.review_status ?? null} />
           </div>
-          <h3 className="mt-2 truncate text-base font-semibold text-slate-900">
-            {title}
-          </h3>
-          <p className="mt-0.5 text-xs text-slate-400">
+          <p className="mt-2 text-xs text-slate-400">
             Generado el {formatDate(doc.created_at)}
             {review && ` · evaluado el ${formatDate(review.created_at)}`}
           </p>
@@ -175,7 +350,7 @@ function DocumentRow({
           onReview={onReview}
         />
       )}
-    </article>
+    </>
   );
 }
 
