@@ -14,7 +14,7 @@ export default function OnboardingPage() {
       <header className="border-b border-slate-100 bg-white">
         <div className="section flex h-16 items-center justify-between">
           <Logo />
-          <Link href="/dashboard" className="text-sm font-medium text-slate-500 hover:text-brand-700">
+          <Link href="/dashboard" className="text-sm font-medium text-slate-500 hover:text-marca-700">
             Salir
           </Link>
         </div>

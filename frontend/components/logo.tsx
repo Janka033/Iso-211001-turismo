@@ -1,8 +1,8 @@
 /** Logotipo de ColAdventure: marca de montaña + wordmark.
  *
- * Variantes:
- * - default / onDark: sistema verde actual (dashboard, onboarding, login).
- * - marca / marcaOnDark: sistema azul DESIGN.md (hoy solo la landing).
+ * Sistema azul DESIGN.md en TODA la app (dashboard, onboarding, login y
+ * landing). `marca`/`marcaOnDark` se conservan como alias de compatibilidad
+ * de `default`/`onDark`.
  */
 export function Logo({
   className = "",
@@ -12,21 +12,10 @@ export function Logo({
   variant?: "default" | "onDark" | "marca" | "marcaOnDark";
 }) {
   const dark = variant === "onDark" || variant === "marcaOnDark";
-  const azul = variant === "marca" || variant === "marcaOnDark";
 
-  const tile = dark
-    ? "bg-white/15"
-    : azul
-      ? "bg-marca-gradient"
-      : "bg-brand-gradient";
-  const word = dark
-    ? azul
-      ? "text-naranja-400"
-      : "text-accent-400"
-    : azul
-      ? "text-marca-600"
-      : "text-brand-600";
-  const sol = azul ? "#FB923C" : "#FBBF24";
+  const tile = dark ? "bg-white/15" : "bg-marca-gradient";
+  const word = dark ? "text-naranja-400" : "text-marca-600";
+  const sol = "#FB923C";
 
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>

@@ -78,7 +78,7 @@ export function InventoryClient() {
             </Chip>
           ))}
         </div>
-        <button onClick={() => setShowForm(true)} className="btn-accent shrink-0">
+        <button onClick={() => setShowForm(true)} className="btn-primary shrink-0">
           + Agregar ítem
         </button>
       </div>
@@ -146,8 +146,8 @@ function Chip({
       onClick={onClick}
       className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
         active
-          ? "bg-brand-600 text-white"
-          : "border border-slate-200 bg-white text-slate-600 hover:border-brand-300"
+          ? "bg-marca-600 text-white"
+          : "border border-slate-200 bg-white text-slate-600 hover:border-marca-300"
       }`}
     >
       {children}
@@ -168,7 +168,7 @@ function ItemCard({
   return (
     <article className="card flex flex-col p-5">
       <div className="flex items-start justify-between gap-2">
-        <span className="badge bg-brand-50 text-brand-700">{CATEGORY_LABEL[item.category]}</span>
+        <span className="badge bg-marca-50 text-marca-700">{CATEGORY_LABEL[item.category]}</span>
         <button
           onClick={onDelete}
           className="text-xs text-slate-400 hover:text-rose-600"
@@ -319,7 +319,7 @@ function NewItemModal({
           <button
             type="button"
             onClick={() => setRows((xs) => [...xs, { key: "", value: "" }])}
-            className="mt-2 text-sm font-medium text-brand-700 hover:text-brand-800"
+            className="mt-2 text-sm font-medium text-marca-700 hover:text-marca-800"
           >
             + otro detalle
           </button>
@@ -406,7 +406,7 @@ function EvidenceModal({
 
   return (
     <Modal title={`Evidencia · ${item.name}`} onClose={onClose}>
-      <label className="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center hover:border-brand-400">
+      <label className="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center hover:border-marca-400">
         <span className="text-sm font-medium text-slate-700">
           {uploading ? "Subiendo…" : "Toca para tomar o subir una foto"}
         </span>

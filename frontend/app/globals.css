@@ -15,20 +15,20 @@
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold
-      transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500
+      transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-marca-500
       focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+    @apply btn bg-marca-600 text-white hover:bg-marca-700;
   }
   .btn-secondary {
     @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
   }
   .btn-ghost {
-    @apply btn text-brand-700 hover:bg-brand-50;
+    @apply btn text-marca-700 hover:bg-marca-50;
   }
   .btn-accent {
-    @apply btn bg-accent-500 text-brand-950 hover:bg-accent-400;
+    @apply btn bg-accent-500 text-marca-950 hover:bg-accent-400;
     box-shadow: 0 12px 28px -10px rgba(245, 179, 28, 0.55);
   }
   .btn-lg {
@@ -47,8 +47,8 @@
 
   .input {
     @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900
-      placeholder:text-slate-400 focus:border-brand-500 focus:outline-none
-      focus:ring-2 focus:ring-brand-500/30;
+      placeholder:text-slate-400 focus:border-marca-500 focus:outline-none
+      focus:ring-2 focus:ring-marca-500/30;
   }
   .label {
     @apply mb-1 block text-xs font-medium text-slate-600;
@@ -67,14 +67,14 @@
   }
   /* Voz de dato/registro: mono, como los numerales de la norma. */
   .eyebrow {
-    @apply font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-600;
+    @apply font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-marca-600;
   }
   .section {
     @apply mx-auto w-full max-w-6xl px-6;
   }
   /* Chip de numeral de la norma (5.2, 6.1.1…): siempre en mono. */
   .numeral-chip {
-    @apply inline-flex items-center rounded-md bg-brand-950/90 px-2 py-0.5 font-mono text-[11px]
-      font-semibold tracking-wide text-accent-400;
+    @apply inline-flex items-center rounded-md bg-marca-950/90 px-2 py-0.5 font-mono text-[11px]
+      font-semibold tracking-wide text-naranja-300;
   }
 }

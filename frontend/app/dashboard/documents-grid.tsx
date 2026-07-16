@@ -183,7 +183,7 @@ function StatusBadge({ status }: { status: DocStatus }) {
   const styles: Record<DocStatus, string> = {
     pending: "bg-slate-100 text-slate-500",
     generating: "bg-sky-50 text-sky-700",
-    generated: "bg-brand-50 text-brand-700",
+    generated: "bg-marca-50 text-marca-700",
     approved: "bg-emerald-50 text-emerald-700",
     rejected: "bg-rose-50 text-rose-700",
     needs_correction: "bg-amber-50 text-amber-700",

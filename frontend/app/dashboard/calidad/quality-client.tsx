@@ -664,7 +664,7 @@ function RemediationPanel({
                 setValues((xs) => ({ ...xs, [f.key]: e.target.value }))
               }
               rows={2}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-marca-500 focus:outline-none"
             />
           </div>
         ))}
@@ -769,7 +769,7 @@ function DecisionPanel({
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Notas para la empresa (qué corregir y por qué)…"
         rows={2}
-        className="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none"
+        className="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-marca-500 focus:outline-none"
       />
       {error && (
         <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">

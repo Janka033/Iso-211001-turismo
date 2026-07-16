@@ -115,7 +115,7 @@ export default async function DashboardPage() {
               <p className="text-sm font-medium text-slate-700">{companyName}</p>
               <p className="text-xs text-slate-400">{user?.email}</p>
             </div>
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-gradient text-sm font-semibold text-white">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-marca-gradient text-sm font-semibold text-white">
               {companyName.charAt(0).toUpperCase()}
             </span>
           </div>
@@ -170,7 +170,7 @@ export default async function DashboardPage() {
               <p className="text-sm font-medium text-slate-700">
                 Progreso de implementación
               </p>
-              <span className="badge bg-brand-50 text-brand-700">
+              <span className="badge bg-marca-50 text-marca-700">
                 {generated} / {total} documentos
               </span>
             </div>
@@ -179,7 +179,7 @@ export default async function DashboardPage() {
               <div className="mb-2 flex-1">
                 <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
                   <div
-                    className="h-full rounded-full bg-brand-600 transition-all"
+                    className="h-full rounded-full bg-marca-600 transition-all"
                     style={{ width: `${pct}%` }}
                   />
                 </div>

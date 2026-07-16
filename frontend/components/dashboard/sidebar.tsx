@@ -27,7 +27,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-brand-900 px-4 py-6 text-white md:flex">
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-marca-900 px-4 py-6 text-white md:flex">
       <div className="px-2">
         <Logo variant="onDark" />
       </div>
@@ -43,10 +43,10 @@ export function Sidebar() {
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 isActive
                   ? "bg-white/12 text-white"
-                  : "text-brand-100/70 hover:bg-white/5 hover:text-white"
+                  : "text-marca-100/70 hover:bg-white/5 hover:text-white"
               }`}
             >
-              <span className="text-brand-200">{item.icon}</span>
+              <span className="text-marca-200">{item.icon}</span>
               {item.label}
             </Link>
           );
@@ -54,7 +54,7 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-4 rounded-xl bg-white/5 p-4">
-        <p className="text-xs text-brand-100/70">¿Dudas con la norma?</p>
+        <p className="text-xs text-marca-100/70">¿Dudas con la norma?</p>
         <p className="mt-0.5 text-sm font-medium">Pregúntale al asistente</p>
         <div className="mt-3">
           <LogoutButton />

@@ -64,7 +64,7 @@ export default function LoginPage() {
           uid="login-hero"
           className="absolute inset-0 h-full w-full"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-brand-900 via-brand-900/80 to-brand-900/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-marca-900 via-marca-900/80 to-marca-900/40" />
 
         <div className="relative z-10 flex h-full flex-col justify-between p-12 text-white">
           <Logo variant="onDark" />
@@ -72,12 +72,12 @@ export default function LoginPage() {
             <h2 className="font-display text-3xl font-extrabold leading-tight tracking-tight">
               La aventura es tuya. El papeleo, nuestro.
             </h2>
-            <p className="mt-4 text-brand-50/90">
+            <p className="mt-4 text-marca-50/90">
               ColAdventure genera tu árbol documental NTC-ISO 21101: política,
               matriz de riesgos, plan de emergencias y gestión de incidentes.
               Auditable, sin alucinaciones.
             </p>
-            <ul className="mt-8 space-y-3 text-sm text-brand-50/90">
+            <ul className="mt-8 space-y-3 text-sm text-marca-50/90">
               {[
                 "Documentos listos para auditoría ONAC",
                 "Sin inventar datos: lo que falta se marca [PENDIENTE]",
@@ -92,7 +92,7 @@ export default function LoginPage() {
               ))}
             </ul>
           </div>
-          <p className="text-xs text-brand-50/70">
+          <p className="text-xs text-marca-50/70">
             NTC-ISO 21101 · Sistema de gestión de seguridad para turismo de aventura
           </p>
         </div>
@@ -181,17 +181,17 @@ export default function LoginPage() {
               setMode(mode === "login" ? "signup" : "login");
               setError(null);
             }}
-            className="mt-6 w-full text-center text-sm text-slate-500 hover:text-brand-700"
+            className="mt-6 w-full text-center text-sm text-slate-500 hover:text-marca-700"
           >
             {mode === "login" ? (
               <>
                 ¿No tienes cuenta?{" "}
-                <span className="font-medium text-brand-700">Regístrate</span>
+                <span className="font-medium text-marca-700">Regístrate</span>
               </>
             ) : (
               <>
                 ¿Ya tienes cuenta?{" "}
-                <span className="font-medium text-brand-700">Inicia sesión</span>
+                <span className="font-medium text-marca-700">Inicia sesión</span>
               </>
             )}
           </button>
