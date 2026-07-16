@@ -328,6 +328,57 @@ async def save(
 
 
 # ---------------------------------------------------------------------------
+# Subsanación (lo llama quality.service; datos crudos del cliente)
+# ---------------------------------------------------------------------------
+
+
+async def apply_remediation(
+    answers: dict[str, str], tenant_id: str, token: str
+) -> list[str]:
+    """Merge de respuestas de subsanación en ``onboarding_data``.
+
+    Mismas reglas de destino que el chat (``_apply_extracted``): campos
+    universales arriba (con coerción a lista), field_key de actividad en
+    ``activity_fields``, y el resto (field_key de variables de documento,
+    p.ej. ``safety_objectives``) en ``remediation_fields``. Todo es dato CRUDO
+    del cliente: la IA lo consumirá al regenerar, nunca se escribe en
+    ``ai_outputs``. Devuelve los field_key efectivamente guardados.
+    """
+    clean = {
+        k: v.strip()
+        for k, v in answers.items()
+        if isinstance(v, str) and v.strip()
+    }
+    if not clean:
+        return []
+
+    data = dict(await _run(repository.get_onboarding, tenant_id, token) or {})
+
+    activities = [a for a in (data.get("activities") or []) if isinstance(a, str)]
+    activity_rows = (
+        await _run(repository.get_activity_checklist, activities, token)
+        if activities
+        else []
+    )
+    activity_keys = {row["field_key"] for row in activity_rows}
+
+    for key, value in clean.items():
+        if key in _LIST_FIELDS:
+            data[key] = _to_list(value)
+        elif key in _UNIVERSAL_KEYS and key != "staff_roles":
+            # staff_roles es un dict (cargo -> nº); un texto libre no lo pisa.
+            data[key] = value
+        elif key in activity_keys:
+            data.setdefault("activity_fields", {})[key] = value
+        else:
+            data.setdefault("remediation_fields", {})[key] = value
+
+    payload = OnboardingPayload.model_validate(data)
+    await _run(repository.save_onboarding, tenant_id, payload.model_dump(), token)
+    return sorted(clean)
+
+
+# ---------------------------------------------------------------------------
 # Onboarding conversacional (POST /onboarding/chat)
 # ---------------------------------------------------------------------------
 

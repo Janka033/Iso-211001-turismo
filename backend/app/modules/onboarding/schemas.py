@@ -126,6 +126,15 @@ class OnboardingPayload(BaseModel):
         default_factory=dict,
         description="Códigos confirmados del sistema documental del cliente, por document_type.",
     )
+    # Subsanaciones: respuestas del cliente a correcciones de calidad cuyos
+    # field_key NO son campos del onboarding (p.ej. ``safety_objectives``,
+    # variables de documento). Son datos CRUDOS del cliente —nunca de la IA— y
+    # la generación los recibe como parte de ``onboarding_data`` para que la
+    # extracción los use al regenerar.
+    remediation_fields: dict[str, str] = Field(
+        default_factory=dict,
+        description="Respuestas de subsanación indexadas por field_key de la corrección.",
+    )
 
 
 class OnboardingState(BaseModel):

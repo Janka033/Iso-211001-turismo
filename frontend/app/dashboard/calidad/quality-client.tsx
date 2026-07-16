@@ -6,9 +6,12 @@ import { apiBase } from "@/lib/api";
 import { DOCUMENTS, type DocumentMeta } from "@/lib/documents";
 import { fieldLabel } from "@/lib/field-labels";
 import {
+  REMEDIABLE_STATUSES,
   REVIEW_STATUS_LABEL,
   complianceLevel,
+  type QualityEvaluation,
   type QualityReview,
+  type RemediationResult,
   type ReviewDecision,
   type ReviewStatus,
   type ReviewableDocument,
@@ -64,6 +67,12 @@ export function QualityClient({
 
   function setReview(docId: string, review: QualityReview) {
     setDocs((xs) => xs.map((d) => (d.id === docId ? { ...d, review } : d)));
+  }
+
+  // Una subsanación regenera el documento: la versión nueva entra de primera
+  // (su grupo sube y la pestaña vigente pasa a ser ella, sin evaluar).
+  function addDocument(doc: ReviewableDocument) {
+    setDocs((xs) => [doc, ...xs]);
   }
 
   // Una tarjeta por tipo de documento; dentro, sus versiones. El orden de los
@@ -158,6 +167,7 @@ export function QualityClient({
             expandedId={expanded}
             onToggle={(id) => setExpanded(expanded === id ? null : id)}
             onReview={setReview}
+            onNewDocument={addDocument}
           />
         ))
       )}
@@ -171,12 +181,14 @@ function DocumentGroupCard({
   expandedId,
   onToggle,
   onReview,
+  onNewDocument,
 }: {
   group: DocumentGroup;
   canDecide: boolean;
   expandedId: string | null;
   onToggle: (id: string) => void;
   onReview: (docId: string, review: QualityReview) => void;
+  onNewDocument: (doc: ReviewableDocument) => void;
 }) {
   // Versión seleccionada en las pestañas; null = la vigente.
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -238,6 +250,7 @@ function DocumentGroupCard({
         expanded={expandedId === shown.id}
         onToggle={() => onToggle(shown.id)}
         onReview={(r) => onReview(shown.id, r)}
+        onNewDocument={onNewDocument}
       />
     </article>
   );
@@ -250,6 +263,7 @@ function VersionRow({
   expanded,
   onToggle,
   onReview,
+  onNewDocument,
 }: {
   doc: ReviewableDocument;
   isLatest: boolean;
@@ -257,6 +271,7 @@ function VersionRow({
   expanded: boolean;
   onToggle: () => void;
   onReview: (review: QualityReview) => void;
+  onNewDocument: (doc: ReviewableDocument) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -348,6 +363,7 @@ function VersionRow({
           review={review}
           canDecide={canDecide}
           onReview={onReview}
+          onNewDocument={onNewDocument}
         />
       )}
     </>
@@ -358,10 +374,12 @@ function EvaluationDetail({
   review,
   canDecide,
   onReview,
+  onNewDocument,
 }: {
   review: QualityReview;
   canDecide: boolean;
   onReview: (review: QualityReview) => void;
+  onNewDocument: (doc: ReviewableDocument) => void;
 }) {
   const ev = review.evaluation;
   const { completeness, coherence } = ev;
@@ -490,7 +508,184 @@ function EvaluationDetail({
 
       {/* Decisión del revisor */}
       <DecisionPanel review={review} canDecide={canDecide} onReview={onReview} />
+
+      {/* Subsanación: responder la corrección y regenerar */}
+      {REMEDIABLE_STATUSES.includes(review.review_status) && (
+        <RemediationPanel review={review} onNewDocument={onNewDocument} />
+      )}
     </div>
+  );
+}
+
+/**
+ * Campos que la empresa puede subsanar: los obligatorios sin dato + los que
+ * marcó una corrección puntual. El hint viene de la corrección (issue +
+ * sugerencia del evaluador) cuando existe.
+ */
+function remediationFields(
+  ev: QualityEvaluation,
+): { key: string; hint: string | null }[] {
+  const out: { key: string; hint: string | null }[] = [];
+  const byKey = new Map<string, { key: string; hint: string | null }>();
+
+  for (const key of ev.completeness.missing_required_fields ?? []) {
+    if (!byKey.has(key)) {
+      const item = { key, hint: null };
+      byKey.set(key, item);
+      out.push(item);
+    }
+  }
+  for (const c of ev.suggested_corrections ?? []) {
+    if (!c.field) continue;
+    const hint = [c.issue, c.suggestion].filter(Boolean).join(" — ") || null;
+    const existing = byKey.get(c.field);
+    if (existing) {
+      if (!existing.hint) existing.hint = hint;
+    } else {
+      const item = { key: c.field, hint };
+      byKey.set(c.field, item);
+      out.push(item);
+    }
+  }
+  return out;
+}
+
+function RemediationPanel({
+  review,
+  onNewDocument,
+}: {
+  review: QualityReview;
+  onNewDocument: (doc: ReviewableDocument) => void;
+}) {
+  const fields = remediationFields(review.evaluation);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+
+  const answers = Object.entries(values)
+    .map(([k, v]) => [k, v.trim()] as const)
+    .filter(([, v]) => v.length > 0);
+
+  async function submit() {
+    setBusy(true);
+    setError(null);
+    try {
+      const t = await authToken();
+      if (!t) throw new Error("Sesión expirada, vuelve a entrar.");
+      const res = await fetch(
+        `${apiBase()}/quality/reviews/${review.id}/remediation`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${t}`,
+          },
+          body: JSON.stringify({ answers: Object.fromEntries(answers) }),
+        },
+      );
+      const body: RemediationResult & { detail?: string } = await res
+        .json()
+        .catch(() => ({}) as RemediationResult & { detail?: string });
+      if (!res.ok) {
+        throw new Error(
+          typeof body.detail === "string"
+            ? body.detail
+            : "No se pudo guardar la subsanación",
+        );
+      }
+      if (body.document) {
+        onNewDocument({
+          id: body.document.document_id,
+          document_type: body.document.document_type,
+          version: body.document.version,
+          created_at: new Date().toISOString(),
+          review: null,
+        });
+        setDone(
+          `Se generó la versión v${body.document.version} con tus datos. ` +
+            "Evalúala para verificar que la corrección quedó resuelta.",
+        );
+      } else {
+        setDone("Datos guardados. Regenera el documento para aplicarlos.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error inesperado");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <section className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+        <SectionTitle>Subsanación enviada</SectionTitle>
+        <p className="mt-1 text-sm text-emerald-800">{done}</p>
+      </section>
+    );
+  }
+
+  if (fields.length === 0) {
+    return (
+      <section className="rounded-xl bg-white p-4 shadow-sm">
+        <SectionTitle>Subsanar</SectionTitle>
+        <p className="mt-1 text-sm text-slate-500">
+          La evaluación no marcó campos puntuales para corregir. Ajusta tus
+          datos desde el onboarding o el inventario y regenera el documento
+          desde el panel.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-xl bg-white p-4 shadow-sm">
+      <SectionTitle>Subsanar y regenerar</SectionTitle>
+      <p className="mt-1 text-sm text-slate-500">
+        Completa los datos marcados; al guardar se genera una versión nueva
+        del documento con esta información. Lo que dejes vacío no se toca.
+      </p>
+
+      <div className="mt-3 space-y-3">
+        {fields.map((f) => (
+          <div key={f.key}>
+            <label
+              htmlFor={`remediation-${review.id}-${f.key}`}
+              className="text-sm font-medium text-slate-700"
+              title={f.key}
+            >
+              {fieldLabel(f.key)}
+            </label>
+            {f.hint && <p className="mt-0.5 text-xs text-slate-500">{f.hint}</p>}
+            <textarea
+              id={`remediation-${review.id}-${f.key}`}
+              value={values[f.key] ?? ""}
+              onChange={(e) =>
+                setValues((xs) => ({ ...xs, [f.key]: e.target.value }))
+              }
+              rows={2}
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none"
+            />
+          </div>
+        ))}
+      </div>
+
+      {error && (
+        <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+          {error}
+        </p>
+      )}
+
+      <button
+        onClick={submit}
+        disabled={busy || answers.length === 0}
+        className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
+      >
+        {busy
+          ? "Guardando y regenerando… (puede tardar un minuto)"
+          : "Guardar y regenerar documento"}
+      </button>
+    </section>
   );
 }
 

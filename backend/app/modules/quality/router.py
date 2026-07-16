@@ -17,6 +17,8 @@ from app.core.security import (
 from app.modules.quality import service
 from app.modules.quality.schemas import (
     QualityReviewOut,
+    RemediationOut,
+    RemediationRequest,
     ReviewDecisionOut,
     ReviewDecisionRequest,
 )
@@ -48,3 +50,15 @@ async def decide_review(
 ) -> ReviewDecisionOut:
     """Aprobar, rechazar o pedir corrección de un documento evaluado."""
     return await service.decide(review_id, payload, tenant_id, user)
+
+
+@router.post("/reviews/{review_id}/remediation", response_model=RemediationOut)
+async def remediate_review(
+    review_id: str,
+    payload: RemediationRequest,
+    user: CurrentUser = Depends(get_current_user),  # la empresa subsana sus datos
+    tenant_id: str = Depends(get_tenant_id),  # 401 si el JWT no trae el claim
+) -> RemediationOut:
+    """Responder una corrección solicitada: guarda los datos aportados por la
+    empresa (onboarding_data) y regenera el documento en una versión nueva."""
+    return await service.remediate(review_id, payload, tenant_id, user)

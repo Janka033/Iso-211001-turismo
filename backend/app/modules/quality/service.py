@@ -36,11 +36,19 @@ from app.core.security import CurrentUser
 
 # El registry de documentos vive en generation (es configuración de dominio,
 # no su repository): dice qué tipos existen, su título y su(s) numeral(es).
+from app.modules.generation import service as generation_service
 from app.modules.generation.generators.factory import get_spec
+from app.modules.generation.schemas import GenerateRequest
+
+# Un módulo nunca importa el repository de otro: la subsanación escribe los
+# datos del cliente vía el SERVICE de onboarding y regenera vía el de generation.
+from app.modules.onboarding import service as onboarding_service
 from app.modules.quality import repository
 from app.modules.quality.schemas import (
     QualityEvaluation,
     QualityReviewOut,
+    RemediationOut,
+    RemediationRequest,
     ReviewDecisionOut,
     ReviewDecisionRequest,
 )
@@ -226,6 +234,109 @@ async def decide(
         document_id=review["document_id"],
         document_type=document_type,
         document_status=document_status,
+    )
+
+
+# Estados de revisión sobre los que tiene sentido subsanar: el revisor pidió
+# corrección o rechazó. (pending_review aún no tiene veredicto; approved no
+# necesita subsanación.)
+_REMEDIABLE_STATUSES = frozenset({"needs_correction", "rejected"})
+
+
+async def remediate(
+    review_id: str,
+    payload: RemediationRequest,
+    tenant_id: str,
+    user: CurrentUser,
+) -> RemediationOut:
+    """Subsanación de la empresa: guarda los datos que respondan a la
+    corrección (en ``onboarding_data``, vía onboarding.service) y regenera el
+    documento (versión nueva con su snapshot, vía generation.service).
+
+    La evaluación y la decisión originales NO se tocan: son rastro de auditoría
+    de la versión anterior. La versión nueva nace sin evaluar.
+    """
+    review = await _run(repository.get_review, review_id, tenant_id, user.token)
+    if review is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Evaluación no encontrada para este tenant.",
+        )
+
+    review_status = review.get("review_status")
+    if review_status not in _REMEDIABLE_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Solo se puede subsanar una evaluación con corrección solicitada "
+                f"o rechazada (estado actual: {review_status})."
+            ),
+        )
+
+    embedded = review.get("documents") or {}
+    document_type = embedded.get("document_type", "")
+    if not document_type or get_spec(document_type) is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="La evaluación no está ligada a un tipo de documento válido.",
+        )
+
+    # Universo de claves admitidas: lo que marcó la evaluación + la checklist
+    # del documento. Nada fuera de eso entra a onboarding_data.
+    evaluation = review.get("evaluation") or {}
+    completeness = evaluation.get("completeness") or {}
+    allowed: set[str] = {
+        *(completeness.get("missing_required_fields") or []),
+        *(completeness.get("missing_optional_fields") or []),
+        *(
+            c.get("field")
+            for c in (evaluation.get("suggested_corrections") or [])
+            if c.get("field")
+        ),
+    }
+    checklist = await _run(repository.get_checklist, document_type, user.token)
+    allowed.update(c["field_key"] for c in checklist)
+
+    unknown = sorted(set(payload.answers) - allowed)
+    if unknown:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "field_key fuera de la corrección y de la checklist del "
+                f"documento: {', '.join(unknown)}"
+            ),
+        )
+
+    try:
+        saved_fields = await onboarding_service.apply_remediation(
+            payload.answers, tenant_id, user.token
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Datos de subsanación inválidos: {exc.errors()}",
+        ) from exc
+    if not saved_fields:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Ninguna respuesta traía dato (todas vacías).",
+        )
+
+    document = None
+    if payload.regenerate:
+        document = await generation_service.generate(
+            document_type,
+            tenant_id,
+            user.token,
+            GenerateRequest(regenerate=True),
+        )
+
+    return RemediationOut(
+        review_id=review_id,
+        document_type=document_type,
+        saved_fields=saved_fields,
+        regenerated=document is not None,
+        document=document,
     )
 
 

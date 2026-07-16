@@ -373,13 +373,16 @@ def _assemble_prompt(
     onboarding_for_prompt, onboarding_note = _apply_inventory_precedence(
         onboarding, inventory
     )
+    remediation_block = _render_remediation(onboarding_for_prompt)
 
     company_json = json.dumps(
         {"company": company, "onboarding_data": onboarding_for_prompt},
         ensure_ascii=False,
         indent=2,
     )
-    company_context = f"{inventory_block}\n\n{onboarding_note}{company_json}"
+    company_context = (
+        f"{remediation_block}{inventory_block}\n\n{onboarding_note}{company_json}"
+    )
 
     if chunks:
         norm_context = "\n\n".join(
@@ -460,6 +463,30 @@ def _render_inventory(inventory: dict[str, list[dict]]) -> str:
             lines.append(line)
         lines.append("")
     return "\n".join(lines).rstrip()
+
+
+def _render_remediation(onboarding: dict) -> str:
+    """Subsanaciones del cliente como bloque prominente al frente del contexto.
+
+    ``onboarding_data.remediation_fields`` son respuestas del cliente a
+    correcciones de calidad, indexadas por field_key de la checklist. Igual que
+    el inventario: enterradas en el JSON la IA las ignora; como bloque
+    encabezado y obligatorio, las usa. Devuelve "" si no hay subsanaciones.
+    """
+    remediation = onboarding.get("remediation_fields") or {}
+    if not remediation:
+        return ""
+    lines = [
+        "=== DATOS SUBSANADOS POR EL CLIENTE (MÁXIMA PRIORIDAD) ===",
+        "El cliente aportó estos datos para corregir versiones anteriores del "
+        "documento. ÚSALOS para los campos indicados; tienen precedencia sobre "
+        "cualquier otro dato del contexto.",
+        "",
+    ]
+    for key, value in remediation.items():
+        lines.append(f"- {key}: {value}")
+    lines.append("")
+    return "\n".join(lines) + "\n"
 
 
 def _apply_inventory_precedence(

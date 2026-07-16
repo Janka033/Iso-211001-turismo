@@ -68,6 +68,28 @@ export const REVIEW_STATUS_LABEL: Record<ReviewStatus, string> = {
   needs_correction: "Corrección solicitada",
 };
 
+/** Estados que la empresa puede subsanar (responder y regenerar). */
+export const REMEDIABLE_STATUSES: readonly ReviewStatus[] = [
+  "needs_correction",
+  "rejected",
+];
+
+/** Respuesta de POST /quality/reviews/{id}/remediation. */
+export interface RemediationResult {
+  review_id: string;
+  document_type: DocumentType;
+  saved_fields: string[];
+  regenerated: boolean;
+  document: {
+    document_id: string;
+    document_type: DocumentType;
+    version: number;
+    status: string;
+    completeness: number;
+    pending_fields: string[];
+  } | null;
+}
+
 /**
  * Nivel de cumplimiento normativo a partir del score del Auditor (0-100).
  * Un score no es "completitud": un documento puede tener 100% de campos con

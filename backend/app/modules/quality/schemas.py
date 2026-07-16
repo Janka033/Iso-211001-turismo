@@ -12,7 +12,9 @@ Dos familias de modelos:
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.modules.generation.schemas import GeneratedDocument
 
 ReviewDecision = Literal["approved", "rejected", "needs_correction"]
 
@@ -36,6 +38,50 @@ class ReviewDecisionOut(BaseModel):
     document_id: str
     document_type: str
     document_status: str
+
+
+class RemediationRequest(BaseModel):
+    """Subsanación de la empresa a una corrección solicitada. Sin tenant_id: JWT.
+
+    ``answers`` va indexado por field_key (los que marcó la evaluación o los de
+    la checklist del documento); el service rechaza claves fuera de ese universo
+    para que no se cuele basura en ``onboarding_data``.
+    """
+
+    answers: dict[str, str] = Field(
+        min_length=1,
+        max_length=60,
+        description="field_key -> dato aportado por la empresa (texto crudo).",
+    )
+    regenerate: bool = Field(
+        default=True,
+        description="Regenerar el documento (versión nueva) con los datos subsanados.",
+    )
+
+    @field_validator("answers")
+    @classmethod
+    def _answers_acotadas(cls, answers: dict[str, str]) -> dict[str, str]:
+        for key, value in answers.items():
+            if not key or len(key) > 120:
+                raise ValueError(f"field_key inválido: {key!r}")
+            if len(value) > 4000:
+                raise ValueError(f"El dato de '{key}' excede 4000 caracteres.")
+        return answers
+
+
+class RemediationOut(BaseModel):
+    """Resultado de la subsanación: qué se guardó y qué se regeneró."""
+
+    review_id: str
+    document_type: str
+    saved_fields: list[str] = Field(
+        description="field_key efectivamente guardados en onboarding_data."
+    )
+    regenerated: bool
+    document: GeneratedDocument | None = Field(
+        default=None,
+        description="Documento regenerado (versión nueva), si se pidió regenerar.",
+    )
 
 
 # ---------------------------------------------------------------------------
