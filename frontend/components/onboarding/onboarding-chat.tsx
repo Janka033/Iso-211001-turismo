@@ -120,33 +120,53 @@ export function OnboardingChat() {
   const [textVal, setTextVal] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Mientras resolvemos si el tenant ya tiene actividades, no renderizamos aún
+  // (evita el "flash" de la pantalla de selección al recargar y luego saltar a chat).
+  const [initializing, setInitializing] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [history, loading]);
 
-  // Precarga las actividades ya persistidas (onboarding_data) del tenant: así el
-  // botón "Agregar o modificar actividades" arranca con la selección real y se
-  // refleja lo que ya quedó guardado. No fuerza fase: el empresario confirma con
-  // "Comenzar" (que re-persiste e inicializa el chat estrictamente con ellas).
+  // Al montar: si el tenant YA tiene actividades persistidas, se salta la
+  // pantalla de selección y se retoma el chat directamente (F5 no debe devolver
+  // a "¿Qué actividades ofreces?"). Se resuelve con un turno sin mensaje (no
+  // llama a la IA): trae actividades + estado dinámico + la próxima pregunta.
   useEffect(() => {
     let alive = true;
     (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
       try {
-        const res = await fetch(`${apiBase()}/onboarding`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) return;
+        const res = await fetch(`${apiBase()}/onboarding/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ message: null }),
         });
-        if (!res.ok) return;
-        const state = (await res.json()) as { data?: OnboardingData };
-        const acts = state.data?.activities;
-        if (alive && Array.isArray(acts) && acts.length > 0) setSelected(acts);
+        if (!res.ok || !alive) return;
+        const resp = (await res.json()) as ChatResponse;
+        const acts = resp.data.activities ?? [];
+        if (!alive || acts.length === 0) return;
+        // Retoma el chat con lo persistido (la conversación previa no se guarda;
+        // se re-muestra el saludo + la pregunta pendiente actual).
+        setSelected(acts);
+        setData(resp.data);
+        setCompleteness(resp.completeness);
+        setCompleted(resp.completed);
+        const bubbles: Bubble[] = [{ role: "ai", text: GREETING }];
+        if (resp.next_question) bubbles.push({ role: "ai", text: resp.next_question });
+        setHistory(bubbles);
+        setPhase("chat");
       } catch {
-        /* sin precarga: el empresario elige desde cero */
+        /* sin actividades o sin sesión: se muestra la pantalla de selección */
+      } finally {
+        if (alive) setInitializing(false);
       }
     })();
     return () => {
@@ -244,6 +264,15 @@ export function OnboardingChat() {
 
   function toggle(slug: string) {
     setSelected((s) => (s.includes(slug) ? s.filter((x) => x !== slug) : [...s, slug]));
+  }
+
+  // Aún resolviendo si retomar el chat: no pintamos nada decisivo todavía.
+  if (initializing) {
+    return (
+      <div className="card flex h-40 items-center justify-center p-6">
+        <p className="text-sm text-slate-400">Cargando tu onboarding…</p>
+      </div>
+    );
   }
 
   if (phase === "activities") {
@@ -367,22 +396,33 @@ export function OnboardingChat() {
         </div>
       </div>
 
-      {/* Panel de datos extraídos (dinámico) */}
-      <aside className="card h-fit p-5">
-        <h2 className="text-sm font-semibold text-slate-900">Datos extraídos</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          Lo que la IA va capturando de tu operación.
-        </p>
-        <ExtractedPanel data={data} activities={selected} />
-        {/* Permite volver a la selección para ajustar el set de actividades;
-            al confirmar se re-persiste y el chat continúa con el nuevo contexto. */}
-        <button
-          type="button"
-          onClick={() => setPhase("activities")}
-          className="btn-secondary mt-5 w-full justify-center"
-        >
-          Agregar o modificar actividades
-        </button>
+      {/* Panel de datos extraídos: cabecera fija, lista con scroll interno y
+          botón sticky al pie. La tarjeta se acota a la ventana para que la lista
+          crezca hacia adentro (scroll propio) sin estirar ni desbordar la página. */}
+      <aside className="card flex h-fit max-h-[calc(100vh-8rem)] flex-col overflow-hidden lg:sticky lg:top-6">
+        <div className="shrink-0 px-5 pt-5">
+          <h2 className="text-sm font-semibold text-slate-900">Datos extraídos</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Lo que la IA va capturando de tu operación.
+          </p>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5">
+          <ExtractedPanel data={data} activities={selected} />
+        </div>
+
+        {/* Botón fijo al pie con fondo opaco: siempre visible sin importar el
+            scroll interno. Permite volver a la selección; al confirmar se
+            re-persiste y el chat continúa con el nuevo contexto. */}
+        <div className="sticky bottom-0 shrink-0 border-t border-slate-100 bg-white px-5 py-4">
+          <button
+            type="button"
+            onClick={() => setPhase("activities")}
+            className="btn-secondary w-full justify-center"
+          >
+            Agregar o modificar actividades
+          </button>
+        </div>
       </aside>
     </div>
   );
