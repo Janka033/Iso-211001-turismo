@@ -78,18 +78,35 @@ export const REVIEW_STATUS_LABEL: Record<ReviewStatus, string> = {
  */
 export interface ComplianceLevel {
   label: string;
-  /** clase de color de la barra (fondo). */
+  /** clase de color de la barra (fondo sólido). */
   bar: string;
+  /** clase de fondo suave para píldoras/badges. */
+  soft: string;
   /** clase de color del texto del porcentaje. */
   text: string;
 }
 
 export function complianceLevel(score: number): ComplianceLevel {
   if (score >= 90) {
-    return { label: "Cumplimiento óptimo", bar: "bg-emerald-500", text: "text-emerald-700" };
+    return {
+      label: "Cumplimiento óptimo",
+      bar: "bg-emerald-500",
+      soft: "bg-emerald-50",
+      text: "text-emerald-700",
+    };
   }
   if (score >= 60) {
-    return { label: "Aceptable con observaciones", bar: "bg-amber-500", text: "text-amber-700" };
+    return {
+      label: "Aceptable con observaciones",
+      bar: "bg-amber-500",
+      soft: "bg-amber-50",
+      text: "text-amber-700",
+    };
   }
-  return { label: "Requiere ajustes críticos", bar: "bg-rose-500", text: "text-rose-700" };
+  return {
+    label: "Requiere ajustes críticos",
+    bar: "bg-rose-500",
+    soft: "bg-rose-50",
+    text: "text-rose-700",
+  };
 }

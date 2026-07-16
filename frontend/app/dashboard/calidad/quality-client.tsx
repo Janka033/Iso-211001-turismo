@@ -4,8 +4,10 @@ import { useState } from "react";
 
 import { apiBase } from "@/lib/api";
 import { DOCUMENTS, type DocumentMeta } from "@/lib/documents";
+import { fieldLabel } from "@/lib/field-labels";
 import {
   REVIEW_STATUS_LABEL,
+  complianceLevel,
   type QualityReview,
   type ReviewDecision,
   type ReviewStatus,
@@ -144,7 +146,7 @@ function DocumentRow({
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
-          <ScoreBadge score={review?.score ?? null} />
+          <ComplianceBadge score={review?.score ?? null} />
           <button onClick={evaluate} disabled={busy} className="btn-secondary">
             {busy ? "Evaluando…" : review ? "Reevaluar" : "Evaluar con IA"}
           </button>
@@ -198,20 +200,20 @@ function EvaluationDetail({
         <SectionTitle>Completitud</SectionTitle>
         {missingRequired.length === 0 && missingOptional.length === 0 ? (
           <p className="mt-1 text-sm text-slate-600">
-            Todos los campos de la checklist tienen dato.
+            Todos los datos requeridos están completos.
           </p>
         ) : (
           <div className="mt-2 space-y-2">
             {missingRequired.length > 0 && (
               <FieldChips
-                label="Obligatorios sin dato"
+                label="Datos obligatorios que faltan"
                 fields={missingRequired}
                 tone="rose"
               />
             )}
             {missingOptional.length > 0 && (
               <FieldChips
-                label="Opcionales sin dato"
+                label="Datos opcionales que faltan"
                 fields={missingOptional}
                 tone="slate"
               />
@@ -293,9 +295,12 @@ function EvaluationDetail({
               <div key={i} className="rounded-lg bg-white px-3 py-2 shadow-sm">
                 <p className="text-sm text-slate-700">
                   {c.field && (
-                    <code className="mr-1 rounded bg-slate-100 px-1 py-0.5 text-xs">
-                      {c.field}
-                    </code>
+                    <span
+                      title={c.field}
+                      className="mr-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+                    >
+                      {fieldLabel(c.field)}
+                    </span>
                   )}
                   {c.issue}
                 </p>
@@ -440,19 +445,17 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ScoreBadge({ score }: { score: number | null }) {
+function ComplianceBadge({ score }: { score: number | null }) {
   if (score === null) {
     return <span className="badge bg-slate-100 text-slate-500">Sin evaluar</span>;
   }
-  const tone =
-    score >= 80
-      ? "bg-emerald-50 text-emerald-700"
-      : score >= 60
-        ? "bg-amber-50 text-amber-700"
-        : "bg-rose-50 text-rose-700";
+  const level = complianceLevel(score);
   return (
-    <span className={`badge ${tone}`} title="Score de calidad (0-100)">
-      {Math.round(score)} / 100
+    <span
+      className={`badge ${level.soft} ${level.text}`}
+      title={`Nivel de cumplimiento normativo: ${Math.round(score)} de 100`}
+    >
+      {level.label}
     </span>
   );
 }
@@ -486,15 +489,19 @@ function FieldChips({
   const chip =
     tone === "rose"
       ? "bg-rose-50 text-rose-700"
-      : "bg-slate-100 text-slate-500";
+      : "bg-slate-100 text-slate-600";
   return (
     <div>
       <p className="text-xs text-slate-500">{label}:</p>
       <div className="mt-1 flex flex-wrap gap-1.5">
         {fields.map((f) => (
-          <code key={f} className={`rounded px-1.5 py-0.5 text-xs ${chip}`}>
-            {f}
-          </code>
+          <span
+            key={f}
+            title={f}
+            className={`rounded-full px-2.5 py-0.5 text-xs ${chip}`}
+          >
+            {fieldLabel(f)}
+          </span>
         ))}
       </div>
     </div>
