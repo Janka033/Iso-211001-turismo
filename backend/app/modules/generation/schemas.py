@@ -166,7 +166,13 @@ class RiskEntry(AIVariablesModel):
         default=None, description="Controles existentes."
     )
     proposed_actions: str | None = Field(
-        default=None, description="Acciones de tratamiento propuestas."
+        default=None,
+        description=(
+            "Acciones de tratamiento propuestas para reducir este riesgo. "
+            "DERÍVALAS de los controles, mantenimientos, capacitaciones y "
+            "protocolos que el cliente ya describió en su contexto; NUNCA "
+            "inventes recursos o prácticas que el cliente no tenga."
+        ),
     )
     responsible: str | None = Field(
         default=None, description="Responsable de la acción."
@@ -421,9 +427,24 @@ class CommunicationProcedureVariables(AIVariablesModel):
         default=None, description="Razón social de la empresa."
     )
     objective: str | None = Field(
-        default=None, description="Objetivo del procedimiento."
+        default=None,
+        description=(
+            "Objetivo del procedimiento: asegurar la comunicación, "
+            "participación y consulta en seguridad (7.4). Es texto normativo "
+            "estándar, no un dato operativo: DERÍVALO de las actividades y el "
+            "alcance reales del cliente; no lo dejes null por falta de "
+            "mención literal."
+        ),
     )
-    scope: str | None = Field(default=None, description="Alcance del procedimiento.")
+    scope: str | None = Field(
+        default=None,
+        description=(
+            "Alcance del procedimiento: a quién aplica (personal, "
+            "participantes, partes interesadas) y en qué operaciones. "
+            "DERÍVALO del alcance y las actividades reales del cliente; no lo "
+            "dejes null por falta de mención literal."
+        ),
+    )
     responsibles: str | None = Field(
         default=None, description="Responsables del proceso de comunicación."
     )
@@ -496,9 +517,23 @@ class EquipmentManualVariables(AIVariablesModel):
         default=None, description="Razón social de la empresa."
     )
     objective: str | None = Field(
-        default=None, description="Objetivo del manual de inspección y mantenimiento."
+        default=None,
+        description=(
+            "Objetivo del manual: asegurar la inspección y el mantenimiento "
+            "de los equipos de la operación (8.1). Es texto normativo "
+            "estándar, no un dato operativo: DERÍVALO de las actividades y "
+            "los equipos reales del cliente; no lo dejes null por falta de "
+            "mención literal."
+        ),
     )
-    scope: str | None = Field(default=None, description="Alcance del manual.")
+    scope: str | None = Field(
+        default=None,
+        description=(
+            "Alcance del manual: qué equipos y actividades cubre y a quién "
+            "aplica. DERÍVALO de los equipos y actividades reales del "
+            "cliente; no lo dejes null por falta de mención literal."
+        ),
+    )
     role_obligations: str | None = Field(
         default=None,
         description="Obligaciones por rol (Gerencia, Coordinador, Guía).",
