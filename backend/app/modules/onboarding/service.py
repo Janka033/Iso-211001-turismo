@@ -88,6 +88,88 @@ _UNIVERSAL_QUESTIONS: tuple[tuple[str, str], ...] = (
     ),
     ("existing_controls", "¿Qué medidas o controles de seguridad ya aplican en su operación?"),
     ("management_commitment", "¿Cómo se compromete la dirección con la seguridad?"),
+    # ------------------------------------------------------------------
+    # Micro-preguntas de granularidad por documento (NTC-ISO 21101). Sin
+    # ellas, la extracción no encuentra el dato y el documento sale con
+    # [PENDIENTE]. Cada bloque alimenta las variables de su documento.
+    # ------------------------------------------------------------------
+    # Política de seguridad (5.2)
+    (
+        "safety_objectives",
+        "Definan 3 objetivos de seguridad MEDIBLES: cada uno con indicador, meta "
+        "numérica y plazo (p. ej. 'Reducir los incidentes reportados en 20% a "
+        "diciembre de 2026'). Sepárenlos con punto y coma.",
+    ),
+    (
+        "approval_date",
+        "¿En qué fecha la gerencia aprobó (o aprobará) oficialmente la política "
+        "de seguridad? (día/mes/año)",
+    ),
+    (
+        "communication_channels",
+        "¿Por qué canales divulgan la política y las normas de seguridad "
+        "(cartelera, inducción, WhatsApp, página web, briefing pre-actividad)?",
+    ),
+    # Matriz de riesgos y oportunidades (6.1.1)
+    (
+        "activity_step_breakdown",
+        "Describan su actividad principal PASO A PASO (llegada, charla, "
+        "equipamiento, desarrollo, cierre) y en cada paso indiquen el PELIGRO "
+        "(la fuente: roca suelta, corriente, equipo defectuoso) y el RIESGO "
+        "que genera (la consecuencia: golpe, ahogamiento, caída).",
+    ),
+    (
+        "risk_factors",
+        "¿Qué riesgos identifican por cada factor: ambientales (clima, terreno, "
+        "crecientes), humanos (participantes, guías, terceros), de materiales/"
+        "equipos, y organizativos (procedimientos, comunicación, supervisión)?",
+    ),
+    (
+        "business_risks",
+        "¿Qué riesgos del NEGOCIO y sus procesos identifican (cancelaciones por "
+        "clima, reputación, dependencia de proveedores, temporada baja, permisos "
+        "o requisitos legales)?",
+    ),
+    (
+        "opportunities",
+        "¿Qué oportunidades de mejora identifican y qué plan tienen para "
+        "aprovecharlas (certificaciones, alianzas, capacitación, nuevos "
+        "mercados)?",
+    ),
+    # Inspección y mantenimiento de equipos (8.1)
+    (
+        "equipment_maintenance",
+        "Para CADA equipo que usan (balsas, remos, chalecos, cascos, cuerdas, "
+        "arneses…): ¿con qué frecuencia lo inspeccionan, qué tipo de revisión "
+        "hacen (visual o técnica) y cada cuánto le hacen mantenimiento?",
+    ),
+    # Comunicación, participación y consulta (7.4)
+    (
+        "communication_matrix",
+        "¿Qué comunican sobre seguridad, A QUIÉN (guías, clientes, gerencia, "
+        "organismos), por qué CANAL y con qué FRECUENCIA? Den varias filas "
+        "(p. ej. 'briefing de seguridad — clientes — verbal — antes de cada "
+        "salida').",
+    ),
+    (
+        "participation_consultation",
+        "¿Qué mecanismos formales tienen para que el personal participe y sea "
+        "consultado en temas de seguridad (reuniones periódicas, comité, buzón "
+        "de sugerencias, evaluación de simulacros)?",
+    ),
+    # Gestión de incidentes (8.3)
+    (
+        "incident_classification",
+        "¿Cómo clasifican los eventos: qué consideran un INCIDENTE (casi ocurre, "
+        "sin lesión) frente a un ACCIDENTE (con lesión o daño), y qué categorías "
+        "de severidad usan (leve, grave, crítico)?",
+    ),
+    (
+        "incident_report_fields",
+        "Cuando ocurre un incidente, ¿qué datos registran en el reporte (fecha, "
+        "lugar, actividad, personas involucradas, descripción, atención "
+        "brindada, causa probable)?",
+    ),
 )
 
 # Todos los campos universales que cuentan para la completitud (19: las 18
@@ -103,6 +185,12 @@ _LIST_FIELDS: frozenset[str] = frozenset(
         "capacitaciones_personal_emergencias",
         "equipos_emergencia",
         "organismos_apoyo",
+        "safety_objectives",
+        "communication_channels",
+        "business_risks",
+        "opportunities",
+        "incident_classification",
+        "incident_report_fields",
     }
 )
 

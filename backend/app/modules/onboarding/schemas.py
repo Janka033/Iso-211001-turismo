@@ -29,10 +29,12 @@ class OnboardingPayload(BaseModel):
         description="Ubicaciones específicas de operación (ríos, cañones, sedes).",
     )
     scope: str | None = Field(
-        default=None, max_length=2000, description="Alcance operativo del cliente."
+        default=None, max_length=4000, description="Alcance operativo del cliente."
     )
     certified_guides: str | None = Field(
-        default=None, max_length=120, description="Número o rango de guías certificados."
+        default=None,
+        max_length=300,
+        description="Número o rango de guías certificados y sus certificaciones.",
     )
     legal_representative: str | None = Field(
         default=None, max_length=200, description="Representante legal de la empresa."
@@ -53,20 +55,101 @@ class OnboardingPayload(BaseModel):
     )
     existing_controls: str | None = Field(
         default=None,
-        max_length=2000,
+        max_length=4000,
         description="Medidas o controles de seguridad que ya aplica la empresa.",
     )
     management_commitment: str | None = Field(
         default=None,
-        max_length=2000,
+        max_length=4000,
         description="Compromiso de la dirección con la seguridad.",
+    )
+    # ------------------------------------------------------------------
+    # Granularidad por documento (NTC-ISO 21101). Cada campo alimenta la
+    # extracción de variables de su documento; los nombres coinciden con la
+    # variable destino cuando el mapeo es 1:1 (safety_objectives,
+    # opportunities, incident_classification, communication_matrix) para que
+    # la IA los mapee sin ambigüedad. Texto CRUDO del cliente, nunca de la IA.
+    # ------------------------------------------------------------------
+    # Política de seguridad (5.2)
+    safety_objectives: list[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Objetivos de seguridad medibles: indicador, meta numérica y plazo.",
+    )
+    approval_date: str | None = Field(
+        default=None,
+        max_length=120,
+        description="Fecha oficial de aprobación de la política por la gerencia.",
+    )
+    communication_channels: list[str] = Field(
+        default_factory=list,
+        max_length=30,
+        description="Canales de divulgación de la política y normas de seguridad.",
+    )
+    # Matriz de riesgos y oportunidades (6.1.1)
+    activity_step_breakdown: str | None = Field(
+        default=None,
+        max_length=4000,
+        description=(
+            "Desglose paso a paso de la actividad, con el peligro (fuente) y el "
+            "riesgo (consecuencia) de cada paso."
+        ),
+    )
+    risk_factors: str | None = Field(
+        default=None,
+        max_length=4000,
+        description=(
+            "Riesgos por factor: ambiental, humano, de materiales/equipos y "
+            "organizativo."
+        ),
+    )
+    business_risks: list[str] = Field(
+        default_factory=list,
+        max_length=30,
+        description="Riesgos del negocio y sus procesos (no operativos).",
+    )
+    opportunities: list[str] = Field(
+        default_factory=list,
+        max_length=30,
+        description="Oportunidades de mejora identificadas y su plan.",
+    )
+    # Inspección y mantenimiento de equipos (8.1)
+    equipment_maintenance: str | None = Field(
+        default=None,
+        max_length=4000,
+        description=(
+            "Por cada equipo: frecuencia de inspección, tipo (visual/técnica) y "
+            "mantenimiento."
+        ),
+    )
+    # Comunicación, participación y consulta (7.4)
+    communication_matrix: str | None = Field(
+        default=None,
+        max_length=4000,
+        description="Qué se comunica, a quién, por qué canal y con qué frecuencia.",
+    )
+    participation_consultation: str | None = Field(
+        default=None,
+        max_length=4000,
+        description="Mecanismos formales de participación y consulta del personal.",
+    )
+    # Gestión de incidentes (8.3)
+    incident_classification: list[str] = Field(
+        default_factory=list,
+        max_length=30,
+        description="Clasificación de eventos: incidente vs accidente y categorías.",
+    )
+    incident_report_fields: list[str] = Field(
+        default_factory=list,
+        max_length=40,
+        description="Campos que registran en el reporte de un incidente.",
     )
     # Preparación y respuesta ante emergencias (PL-01, 8.2). Fuente: cuestionario
     # "Caracterización para el Plan de Respuesta a Emergencias" (Calidad
     # Turística Colombiana). Responden alertas reales de generation_patterns.
     brigada_emergencias: str | None = Field(
         default=None,
-        max_length=2000,
+        max_length=4000,
         description="Brigada de emergencias: existencia, roles que la integran y contactos.",
     )
     capacitaciones_personal_emergencias: list[str] = Field(
@@ -92,7 +175,7 @@ class OnboardingPayload(BaseModel):
     )
     hospital_cercano: str | None = Field(
         default=None,
-        max_length=500,
+        max_length=1000,
         description=(
             "Hospital o centro de salud más cercano: nombre, ubicación, "
             "distancia y tiempo de acceso."
@@ -100,7 +183,7 @@ class OnboardingPayload(BaseModel):
     )
     vehiculos_evacuacion: str | None = Field(
         default=None,
-        max_length=1000,
+        max_length=2000,
         description="Vehículos disponibles para evacuación: tipo y contacto del encargado.",
     )
     # Datos POR ACTIVIDAD (Parte B). Clave = field_key del checklist
@@ -159,7 +242,7 @@ class OnboardingChatRequest(BaseModel):
 
     message: str | None = Field(
         default=None,
-        max_length=4000,
+        max_length=8000,
         description="Última respuesta del cliente (texto libre). Vacío en el turno inicial.",
     )
     activities: list[str] | None = Field(

@@ -57,6 +57,19 @@ const UNIVERSAL_LABELS: Record<string, string> = {
   vehiculos_evacuacion: "Vehículos de evacuación",
   existing_controls: "Controles actuales",
   management_commitment: "Compromiso de la dirección",
+  // Micro-preguntas de granularidad por documento (NTC-ISO 21101).
+  safety_objectives: "Objetivos de seguridad (SMART)",
+  approval_date: "Fecha de aprobación de la política",
+  communication_channels: "Canales de divulgación",
+  activity_step_breakdown: "Actividad paso a paso (peligro/riesgo)",
+  risk_factors: "Riesgos por factor",
+  business_risks: "Riesgos del negocio",
+  opportunities: "Oportunidades de mejora",
+  equipment_maintenance: "Mantenimiento por equipo",
+  communication_matrix: "Matriz de comunicación",
+  participation_consultation: "Participación y consulta",
+  incident_classification: "Clasificación de incidentes",
+  incident_report_fields: "Campos del reporte de incidentes",
 };
 
 // Prefijo del field_key por actividad (`<prefijo>_<slug>`) -> etiqueta.
@@ -125,6 +138,7 @@ export function OnboardingChat() {
   const [initializing, setInitializing] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [history, loading]);
@@ -258,6 +272,8 @@ export function OnboardingChat() {
     if (!text || loading) return;
     setHistory((h) => [...h, { role: "user", text }]);
     setTextVal("");
+    // El textarea auto-creciente vuelve a su altura mínima al enviar.
+    if (inputRef.current) inputRef.current.style.height = "auto";
     const resp = await postChat({ message: text });
     if (resp) applyResponse(resp);
   }
@@ -295,8 +311,8 @@ export function OnboardingChat() {
                 aria-pressed={on}
                 className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                   on
-                    ? "bg-brand-600 text-white"
-                    : "border border-slate-200 bg-white text-slate-600 hover:border-brand-300"
+                    ? "bg-marca-600 text-white"
+                    : "border border-slate-200 bg-white text-slate-600 hover:border-marca-300"
                 }`}
               >
                 {a.label}
@@ -323,11 +339,11 @@ export function OnboardingChat() {
         <div className="border-b border-slate-100 px-5 py-4">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium text-slate-700">Datos capturados</span>
-            <span className="font-semibold text-brand-700">{Math.round(completeness)}%</span>
+            <span className="font-semibold text-marca-700">{Math.round(completeness)}%</span>
           </div>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
             <div
-              className="h-full rounded-full bg-brand-600 transition-all duration-500"
+              className="h-full rounded-full bg-marca-600 transition-all duration-500"
               style={{ width: `${completeness}%` }}
             />
           </div>
@@ -350,7 +366,7 @@ export function OnboardingChat() {
               </div>
             ) : (
               <div key={i} className="flex justify-end">
-                <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-brand-600 px-4 py-2.5 text-sm text-white">
+                <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-marca-600 px-4 py-2.5 text-sm text-white">
                   {b.text}
                 </div>
               </div>
@@ -373,13 +389,29 @@ export function OnboardingChat() {
                 e.preventDefault();
                 void sendAnswer();
               }}
-              className="flex gap-2"
+              className="flex items-end gap-2"
             >
-              <input
-                className="input"
-                placeholder="Escribe tu respuesta…"
+              {/* Textarea auto-creciente: las respuestas detalladas (objetivos
+                  SMART, desglose de riesgos, matriz de comunicación) necesitan
+                  varias líneas. Enter envía; Shift+Enter hace salto de línea. */}
+              <textarea
+                ref={inputRef}
+                className="input max-h-48 min-h-[2.5rem] flex-1 resize-none overflow-y-auto"
+                placeholder="Escribe tu respuesta… (Shift+Enter para salto de línea)"
                 value={textVal}
-                onChange={(e) => setTextVal(e.target.value)}
+                rows={1}
+                maxLength={8000}
+                onChange={(e) => {
+                  setTextVal(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = `${Math.min(e.target.scrollHeight, 192)}px`;
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (!loading && textVal.trim()) void sendAnswer();
+                  }
+                }}
                 disabled={loading}
                 autoFocus
               />
@@ -388,7 +420,7 @@ export function OnboardingChat() {
               </button>
             </form>
           ) : (
-            <Link href="/dashboard" className="btn-accent btn-lg w-full justify-center">
+            <Link href="/dashboard" className="btn-marca w-full justify-center">
               Generar mis documentos
             </Link>
           )}
@@ -458,7 +490,7 @@ function ExtractedPanel({ data, activities }: { data: OnboardingData; activities
         if (rows.length === 0) return null;
         return (
           <div key={slug} className="border-t border-slate-100 pt-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">
+            <p className="text-xs font-semibold uppercase tracking-wide text-marca-700">
               {ACTIVITY_LABEL[slug] ?? slug}
             </p>
             <dl className="mt-2 space-y-2">
@@ -502,7 +534,7 @@ function Avatar({ tone }: { tone?: "warning" }) {
     );
   }
   return (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-gradient text-white shadow-card">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-marca-gradient text-white shadow-card">
       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
         <path
           d="M12 3v4m0 10v4m9-9h-4M7 12H3m13.5-5.5-2.8 2.8m-3.4 3.4-2.8 2.8m9-0-2.8-2.8M9.3 9.3 6.5 6.5"

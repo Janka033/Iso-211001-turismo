@@ -54,8 +54,10 @@ async def test_merge_routes_each_key_to_its_home(wire):
         {
             "scope": "  Rafting y rapel en el Melcocho.  ",  # universal escalar
             "organismos_apoyo": "Cruz Roja, Bomberos Cocorná",  # universal lista
+            # universal lista
+            "safety_objectives": "Reducir incidentes 20%; cero accidentes graves",
             "equipo_rafting": "cascos y remos nuevos",  # Parte B (actividad)
-            "safety_objectives": "Reducir incidentes 20%.",  # variable de documento
+            "legal_commitment": "Cumplir la Ley 300 y el RNT.",  # variable de documento
             "vacio": "   ",  # sin dato: se descarta
         },
         TENANT_A,
@@ -64,6 +66,7 @@ async def test_merge_routes_each_key_to_its_home(wire):
 
     assert saved == [
         "equipo_rafting",
+        "legal_commitment",
         "organismos_apoyo",
         "safety_objectives",
         "scope",
@@ -72,9 +75,13 @@ async def test_merge_routes_each_key_to_its_home(wire):
     assert wire["tenant_id"] == TENANT_A
     assert data["scope"] == "Rafting y rapel en el Melcocho."
     assert data["organismos_apoyo"] == ["Cruz Roja", "Bomberos Cocorná"]
+    assert data["safety_objectives"] == [
+        "Reducir incidentes 20%",
+        "cero accidentes graves",
+    ]
     assert data["activity_fields"] == {"equipo_rafting": "cascos y remos nuevos"}
     assert data["remediation_fields"] == {
-        "safety_objectives": "Reducir incidentes 20%."
+        "legal_commitment": "Cumplir la Ley 300 y el RNT."
     }
     # Lo que no se tocó, se conserva.
     assert data["activities"] == ["rafting"]

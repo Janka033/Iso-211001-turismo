@@ -139,8 +139,10 @@ def test_first_turn_sets_activities_and_asks_first_universal(client, make_token,
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    # 19 universales + 5*3 por actividad = 34 esperados; solo `activities` con dato.
-    assert body["completeness"] == round(1 / 34 * 100, 2)
+    # Universales + 5*3 por actividad; solo `activities` con dato. El número de
+    # universales se deriva del service para no romper al añadir preguntas.
+    expected_total = len(service._UNIVERSAL_KEYS) + 15
+    assert body["completeness"] == round(1 / expected_total * 100, 2)
     assert body["completed"] is False
     assert body["next_field"]["field_key"] == "main_region"
     assert body["data"]["activities"] == ["rafting", "parapente", "buceo"]
@@ -397,6 +399,19 @@ _ALL_UNIVERSAL = {
     "vehiculos_evacuacion": "Camioneta 4x4 — Juan (310 000 0000)",
     "existing_controls": "Chequeo de equipo",
     "management_commitment": "La dirección prioriza la seguridad",
+    # Micro-preguntas de granularidad por documento (NTC-ISO 21101).
+    "safety_objectives": ["Reducir incidentes reportados 20% a diciembre 2026"],
+    "approval_date": "15/01/2026",
+    "communication_channels": ["Briefing pre-actividad", "Cartelera"],
+    "activity_step_breakdown": "Embarque: peligro corriente, riesgo caída al agua",
+    "risk_factors": "Ambiental: crecientes; humano: pánico; material: desgaste",
+    "business_risks": ["Cancelaciones por clima"],
+    "opportunities": ["Certificación NTC-ISO 21101"],
+    "equipment_maintenance": "Balsas: inspección visual diaria y técnica mensual",
+    "communication_matrix": "Briefing — clientes — verbal — antes de cada salida",
+    "participation_consultation": "Reunión semanal de seguridad con los guías",
+    "incident_classification": ["Incidente: sin lesión", "Accidente: con lesión"],
+    "incident_report_fields": ["Fecha", "Lugar", "Descripción", "Atención brindada"],
 }
 
 
@@ -418,9 +433,10 @@ def test_three_activities_expected_fields_exceed_five():
     checklist = _checklist_for(activities)
     pct, completed = service._measure_dynamic(_ALL_UNIVERSAL, checklist)
 
-    # 19 universales + 15 por actividad = 34 esperados (mucho más que 5).
-    # Con 19 respondidos: 19/34.
-    assert pct == round(19 / 34 * 100, 2)
+    # Universales + 15 por actividad (mucho más que 5). Con los universales
+    # respondidos, faltan solo los 15 de actividad.
+    n_universal = len(service._UNIVERSAL_KEYS)
+    assert pct == round(n_universal / (n_universal + 15) * 100, 2)
     assert completed is False
 
 
@@ -489,8 +505,9 @@ def test_duplicated_rows_do_not_inflate_completeness(client, make_token, wire):
 
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    # 19 universales + 15 únicos por actividad = 34 esperados (no 40).
-    assert body["completeness"] == round(1 / 34 * 100, 2)
+    # Universales + 15 únicos por actividad (los duplicados no inflan).
+    expected_total = len(service._UNIVERSAL_KEYS) + 15
+    assert body["completeness"] == round(1 / expected_total * 100, 2)
     assert monkeypatch_checklist is captured
 
 
@@ -533,14 +550,15 @@ def test_optional_fields_add_to_completeness_when_given():
     checklist = _checklist_for(["rafting"]) + _levantamiento_rows("rafting")
     data = dict(_ALL_UNIVERSAL, activities=["rafting"])
 
-    # 19 universales llenos; 7 obligatorios por actividad vacíos => 19/26.
+    # Universales llenos; 7 obligatorios por actividad vacíos.
+    n_universal = len(service._UNIVERSAL_KEYS)
     pct_before, _ = service._measure_dynamic(data, checklist)
-    assert pct_before == round(19 / 26 * 100, 2)
+    assert pct_before == round(n_universal / (n_universal + 7) * 100, 2)
 
     # Un opcional dado espontáneamente entra al numerador Y al denominador.
     data["activity_fields"] = {"seguro_contratado_rafting": "Póliza Sura 123"}
     pct_after, completed = service._measure_dynamic(data, checklist)
-    assert pct_after == round(20 / 27 * 100, 2)
+    assert pct_after == round((n_universal + 1) / (n_universal + 8) * 100, 2)
     assert pct_after > pct_before
     assert completed is False
 

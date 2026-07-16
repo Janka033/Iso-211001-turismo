@@ -121,6 +121,15 @@ export const FIELD_LABELS: Record<string, string> = {
   state: "Estado del equipo",
   inspection_type: "Tipo de inspección",
 
+  // — Micro-preguntas de granularidad del onboarding (por documento) —
+  communication_channels: "Canales de divulgación",
+  activity_step_breakdown: "Actividad paso a paso (peligro/riesgo)",
+  risk_factors: "Riesgos por factor",
+  business_risks: "Riesgos del negocio",
+  equipment_maintenance: "Mantenimiento por equipo",
+  participation_consultation: "Participación y consulta",
+  incident_report_fields: "Campos del reporte de incidentes",
+
   // — Checklist Parte A del plan de emergencias (8.2) —
   brigada_emergencias: "Brigada de emergencias",
   capacitaciones_personal_emergencias: "Capacitaciones del personal en emergencias",
