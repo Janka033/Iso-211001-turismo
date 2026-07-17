@@ -13,6 +13,13 @@ Los dos PDFs tienen estructura distinta y se tratan por separado:
   evidencias por numeral son lo más valioso para el RAG. Las filas de
   continuación (celda de numeral vacía) acumulan evidencias/requisito del
   numeral anterior; sale un chunk por numeral con todas sus evidencias.
+- ``guias``  -> las guías MinCIT/FONTUR de ``knowledge-base/formatos/``
+  (implementación, integración, indicadores). Prosa con encabezados en
+  MAYÚSCULAS por numeral de la norma (4.1 … 10.2): se chunkea por numeral
+  para que la generación las reciba en su RAG; las secciones sin numeral
+  (introducciones, guía de indicadores) van con numeral NULL y sirven al
+  RAG sin filtro (onboarding y fallback). El PST Módulo 2 de esa carpeta
+  NO se procesa aquí: es el mismo PDF ya sembrado como ``acotur``.
 
 Toda llamada de embedding pasa por ``AIProvider`` (regla de oro 8).
 El upsert usa el service client (salta RLS: operación superadmin legítima).
@@ -306,6 +313,106 @@ def chunk_acotur(pdf_path: Path) -> list[Chunk]:
 
 
 # ---------------------------------------------------------------------------
+# Chunking de las guías MinCIT/FONTUR (prosa con headings por numeral)
+# ---------------------------------------------------------------------------
+
+GUIAS_DIR = KNOWLEDGE_DIR / "formatos"
+# Heading de sección: numeral con punto ("4.1", "10.2") + título en MAYÚSCULAS.
+# Exigir el punto evita capturar listas numeradas ("1. Planificación…", en
+# minúsculas) y cifras sueltas.
+GUIA_HEADING_RE = re.compile(r"^(\d{1,2}(?:\.\d+)+)\s+([A-ZÁÉÍÓÚÜÑ][^a-z]{3,})$")
+# Título de capítulo sin numeral, todo en mayúsculas ("OBJETIVO DE LA GUÍA").
+GUIA_CAPS_RE = re.compile(r"^[A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑÁ\s,\.\-:()]{6,}$")
+# Entrada de índice: heading que termina en número de página.
+GUIA_TOC_TAIL_RE = re.compile(r"\s\d{1,3}\s*\|?\s*$")
+# Cuerpo mínimo para aceptar una sección (descarta residuos del índice).
+GUIA_MIN_BODY = 200
+# Secciones sin valor para el RAG (portada, índice, créditos, bibliografía).
+GUIA_SKIP_TITLES = {"CONTENIDO", "ODINETNOC", "BIBLIOGRAFÍA", "MEJOR ANFITRIÓN"}
+
+
+def _undouble(line: str) -> str:
+    """Colapsa tokens con TODAS las letras dobladas ("CCOONNTTEENNIIDDOO" →
+    "CONTENIDO", "44..11" → "4.1"): artefacto de pdfplumber con los títulos en
+    fuente delineada de las guías. Los tokens normales no se tocan."""
+    out = []
+    for token in line.split():
+        if len(token) >= 4 and len(token) % 2 == 0:
+            pairs = [token[i : i + 2] for i in range(0, len(token), 2)]
+            if all(p[0] == p[1] for p in pairs):
+                token = "".join(p[0] for p in pairs)
+        out.append(token)
+    return " ".join(out)
+
+
+def chunk_guia(pdf_path: Path, index_por_numeral: Counter[str]) -> list[Chunk]:
+    with pdfplumber.open(pdf_path) as pdf:
+        pages_lines = [(page.extract_text() or "").splitlines() for page in pdf.pages]
+
+    boilerplate = detect_boilerplate(pages_lines)
+    doc = pdf_path.stem
+
+    sections: list[tuple[str | None, str, list[str]]] = []
+    current: tuple[str | None, str, list[str]] | None = None
+    for lines in pages_lines:
+        for line in clean_lines(lines, boilerplate):
+            line = _undouble(line)
+            stripped = GUIA_TOC_TAIL_RE.sub("", line).strip()
+            if stripped != line.strip() and GUIA_HEADING_RE.match(stripped):
+                continue  # entrada del índice (heading + nº de página)
+            heading = GUIA_HEADING_RE.match(line)
+            if heading:
+                if current:
+                    sections.append(current)
+                current = (heading.group(1), heading.group(2).strip(), [])
+                continue
+            if GUIA_CAPS_RE.match(line) and not any(ch.isdigit() for ch in line):
+                if current and not current[2]:
+                    # Título partido en dos renglones: continúa el heading en
+                    # curso (no robar el cuerpo con una sección nueva).
+                    current = (current[0], f"{current[1]} {line}".strip(), [])
+                else:
+                    if current:
+                        sections.append(current)
+                    # Los anexos se etiquetan con su letra: la matriz consulta
+                    # el numeral "A" en su RAG (factory.extra_rag_numerales).
+                    anexo = re.search(r"\bANEXO\s+([A-Z])\b", line)
+                    current = (anexo.group(1) if anexo else None, line, [])
+                continue
+            if current is None:
+                current = (None, doc, [])  # preámbulo antes del primer título
+            current[2].append(line)
+    if current:
+        sections.append(current)
+
+    chunks: list[Chunk] = []
+    for numeral, title, body_lines in sections:
+        body = " ".join(body_lines).strip()
+        if len(body) < GUIA_MIN_BODY:
+            continue  # residuo de índice o título huérfano
+        if numeral is None and (
+            title == doc or any(t in title for t in GUIA_SKIP_TITLES)
+        ):
+            continue  # portada/índice/créditos: ruido para el RAG
+        head = f"{numeral} {title}" if numeral else title
+        text = f"{head}\n{body}".strip()
+        meta = {"titulo": title, "doc": doc}
+        key = numeral or f"__none__/{doc}"
+        for piece in _split(text):
+            idx = index_por_numeral[key]
+            index_por_numeral[key] += 1
+            chunks.append(Chunk("guias", numeral, piece, idx, dict(meta, part=idx)))
+    return chunks
+
+
+def resolve_guias() -> list[Path]:
+    pdfs = sorted(GUIAS_DIR.glob("*Guia*.pdf")) + sorted(GUIAS_DIR.glob("*Guía*.pdf"))
+    if not pdfs:
+        raise FileNotFoundError(f"No hay PDFs de guías en {GUIAS_DIR}")
+    return pdfs
+
+
+# ---------------------------------------------------------------------------
 # Persistencia
 # ---------------------------------------------------------------------------
 
@@ -363,14 +470,21 @@ def preview(chunks: list[Chunk]) -> None:
 # ---------------------------------------------------------------------------
 
 async def run(source: str, file: str | None, dry_run: bool, skip_definitions: bool) -> None:
-    targets = ["norma", "acotur"] if source == "all" else [source]
+    targets = ["norma", "acotur", "guias"] if source == "all" else [source]
     for target in targets:
-        pdf_path = resolve_pdf(target, file if source == target else None)
-        print(f"[{target}] {pdf_path.name}")
-        if target == "norma":
-            chunks = chunk_norma(pdf_path, skip_definitions)
+        if target == "guias":
+            chunks = []
+            index_por_numeral: Counter[str] = Counter()
+            for pdf_path in resolve_guias():
+                print(f"[guias] {pdf_path.name}")
+                chunks.extend(chunk_guia(pdf_path, index_por_numeral))
         else:
-            chunks = chunk_acotur(pdf_path)
+            pdf_path = resolve_pdf(target, file if source == target else None)
+            print(f"[{target}] {pdf_path.name}")
+            if target == "norma":
+                chunks = chunk_norma(pdf_path, skip_definitions)
+            else:
+                chunks = chunk_acotur(pdf_path)
 
         if dry_run:
             preview(chunks)
@@ -380,7 +494,7 @@ async def run(source: str, file: str | None, dry_run: bool, skip_definitions: bo
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed de knowledge_chunks (norma + ACOTUR).")
-    parser.add_argument("--source", choices=["norma", "acotur", "all"], default="all")
+    parser.add_argument("--source", choices=["norma", "acotur", "guias", "all"], default="all")
     parser.add_argument("--file", help="Ruta al PDF (si no, se autodetecta en knowledge-base/).")
     parser.add_argument("--dry-run", action="store_true", help="Solo imprime chunks; no toca API ni DB.")
     parser.add_argument(
