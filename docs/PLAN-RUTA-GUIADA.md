@@ -41,8 +41,8 @@ app diaria.
 ## Cómo cambia el software (fases de construcción)
 
 ### Fase 0 — Prerrequisitos de conocimiento (½ día)
-- Aplicar **0044** (`knowledge_chunks` acepta source `guias`) — escrita,
-  bloqueada por permiso.
+- Aplicar **0044** (`knowledge_chunks` acepta source `guias`) ✅ APLICADA
+  2026-07-17 con autorización de Jan.
 - Re-correr `seed_knowledge.py --source guias` (319 chunks ya validados).
 - Seed nuevo `formatos_mincit`: instrucciones de diligenciamiento de cada
   molde .docx/.xlsx del kit → chunks por numeral (el RAG del paso N recibe
@@ -71,11 +71,64 @@ app diaria.
 - GET `/onboarding/roadmap`: estado de los 15 pasos (datos %, generado,
   score, aprobado) — la fuente del stepper y del dashboard de cumplimiento.
 
-### Fase 3 — Frontend: stepper de la ruta (2 días)
-- Vista "Tu ruta a la certificación": 15 tarjetas-paso con estado
-  (bloqueado → en captura → listo para generar → generado → aprobado),
-  la actual resaltada, CTA "continuar en el chat" / "generar" / "descargar".
-- El chat muestra la píldora del paso activo sobre el input.
+### Fase 3 — Frontend: la ruta como experiencia tipo Duolingo (3-4 días)
+
+> Pedido de Jan (2026-07-17): "como enseña Duolingo — un proceso divertido y
+> mejor experiencia para las empresas". La mecánica de Duolingo se traduce
+> así al cumplimiento ISO, sin infantilizar una herramienta B2B: celebramos
+> AVANCE REAL hacia la certificación, nunca puntos vacíos.
+
+**El mapa (la pantalla principal de la ruta):**
+- Camino serpenteante de 15 nodos (como el path de Duolingo), agrupados por
+  "unidades" = los numerales de la norma (Unidad 1: Tu empresa y su contexto
+  → Unidad 2: Liderazgo → … → Unidad 6: Operación). Cada nodo es un
+  documento; los futuros se ven bloqueados (candado suave), el actual pulsa.
+- Estado del nodo por color/anillo: gris (bloqueado) → azul con anillo de
+  progreso (en captura: el anillo se llena con los campos respondidos) →
+  dorado "listo para generar" → check verde (generado) → corona (aprobado
+  por el score del Auditor ≥80 o por Felipe).
+
+**La lección (un paso del chat):**
+- Micro-sesiones: UNA pregunta a la vez (ya es así), con barra de progreso
+  del paso ("3 de 8 datos de tu Política ✦") y feedback inmediato al
+  responder: "¡Anotado! Tu matriz ya tiene los riesgos de rafting ✓".
+- Los tips del kit MinCIT (instrucciones de diligenciamiento, ya en el RAG
+  `formatos_mincit`) aparecen como "pistas" colapsables bajo la pregunta —
+  el consultor en el bolsillo, igual que las notas gramaticales de Duolingo.
+- El interceptor de seguridad ES nuestra "respuesta incorrecta": ya explica
+  el porqué normativo y cómo replantear — solo se le da el tratamiento
+  visual amable (tarjeta ámbar, no error rojo).
+
+**Momentos de celebración (dopamina honesta):**
+- Al completar los datos de un paso: pantalla de cierre con el resumen de lo
+  capturado y el CTA grande "Generar mi documento".
+- Al generar: confetti + la tarjeta del documento con su score del Auditor
+  como 1-3 estrellas (<60 / 60-79 / ≥80) y el mensaje de qué falta para la
+  tercera estrella (las correcciones de calidad = "repaso" de Duolingo).
+- Al cerrar una unidad (numeral completo): insignia del numeral ("Liderazgo
+  ✓ — tu empresa ya tiene el compromiso firmado, la política y los cargos").
+- Al llegar al paso 15: "🏆 Paquete listo para auditoría" + descarga masiva.
+
+**Progreso y hábito:**
+- Barra global "Camino a la certificación: 47%" (ya existe el score de
+  Cumplimiento Normativo del dashboard — se convierte en la barra de XP).
+- Racha suave: "3 días seguidos avanzando" — sin castigo por perderla (es
+  una empresa, no un estudiante); recordatorio opcional por correo/WhatsApp
+  "te falta 1 dato para generar tu Plan de emergencias".
+- "Repaso" = subsanaciones pendientes y documentos con <3 estrellas,
+  listados como tarjetas de práctica ("Mejora tu Matriz: responde 2 datos").
+
+**Implementación técnica (delgada a propósito):**
+- Migración: tabla `route_progress` por tenant (paso, estado, estrellas,
+  completed_at) + `route_events` (celebraciones ya disparadas, racha). El
+  estado REAL sigue derivándose de `document_status`/`quality_reviews` — la
+  gamificación solo cachea y decora, nunca es fuente de verdad.
+- Componentes: RouteMap (nodos SVG), StepProgress (anillo), tarjeta de
+  celebración con confetti (canvas-confetti, 3 KB), insignias estáticas.
+- Los textos de celebración son plantillas con datos reales (nº de riesgos,
+  actividades cubiertas) — nada de IA en la capa de gamificación.
+- Sistema visual: DESIGN.md (azul marca + naranja aventura para las
+  celebraciones); animaciones sobrias 200-300 ms.
 
 ### Fase 4 — Los 8 documentos nuevos (5-8 días, uno a uno)
 Por cada documento (orden: 4.3 → 6.2 → 5.1 → 4.2 → 6.1.1 → 6.1.3 → 7.5.1 → 8.1):
