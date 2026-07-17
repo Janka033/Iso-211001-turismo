@@ -321,6 +321,40 @@ class OnboardingExtraction(BaseModel):
     )
 
 
+class RoadmapStep(BaseModel):
+    """Un paso de la ruta guiada con el estado del tenant (derivado, no cacheado)."""
+
+    step_order: int
+    document_type: str
+    title: str
+    numeral: str
+    generator_ready: bool = Field(
+        description="El motor ya sabe generar este documento (existe en _REGISTRY)."
+    )
+    status: str = Field(
+        description=(
+            "Estado del documento para el tenant: 'pendiente' o el estado real "
+            "de document_status (generated, approved…)."
+        )
+    )
+    completeness: float | None = Field(
+        default=None, description="% de campos obligatorios con dato en la última generación."
+    )
+    last_score: float | None = Field(
+        default=None, description="Score de la evaluación de calidad más reciente (0-100)."
+    )
+
+
+class RoadmapResponse(BaseModel):
+    """La ruta completa: fuente del stepper del frontend."""
+
+    steps: list[RoadmapStep]
+    current_step: int | None = Field(
+        description="step_order del primer paso sin documento generado; None si todos generados."
+    )
+    total: int
+
+
 class OnboardingChatResponse(BaseModel):
     """Respuesta de un turno: qué se extrajo + la próxima pregunta + avance."""
 

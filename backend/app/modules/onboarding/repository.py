@@ -87,6 +87,47 @@ def match_knowledge_chunks(
     return res.data or []
 
 
+def get_roadmap(token: str) -> list[dict]:
+    """Los pasos habilitados de la ruta guiada, en orden (config global, 0045)."""
+    client = get_user_client(token)
+    res = (
+        client.table("document_roadmap")
+        .select("step_order, document_type, title, numeral, generator_ready")
+        .eq("enabled", True)
+        .order("step_order")
+        .execute()
+    )
+    return res.data or []
+
+
+def get_document_statuses(tenant_id: str, token: str) -> list[dict]:
+    """Estado de generación por document_type del tenant (document_status)."""
+    client = get_user_client(token)
+    res = (
+        client.table("document_status")
+        .select("document_type, status, completeness")
+        .eq("tenant_id", tenant_id)
+        .execute()
+    )
+    return res.data or []
+
+
+def get_latest_review_scores(tenant_id: str, token: str) -> list[dict]:
+    """Reviews de calidad del tenant (score + document_type), recientes primero.
+
+    El service se queda con el primer score por document_type (el más nuevo).
+    """
+    client = get_user_client(token)
+    res = (
+        client.table("quality_reviews")
+        .select("score, created_at, documents!inner(document_type)")
+        .eq("tenant_id", tenant_id)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return res.data or []
+
+
 def get_onboarding(tenant_id: str, token: str) -> dict:
     client = get_user_client(token)
     res = (

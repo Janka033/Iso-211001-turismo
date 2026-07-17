@@ -34,6 +34,8 @@ from app.modules.onboarding.schemas import (
     OnboardingField,
     OnboardingPayload,
     OnboardingState,
+    RoadmapResponse,
+    RoadmapStep,
 )
 
 logger = logging.getLogger(__name__)
@@ -440,6 +442,51 @@ async def save(
 
     pct, completed = _measure(data.model_dump())
     return OnboardingState(data=data, completeness=pct, completed=completed)
+
+
+# ---------------------------------------------------------------------------
+# Ruta guiada (GET /onboarding/roadmap) — Fase 1 del plan de la ruta
+# ---------------------------------------------------------------------------
+
+
+async def get_roadmap(tenant_id: str, token: str) -> RoadmapResponse:
+    """La ruta de pasos (config en ``document_roadmap``) + estado del tenant.
+
+    El estado se DERIVA en cada lectura de ``document_status`` (generación) y
+    ``quality_reviews`` (score más reciente): la ruta nunca cachea progreso —
+    la gamificación decora, la fuente de verdad sigue siendo el motor.
+    """
+    steps_rows = await _run(repository.get_roadmap, token)
+    statuses = {
+        row["document_type"]: row
+        for row in await _run(repository.get_document_statuses, tenant_id, token)
+    }
+    scores: dict[str, float] = {}
+    for row in await _run(repository.get_latest_review_scores, tenant_id, token):
+        doc_type = (row.get("documents") or {}).get("document_type")
+        if doc_type and doc_type not in scores and row.get("score") is not None:
+            scores[doc_type] = float(row["score"])
+
+    steps: list[RoadmapStep] = []
+    current_step: int | None = None
+    for row in steps_rows:
+        doc_type = row["document_type"]
+        status_row = statuses.get(doc_type)
+        steps.append(
+            RoadmapStep(
+                step_order=row["step_order"],
+                document_type=doc_type,
+                title=row["title"],
+                numeral=row["numeral"],
+                generator_ready=row.get("generator_ready", False),
+                status=(status_row or {}).get("status") or "pendiente",
+                completeness=(status_row or {}).get("completeness"),
+                last_score=scores.get(doc_type),
+            )
+        )
+        if current_step is None and status_row is None:
+            current_step = row["step_order"]
+    return RoadmapResponse(steps=steps, current_step=current_step, total=len(steps))
 
 
 # ---------------------------------------------------------------------------

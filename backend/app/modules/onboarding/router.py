@@ -13,6 +13,7 @@ from app.modules.onboarding.schemas import (
     OnboardingChatResponse,
     OnboardingPayload,
     OnboardingState,
+    RoadmapResponse,
 )
 
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
@@ -33,6 +34,15 @@ async def update_onboarding(
     tenant_id: str = Depends(get_tenant_id),  # 401 si el JWT no trae el claim
 ) -> OnboardingState:
     return await service.save(payload, tenant_id, user.token)
+
+
+@router.get("/roadmap", response_model=RoadmapResponse)
+async def read_roadmap(
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),  # 401 si el JWT no trae el claim
+) -> RoadmapResponse:
+    """La ruta guiada de 15 pasos con el estado del tenant (fuente del stepper)."""
+    return await service.get_roadmap(tenant_id, user.token)
 
 
 @router.post("/chat", response_model=OnboardingChatResponse)
