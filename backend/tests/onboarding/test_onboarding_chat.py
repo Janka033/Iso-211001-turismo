@@ -600,6 +600,40 @@ def test_optional_fields_add_to_completeness_when_given():
     assert completed is False
 
 
+def test_correction_overwrites_already_captured_field(client, make_token, wire):
+    """El cliente puede corregir un dato ya registrado ("me equivoqué en el
+    NIT…"): la IA lo re-extrae (prompt v3) y el backend SOBREESCRIBE el valor,
+    sin perder el pendiente en curso."""
+    stored = _stored_until("emergency_contacts")
+    assert stored["nit"] == "dato"  # valor "mal digitado" previo
+    captured = wire(
+        ai_output={
+            "extracted": {"nit": "901.234.567-8"},
+            "next_field_key": "emergency_contacts",
+            "next_question": (
+                "Listo, corregí el NIT a 901.234.567-8. ¿Qué contactos de "
+                "emergencia tienen?"
+            ),
+            "completed": False,
+        },
+        stored=stored,
+    )
+
+    resp = client.post(
+        "/onboarding/chat",
+        json={"message": "me equivoqué en el NIT, el correcto es 901.234.567-8"},
+        headers=_auth(make_token),
+    )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["data"]["nit"] == "901.234.567-8"
+    # El pendiente en curso no cambió y la pregunta confirma la corrección.
+    assert body["next_field"]["field_key"] == "emergency_contacts"
+    assert "corregí el NIT" in body["next_question"]
+    assert captured["state"]["data"]["nit"] == "901.234.567-8"  # persistido
+
+
 # ---------------------------------------------------------------------------
 # Red de seguridad determinista: la IA caída NO pierde la respuesta del cliente.
 # ---------------------------------------------------------------------------
