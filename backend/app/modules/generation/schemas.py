@@ -255,14 +255,31 @@ class EmergencyPlanVariables(AIVariablesModel):
     )
     communication_protocol: str | None = Field(
         default=None,
-        description="Protocolo de comunicación y cadena de notificación en emergencia.",
+        description=(
+            "Protocolo de comunicación y cadena de notificación en emergencia. "
+            "Integra, SI el cliente los describió: la verificación de "
+            "funcionalidad/carga/cobertura de los equipos de comunicación "
+            "antes de cada salida, las zonas sin cobertura de la ruta, la "
+            "clasificación de la emergencia por grados (derivada de la "
+            "clasificación de eventos del cliente, comunicando el grado al "
+            "activar) y cómo se informa a los participantes del plan antes de "
+            "la actividad (p. ej. charla de seguridad) y cómo se recaba su "
+            "información de salud y contacto previa. NUNCA inventes equipos o "
+            "prácticas que el cliente no tenga."
+        ),
     )
     emergency_contacts: list[str] = Field(
         default_factory=list,
         description="Contactos de emergencia (bomberos, ambulancia, rescate, ARL).",
     )
     evacuation_resources: str | None = Field(
-        default=None, description="Rutas de evacuación y recursos disponibles."
+        default=None,
+        description=(
+            "Rutas de evacuación y recursos disponibles: puntos de salida de "
+            "la ruta, vehículos y equipos de evacuación (camilla, "
+            "inmovilizadores, linternas, botiquines…) que el cliente listó — "
+            "todos los que describió, ninguno que no tenga."
+        ),
     )
     external_coordination: str | None = Field(
         default=None,
@@ -304,11 +321,26 @@ class IncidentManagementVariables(AIVariablesModel):
     )
     incident_classification: list[str] = Field(
         default_factory=list,
-        description="Clasificación de eventos (casi-accidente, incidente, accidente).",
+        description=(
+            "Clasificación de eventos (casi-accidente, incidente, accidente y "
+            "grados de severidad), usando las categorías que el cliente "
+            "definió."
+        ),
     )
     procedure_steps: list[str] = Field(
         default_factory=list,
-        description="Pasos del procedimiento (reportar, registrar, investigar, etc.).",
+        description=(
+            "Pasos del procedimiento (reportar, registrar, investigar, "
+            "cerrar). El paso de reporte debe enumerar el contenido mínimo "
+            "del informe según el numeral 8.3 de la norma (fecha, hora y "
+            "lugar; actividad; personas involucradas; condiciones "
+            "ambientales, equipo usado y circunstancias particulares; "
+            "descripción; atención brindada; causa probable; fuente de la "
+            "información) COMBINADO con los campos que el cliente ya "
+            "registra, y distinguir el informe de INCIDENTE del informe de "
+            "ACCIDENTE (este último con datos, edad y nacionalidad de la "
+            "víctima, quiénes intervinieron y medidas correctivas)."
+        ),
     )
     responsible: str | None = Field(
         default=None, description="Responsable de la gestión de incidentes."
@@ -499,10 +531,21 @@ class EquipmentInspectionItem(AIVariablesModel):
     )
     inspection_type: str | None = Field(
         default=None,
-        description="Tipo de revisión: previa a uso / especial / periódica trimestral.",
+        description=(
+            "Tipo de revisión: previa a uso / especial / periódica. DERÍVALO "
+            "del texto del cliente para ese equipo: 'inspección visual "
+            "diaria/antes de cada salida' → previa a uso (visual); 'revisión "
+            "técnica mensual/trimestral/semestral' → periódica (técnica). "
+            "Null SOLO si el cliente no describió ninguna revisión del equipo."
+        ),
     )
     frequency: str | None = Field(
-        default=None, description="Frecuencia de inspección/mantenimiento."
+        default=None,
+        description=(
+            "Frecuencia de inspección/mantenimiento. DERÍVALA del texto del "
+            "cliente para ese equipo (diaria, semanal, mensual, semestral…); "
+            "null SOLO si el cliente no la indicó."
+        ),
     )
 
 
