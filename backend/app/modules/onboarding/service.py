@@ -527,6 +527,7 @@ async def chat(
     ai_out: OnboardingExtraction | None = None
     rejected = False  # el interceptor de seguridad rechazó la respuesta
     ai_degraded = False  # la IA falló y el turno se capturó en modo determinista
+    roles_changed = False  # el turno corrigió el organigrama (staff_roles)
 
     # Solo llamamos a la IA si hay una respuesta del cliente que interpretar.
     if payload.message and payload.message.strip():
@@ -605,6 +606,7 @@ async def chat(
                     data["staff_roles"] = {
                         k: v for k, v in merged_roles.items() if v != "0"
                     }
+                    roles_changed = True
 
     # Persistir el estado ya fusionado.
     saved_payload = OnboardingPayload.model_validate(data)
@@ -644,6 +646,19 @@ async def chat(
         )
 
     next_question = _resolve_question(next_field_row, ai_out)
+    # Onboarding ya completo pero el turno SÍ cambió datos (corrección tardía o
+    # valor sospechoso): sin este acuse la respuesta salía vacía y el cliente no
+    # sabía si su corrección se aplicó. Se usa la confirmación de la IA si la
+    # dio; si no, un acuse determinista con los campos tocados.
+    if next_question is None and (extracted or roles_changed):
+        touched = sorted(extracted)
+        if roles_changed:
+            touched.append("staff_roles")
+        next_question = (
+            "Listo, quedó actualizado: " + ", ".join(touched) + ". "
+            "Tu onboarding sigue completo; si necesitas corregir otro dato, "
+            "escríbelo y lo ajusto."
+        )
     # Turno capturado en modo determinista: se le dice al cliente con claridad
     # profesional que su respuesta quedó registrada tal cual (nada se perdió).
     if ai_degraded and extracted:
@@ -693,9 +708,11 @@ def _resolve_question(
     next_field: dict | None, ai_out: OnboardingExtraction | None
 ) -> str | None:
     """Redacción de la próxima pregunta. Se usa la de la IA SOLO si coincide con
-    el campo que el backend eligió; si no, el fallback determinístico."""
+    el campo que el backend eligió; si no, el fallback determinístico. Sin campo
+    pendiente, el texto de la IA (si lo dio) es la CONFIRMACIÓN de una
+    corrección o de un valor sospechoso — no una pregunta— y sí se muestra."""
     if next_field is None:
-        return None
+        return ai_out.next_question if ai_out is not None else None
     if (
         ai_out is not None
         and ai_out.next_question

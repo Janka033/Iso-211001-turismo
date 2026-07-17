@@ -517,6 +517,68 @@ def test_full_capture_completes():
     assert completed is True
 
 
+def _completed_stored() -> dict:
+    """Estado completo (universales + Parte B de rafting): no queda pendiente."""
+    data = dict(_ALL_UNIVERSAL)
+    data["activities"] = ["rafting"]
+    data["activity_fields"] = {
+        row["field_key"]: "ok" for row in _checklist_for(["rafting"])
+    }
+    return data
+
+
+def test_late_correction_shows_ai_confirmation_when_completed(client, make_token, wire):
+    """Onboarding completo + corrección tardía: la confirmación de la IA se
+    muestra (antes se descartaba y la respuesta salía vacía)."""
+    wire(
+        ai_output={
+            "extracted": {"nit": "901"},
+            "next_field_key": None,
+            "next_question": "Anoté el NIT 901; ¿está completo? Suele tener 9 dígitos.",
+            "completed": True,
+        },
+        stored=_completed_stored(),
+    )
+    resp = client.post(
+        "/onboarding/chat",
+        json={"message": "Corrige el NIT, el bueno es 901."},
+        headers=_auth(make_token),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["completed"] is True
+    assert body["data"]["nit"] == "901"
+    assert "901" in body["next_question"]  # la confirmación llegó al cliente
+
+
+def test_late_correction_gets_deterministic_ack_when_ai_says_nothing(
+    client, make_token, wire
+):
+    """Onboarding completo + corrección de organigrama sin texto de la IA: el
+    backend arma un acuse determinista con los campos tocados."""
+    wire(
+        ai_output={
+            "extracted": {},
+            "staff_roles": {"guia": "6"},
+            "next_field_key": None,
+            "next_question": None,
+            "completed": True,
+        },
+        stored=_completed_stored(),
+    )
+    resp = client.post(
+        "/onboarding/chat",
+        json={"message": "Ya son 6 guías."},
+        headers=_auth(make_token),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["completed"] is True
+    assert body["data"]["staff_roles"]["guia"] == "6"
+    assert "staff_roles" in body["next_question"]
+    assert "actualizado" in body["next_question"]
+
+
 # ---------------------------------------------------------------------------
 # Dedupe de la Parte B: la tabla asocia el MISMO field_key a varios
 # document_type; para el flujo y el % cuenta el campo único.
