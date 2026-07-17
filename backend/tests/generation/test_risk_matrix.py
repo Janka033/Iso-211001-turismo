@@ -6,7 +6,11 @@ from openpyxl import load_workbook
 
 from app.modules.generation import repository, service
 from app.modules.generation.generators.risk_matrix import RiskMatrixGenerator
-from app.modules.generation.schemas import RiskEntry, RiskMatrixVariables
+from app.modules.generation.schemas import (
+    OpportunityEntry,
+    RiskEntry,
+    RiskMatrixVariables,
+)
 from app.modules.inventory import service as inventory_service
 
 TENANT_A = "11111111-1111-1111-1111-111111111111"
@@ -36,7 +40,16 @@ def test_full_matrix_no_pending():
                 residual_risk="Medio",
             )
         ],
-        opportunities=["Certificar guías en rescate acuático"],
+        opportunities=[
+            OpportunityEntry(
+                opportunity="Certificar guías en rescate acuático",
+                impact="Mayor capacidad de respuesta en río",
+                actions="Becas internas y práctica supervisada",
+                responsible="Coordinador de operaciones",
+                timeline="Primer semestre 2026",
+                indicator="% de guías certificados",
+            )
+        ],
     )
 
     result = RiskMatrixGenerator().generate(variables, document_code='MT-04')
@@ -51,6 +64,35 @@ def test_full_matrix_no_pending():
     # Sin placeholders en ninguna celda de datos.
     flat = [c.value for row in ws.iter_rows() for c in row if c.value]
     assert not any("[PENDIENTE" in str(v) for v in flat)
+    # La hoja de oportunidades es una TABLA (fila 4 = primera de datos).
+    ws_opp = wb["Oportunidades"]
+    assert ws_opp.cell(row=3, column=1).value == "Oportunidad"
+    assert ws_opp.cell(row=4, column=1).value == "Certificar guías en rescate acuático"
+    assert ws_opp.cell(row=4, column=6).value == "% de guías certificados"
+
+
+def test_legacy_string_opportunities_coerced_with_cell_pendings():
+    # Snapshots viejos guardaban list[str]: se coercen a la fila estructurada
+    # mínima y las celdas de tratamiento faltantes quedan [PENDIENTE] visibles.
+    variables = RiskMatrixVariables.model_validate(
+        {
+            "company_name": "X SAS",
+            "scope": "s",
+            "methodology": "m",
+            "risks": [{"activity": "Rafting", "hazard": "V", "risk_description": "d",
+                       "affected": "a", "probability": "Media", "severity": "Leve",
+                       "risk_level": "Medio", "existing_controls": "c",
+                       "proposed_actions": "p", "responsible": "r",
+                       "residual_risk": "Bajo"}],
+            "opportunities": ["Certificar guías"],
+        }
+    )
+    result = RiskMatrixGenerator().generate(variables)
+    assert "opportunities[0].impact" in result.pending_fields
+    assert "opportunities[0].opportunity" not in result.pending_fields
+    ws_opp = _load(result.content)["Oportunidades"]
+    assert ws_opp.cell(row=4, column=1).value == "Certificar guías"
+    assert "[PENDIENTE" in str(ws_opp.cell(row=4, column=2).value)
 
 
 def test_empty_risks_marks_pending_and_renders_placeholder_row():
@@ -167,7 +209,7 @@ def test_matrix_endpoint_uses_xlsx_engine(client, make_token, monkeypatch):
     body = resp.json()
     assert captured["engine"] == "xlsx"
     assert body["storage_path"].endswith("v1.xlsx")
-    assert body["template_version"] == "matriz-riesgos-xlsx-v2"
+    assert body["template_version"] == "matriz-riesgos-xlsx-v3"
     assert body["completeness"] == 100.0
     # RAG multi-numeral: la matriz consulta 6.1.1 Y el Anexo A…
     assert captured["numerales"] == ["6.1.1", "A"]

@@ -20,7 +20,11 @@ from app.modules.generation.generators.base import (
     resolve_code,
     resolve_text,
 )
-from app.modules.generation.schemas import RiskEntry, RiskMatrixVariables
+from app.modules.generation.schemas import (
+    OpportunityEntry,
+    RiskEntry,
+    RiskMatrixVariables,
+)
 
 # Orden de columnas de la matriz: (clave del campo, encabezado, ancho).
 _COLUMNS: list[tuple[str, str, int]] = [
@@ -37,6 +41,17 @@ _COLUMNS: list[tuple[str, str, int]] = [
     ("residual_risk", "Riesgo residual", 16),
 ]
 
+# Columnas de la tabla de oportunidades (patrón de auditoría del 6.1.1:
+# oportunidad, impacto, acciones, responsable, cronograma, indicador).
+_OPP_COLUMNS: list[tuple[str, str, int]] = [
+    ("opportunity", "Oportunidad", 45),
+    ("impact", "Impacto", 28),
+    ("actions", "Acciones", 45),
+    ("responsible", "Responsable", 20),
+    ("timeline", "Cronograma", 20),
+    ("indicator", "Indicador", 30),
+]
+
 _HEADER_FILL = PatternFill("solid", fgColor="1F4E78")
 _HEADER_FONT = Font(bold=True, color="FFFFFF")
 _THIN = Side(style="thin", color="BFBFBF")
@@ -45,25 +60,37 @@ _WRAP = Alignment(wrap_text=True, vertical="top")
 
 
 class RiskMatrixGenerator(DocumentGenerator):
-    template_version = "matriz-riesgos-xlsx-v2"
+    template_version = "matriz-riesgos-xlsx-v3"
     engine = "xlsx"
-    custom_fields = frozenset({"risks"})
+    custom_fields = frozenset({"risks", "opportunities"})
 
     def _extra_pending(
         self, variables: BaseModel, required_fields: set[str] | None
     ) -> list[str]:
         assert isinstance(variables, RiskMatrixVariables)
-        if not variables.risks:
-            return ["risks"] if self._is_required("risks", required_fields) else []
-        # Pendientes de CELDA: cada campo vacío de cada fila real. No son claves
-        # de la checklist (no mueven la completitud), pero el cliente y el
-        # auditor deben verlos: son las celdas [PENDIENTE: ...] del archivo.
         pending: list[str] = []
-        for i, entry in enumerate(variables.risks):
-            for key, _, _ in _COLUMNS:
-                value = getattr(entry, key)
-                if not (value.strip() if isinstance(value, str) else value):
-                    pending.append(f"risks[{i}].{key}")
+        if not variables.risks:
+            if self._is_required("risks", required_fields):
+                pending.append("risks")
+        else:
+            # Pendientes de CELDA: cada campo vacío de cada fila real. No son
+            # claves de la checklist (no mueven la completitud), pero el cliente
+            # y el auditor deben verlos: son las celdas [PENDIENTE: ...] del
+            # archivo.
+            for i, entry in enumerate(variables.risks):
+                for key, _, _ in _COLUMNS:
+                    value = getattr(entry, key)
+                    if not (value.strip() if isinstance(value, str) else value):
+                        pending.append(f"risks[{i}].{key}")
+        if not variables.opportunities:
+            if self._is_required("opportunities", required_fields):
+                pending.append("opportunities")
+        else:
+            for i, entry in enumerate(variables.opportunities):
+                for key, _, _ in _OPP_COLUMNS:
+                    value = getattr(entry, key)
+                    if not (value.strip() if isinstance(value, str) else value):
+                        pending.append(f"opportunities[{i}].{key}")
         return pending
 
     def _render(
@@ -122,18 +149,33 @@ class RiskMatrixGenerator(DocumentGenerator):
                 cell.border = _BORDER
         ws.freeze_panes = ws.cell(row=header_row + 1, column=1)
 
-        # --- Hoja de oportunidades -------------------------------------
+        # --- Hoja de oportunidades (tabla estructurada del 6.1.1) --------
         ws_opp = wb.create_sheet("Oportunidades")
         ws_opp.cell(row=1, column=1, value="OPORTUNIDADES DE MEJORA (6.1.1)").font = Font(
             bold=True, size=12
         )
-        ws_opp.column_dimensions["A"].width = 80
-        opp_field = resolved["opportunities"]
-        opportunities = (
-            opp_field.value if isinstance(opp_field.value, list) else [opp_field.value]
+        ws_opp.merge_cells(
+            start_row=1, start_column=1, end_row=1, end_column=len(_OPP_COLUMNS)
         )
-        for i, opp in enumerate(opportunities, start=3):
-            ws_opp.cell(row=i, column=1, value=f"• {opp}").alignment = _WRAP
+        opp_header_row = 3
+        for col, (_, title, width) in enumerate(_OPP_COLUMNS, start=1):
+            cell = ws_opp.cell(row=opp_header_row, column=col, value=title)
+            cell.fill = _HEADER_FILL
+            cell.font = _HEADER_FONT
+            cell.alignment = _WRAP
+            cell.border = _BORDER
+            ws_opp.column_dimensions[get_column_letter(col)].width = width
+        opp_rows = variables.opportunities or [OpportunityEntry()]
+        opp_desc = {
+            k: v.description or k for k, v in OpportunityEntry.model_fields.items()
+        }
+        for r, entry in enumerate(opp_rows, start=opp_header_row + 1):
+            for col, (key, _, _) in enumerate(_OPP_COLUMNS, start=1):
+                text, _ = resolve_text(getattr(entry, key), opp_desc[key])
+                cell = ws_opp.cell(row=r, column=col, value=text)
+                cell.alignment = _WRAP
+                cell.border = _BORDER
+        ws_opp.freeze_panes = ws_opp.cell(row=opp_header_row + 1, column=1)
 
         buffer = io.BytesIO()
         wb.save(buffer)

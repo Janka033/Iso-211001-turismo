@@ -27,10 +27,35 @@ from pydantic import BaseModel
 
 NOT_SPECIFIED = "No especificado"
 
+# Las descripciones de los Field son la fuente de verdad para el prompt de la
+# IA, así que muchas traen instrucciones de extracción (DERÍVALO…, NUNCA…).
+# Eso jamás debe llegar al cliente dentro de un [PENDIENTE]: se corta en el
+# primer marcador de instrucción y se deja solo la etiqueta humana.
+_INSTRUCTION_MARKERS = (
+    " DERÍVA",  # DERÍVALO / DERÍVALA / DERÍVALAS
+    " Null SOLO",
+    " NUNCA",
+    " SOLO si",
+    " PROHIBIDO",
+    " El sistema",
+)
+
+
+def _short_label(description: str) -> str:
+    """Etiqueta corta y legible para el cliente a partir de la descripción."""
+    text = " ".join(description.split())
+    for marker in _INSTRUCTION_MARKERS:
+        idx = text.find(marker)
+        if idx != -1:
+            text = text[:idx]
+    if len(text) > 90:
+        text = text[:90].rsplit(" ", 1)[0] + "…"
+    return text.rstrip(" .,;:")
+
 
 def pending_marker(description: str) -> str:
     """Placeholder visible para un campo OBLIGATORIO sin dato del cliente."""
-    return f"[PENDIENTE: {description}]"
+    return f"[PENDIENTE: {_short_label(description)}]"
 
 
 def resolve_code(document_code: str | None) -> str:
@@ -80,6 +105,10 @@ class DocumentGenerator(ABC):
     engine: str = "docx"
     #: Campos que el generador resuelve por su cuenta (no el resolutor plano).
     custom_fields: frozenset[str] = frozenset()
+    #: Secciones de contenido normativo FIJO que la plantilla añade al render
+    #: (no viven en las variables). El evaluador de calidad las recibe para no
+    #: reportar como faltante lo que el documento final sí contiene.
+    static_sections: tuple[str, ...] = ()
 
     def generate(
         self,

@@ -149,6 +149,7 @@ async def evaluate(document_id: str, tenant_id: str, token: str) -> QualityRevie
         checklist=doc_checklist,
         patterns=patterns,
         chunks=chunks,
+        static_sections=spec.generator.static_sections,
     )
 
     # IA → JSON estricto. Timeout y reintentos viven en el provider/cliente;
@@ -404,6 +405,7 @@ def _assemble_prompt(
     checklist: list[dict],
     patterns: list[dict],
     chunks: list[dict],
+    static_sections: tuple[str, ...] = (),
 ) -> str:
     """Rellena los marcadores ``<<...>>`` del prompt activo con el contexto real.
 
@@ -452,6 +454,14 @@ def _assemble_prompt(
         QualityEvaluation.model_json_schema(), ensure_ascii=False, indent=2
     )
 
+    # Secciones normativas fijas que la plantilla de ESTE documento añade al
+    # render: el evaluador solo ve variables y sin esta lista reportaría como
+    # faltante contenido que el documento final sí tiene.
+    if static_sections:
+        template_sections = "\n".join(f"- {s}" for s in static_sections)
+    else:
+        template_sections = "(ninguna sección fija adicional para este documento)"
+
     return (
         template.replace("<<DOCUMENT_TITLE>>", spec_title)
         .replace("<<NUMERAL>>", numeral)
@@ -461,5 +471,6 @@ def _assemble_prompt(
         .replace("<<CHECKLIST>>", checklist_lines)
         .replace("<<PATTERNS>>", patterns_lines)
         .replace("<<NORM_CONTEXT>>", norm_context)
+        .replace("<<TEMPLATE_SECTIONS>>", template_sections)
         .replace("<<JSON_SCHEMA>>", json_schema)
     )

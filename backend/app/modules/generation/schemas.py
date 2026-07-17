@@ -9,7 +9,7 @@ Dos familias de modelos:
   generador lo sustituye por ``[PENDIENTE: ...]``. La IA NUNCA inventa.
 """
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class AIVariablesModel(BaseModel):
@@ -182,6 +182,35 @@ class RiskEntry(AIVariablesModel):
     )
 
 
+class OpportunityEntry(AIVariablesModel):
+    """Una oportunidad de mejora con su tratamiento (tabla del 6.1.1)."""
+
+    opportunity: str | None = Field(
+        default=None, description="Oportunidad de mejora identificada."
+    )
+    impact: str | None = Field(
+        default=None,
+        description="Impacto esperado en la seguridad o en el negocio.",
+    )
+    actions: str | None = Field(
+        default=None,
+        description=(
+            "Acciones concretas para aprovecharla. DERÍVALAS de los planes y "
+            "recursos que el cliente ya describió; NUNCA inventes recursos que "
+            "no tenga."
+        ),
+    )
+    responsible: str | None = Field(
+        default=None, description="Responsable del seguimiento."
+    )
+    timeline: str | None = Field(
+        default=None, description="Cronograma o plazo de ejecución."
+    )
+    indicator: str | None = Field(
+        default=None, description="Indicador de avance o eficacia."
+    )
+
+
 class RiskMatrixVariables(AIVariablesModel):
     """Variables de la Matriz de riesgos y oportunidades (numeral 6.1.1 + Anexo A).
 
@@ -203,10 +232,25 @@ class RiskMatrixVariables(AIVariablesModel):
         default_factory=list,
         description="Filas de la matriz: un peligro por fila.",
     )
-    opportunities: list[str] = Field(
+    opportunities: list[OpportunityEntry] = Field(
         default_factory=list,
-        description="Oportunidades de mejora identificadas (6.1.1).",
+        description=(
+            "Oportunidades de mejora identificadas (6.1.1), cada una con su "
+            "tratamiento estructurado."
+        ),
     )
+
+    @field_validator("opportunities", mode="before")
+    @classmethod
+    def _coerce_opportunities(cls, value: object) -> object:
+        # Snapshots anteriores guardaban list[str]; se re-validan como la
+        # entrada estructurada mínima (solo el enunciado) sin romper el render.
+        if isinstance(value, list):
+            return [
+                {"opportunity": item} if isinstance(item, str) else item
+                for item in value
+            ]
+        return value
 
 
 class EmergencyScenario(AIVariablesModel):
