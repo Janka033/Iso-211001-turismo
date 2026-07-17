@@ -275,7 +275,13 @@ export function OnboardingChat() {
     // El textarea auto-creciente vuelve a su altura mínima al enviar.
     if (inputRef.current) inputRef.current.style.height = "auto";
     const resp = await postChat({ message: text });
-    if (resp) applyResponse(resp);
+    if (resp) {
+      applyResponse(resp);
+    } else {
+      // El envío falló: se RESTAURA lo escrito para que el cliente solo
+      // reintente con Enter — nunca debe reescribir una respuesta larga.
+      setTextVal(text);
+    }
   }
 
   function toggle(slug: string) {

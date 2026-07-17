@@ -125,6 +125,36 @@ def _auth(make_token, tenant_id: str | None = TENANT_A):
     return {"Authorization": f"Bearer {token}"}
 
 
+class FailingProvider:
+    """Simula la IA caída (503 de Gemini agotando reintentos)."""
+
+    async def embed(self, text: str) -> list[float]:
+        return [0.0] * 768
+
+    async def generate_json(self, prompt: str, **kwargs) -> dict:
+        raise RuntimeError("503 UNAVAILABLE (simulado)")
+
+
+def _stored_until(field_key: str) -> dict:
+    """onboarding_data con todo respondido HASTA (sin incluir) field_key, para
+    que ese sea el pendiente en curso del turno."""
+    from app.modules.onboarding.schemas import OnboardingPayload
+
+    blank = OnboardingPayload()
+    stored: dict = {"activities": ["rafting"]}
+    for key, _q in service._UNIVERSAL_QUESTIONS:
+        if key == field_key:
+            break
+        current = getattr(blank, key)
+        if isinstance(current, dict):
+            stored[key] = {"gerente": "1"}
+        elif isinstance(current, list):
+            stored[key] = ["dato"]
+        else:
+            stored[key] = "dato"
+    return stored
+
+
 # ---------------------------------------------------------------------------
 # Primer turno: sin mensaje, el backend hace la primera pregunta (universal).
 # ---------------------------------------------------------------------------
@@ -353,14 +383,21 @@ def test_compliant_answer_is_not_blocked(client, make_token, wire):
     assert body["data"]["main_region"] == "Santander"
 
 
-def test_invalid_ai_json_is_502(client, make_token, wire):
+def test_invalid_ai_json_falls_back_to_raw_capture(client, make_token, wire):
+    """Un JSON de la IA fuera de schema ya NO es 502: activa la misma red de
+    seguridad que la IA caída — el texto se captura tal cual en el campo en
+    curso y el flujo continúa."""
     wire(ai_output={"extracted": "no-soy-un-dict"}, stored={"activities": ["rafting"]})
     resp = client.post(
         "/onboarding/chat",
-        json={"message": "hola"},
+        json={"message": "Operamos en Santander"},
         headers=_auth(make_token),
     )
-    assert resp.status_code == 502
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    # El primer pendiente universal (main_region) recibió el texto crudo.
+    assert body["data"]["main_region"] == "Operamos en Santander"
+    assert "Registré tu respuesta" in body["next_question"]
 
 
 def test_requires_tenant_claim(client, make_token, wire):
@@ -561,6 +598,64 @@ def test_optional_fields_add_to_completeness_when_given():
     assert pct_after == round((n_universal + 1) / (n_universal + 8) * 100, 2)
     assert pct_after > pct_before
     assert completed is False
+
+
+# ---------------------------------------------------------------------------
+# Red de seguridad determinista: la IA caída NO pierde la respuesta del cliente.
+# ---------------------------------------------------------------------------
+
+
+def test_ai_failure_captures_raw_answer_deterministically(
+    client, make_token, wire, monkeypatch
+):
+    """Si el provider falla (503 de Gemini), el turno se captura igual: el
+    texto crudo va al campo en curso (lista partida por saltos, ';' y comas),
+    el flujo avanza y la respuesta lo dice con claridad. Antes: 502 y el
+    cliente perdía lo escrito."""
+    wire(stored=_stored_until("emergency_contacts"))
+    monkeypatch.setattr(service, "get_ai_provider", lambda: FailingProvider())
+
+    message = (
+        "Bomberos San Gil: (607) 724-2222 / 119\n"
+        "Hospital Regional de San Gil: (607) 724-9000\n"
+        "Policía Nacional: 123\n"
+        "Defensa Civil / Cruz Roja: 144"
+    )
+    resp = client.post(
+        "/onboarding/chat", json={"message": message}, headers=_auth(make_token)
+    )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["data"]["emergency_contacts"] == [
+        "Bomberos San Gil: (607) 724-2222 / 119",
+        "Hospital Regional de San Gil: (607) 724-9000",
+        "Policía Nacional: 123",
+        "Defensa Civil / Cruz Roja: 144",
+    ]
+    # El flujo avanza al siguiente pendiente y se avisa la captura literal.
+    assert body["next_field"]["field_key"] != "emergency_contacts"
+    assert "Registré tu respuesta" in body["next_question"]
+
+
+def test_ai_failure_on_staff_roles_reasks_without_corrupting(
+    client, make_token, wire, monkeypatch
+):
+    """staff_roles es un dict estructurado: el fallback NO le asigna texto
+    libre; el turno no guarda nada y se re-pregunta el mismo campo."""
+    wire(stored=_stored_until("staff_roles"))
+    monkeypatch.setattr(service, "get_ai_provider", lambda: FailingProvider())
+
+    resp = client.post(
+        "/onboarding/chat",
+        json={"message": "somos 6 guías, 1 gerente y 2 auxiliares"},
+        headers=_auth(make_token),
+    )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["data"]["staff_roles"] == {}
+    assert body["next_field"]["field_key"] == "staff_roles"
 
 
 def test_dedupe_checklist_keeps_required_when_duplicated_row_is_optional():

@@ -386,6 +386,33 @@ def _apply_extracted(data: dict, extracted: dict[str, str], activity_keys: set[s
             data.setdefault("activity_fields", {})[key] = value
 
 
+def _clamp_for_field(key: str, value: str) -> str:
+    """Recorta el texto crudo a los límites del schema del campo destino.
+
+    Solo lo usa el fallback determinista (IA caída): el mensaje del chat admite
+    hasta 8000 caracteres pero los campos escalares tienen su propio
+    ``max_length``; capturar recortado es mejor que perder el turno con un 500.
+    Para campos lista el límite del schema es de ÍTEMS y lo aplica ``_to_list``
+    aguas abajo vía este mismo recorte de texto (no hace falta contar ítems:
+    Pydantic valida longitud de lista tras el split, así que se recorta la
+    lista aquí también).
+    """
+    field = OnboardingPayload.model_fields.get(key)
+    if field is None:
+        return value  # Parte B (activity_fields): dict[str, str] sin límite propio
+    max_len = next(
+        (m.max_length for m in field.metadata if getattr(m, "max_length", None)),
+        None,
+    )
+    if max_len is None:
+        return value
+    if key in _LIST_FIELDS:
+        # max_length en listas = nº máximo de ítems tras el split.
+        items = _to_list(value)[:max_len]
+        return "; ".join(items)
+    return value[:max_len]
+
+
 # ---------------------------------------------------------------------------
 # Lectura / escritura simple (GET, PUT) — compatibilidad (medida legacy)
 # ---------------------------------------------------------------------------
@@ -499,6 +526,7 @@ async def chat(
     extracted: dict[str, str] = {}
     ai_out: OnboardingExtraction | None = None
     rejected = False  # el interceptor de seguridad rechazó la respuesta
+    ai_degraded = False  # la IA falló y el turno se capturó en modo determinista
 
     # Solo llamamos a la IA si hay una respuesta del cliente que interpretar.
     if payload.message and payload.message.strip():
@@ -528,42 +556,51 @@ async def chat(
             # Extracción de campos: el thinking extendido solo agrega latencia
             # y costo (medido en el ensayo E2E); se desactiva.
             raw_ai = await provider.generate_json(prompt, thinking_budget=0)
-        except Exception as exc:  # noqa: BLE001 - upstream IA
-            logger.exception("Fallo al invocar la IA en onboarding chat")
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="La IA no devolvió una respuesta válida.",
-            ) from exc
-
-        try:
             ai_out = OnboardingExtraction.model_validate(raw_ai)
-        except Exception as exc:  # noqa: BLE001 - Pydantic ValidationError
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"La IA devolvió un JSON que no cumple el schema: {exc}",
-            ) from exc
+        except Exception:  # noqa: BLE001 - upstream IA caída o JSON fuera de schema
+            # RED DE SEGURIDAD determinista: la respuesta del cliente es dato
+            # crudo y su casa es onboarding_data CON o SIN IA. Si el provider
+            # falla (503 de Gemini, JSON roto), el turno NO se pierde: el texto
+            # se asigna tal cual al campo en curso (las listas se parten por
+            # coma/';'/salto de línea) y la siguiente pregunta sale de la
+            # plantilla. Antes esto era un 502 y el cliente perdía lo escrito.
+            logger.exception(
+                "IA no disponible en onboarding chat; fallback determinista"
+            )
+            current = pending_before[0] if pending_before else None
+            # staff_roles es un dict estructurado (cargo -> nº): texto libre lo
+            # corrompería, así que ese campo se re-pregunta en vez de asignarse.
+            if current is not None and current["field_key"] != "staff_roles":
+                extracted = {
+                    current["field_key"]: _clamp_for_field(
+                        current["field_key"], payload.message.strip()
+                    )
+                }
+                _apply_extracted(data, extracted, activity_keys)
+                ai_degraded = True
 
         # INTERCEPTOR de seguridad: si la respuesta describe una práctica que
         # incumple un requisito obligatorio de la norma, este turno NO extrae ni
         # guarda nada del cliente (solo se conserva el estado ya persistido). El
         # turno se marca como rechazado y más abajo se re-pregunta el MISMO campo
         # con la explicación del requisito ISO.
-        rejected = not ai_out.compliant
-        if not rejected:
-            extracted = _sanitize_extracted(ai_out.extracted, activity_keys)
-            _apply_extracted(data, extracted, activity_keys)
+        if ai_out is not None:
+            rejected = not ai_out.compliant
+            if not rejected:
+                extracted = _sanitize_extracted(ai_out.extracted, activity_keys)
+                _apply_extracted(data, extracted, activity_keys)
 
-            # Organigrama: la IA lo devuelve estructurado (cargo -> nº) en su
-            # propio campo; se fusiona con lo ya capturado. Alimenta MA-02.
-            clean_roles = {
-                str(k).strip(): str(v).strip()
-                for k, v in ai_out.staff_roles.items()
-                if str(k).strip() and str(v).strip()
-            }
-            if clean_roles:
-                merged_roles = dict(data.get("staff_roles") or {})
-                merged_roles.update(clean_roles)
-                data["staff_roles"] = merged_roles
+                # Organigrama: la IA lo devuelve estructurado (cargo -> nº) en su
+                # propio campo; se fusiona con lo ya capturado. Alimenta MA-02.
+                clean_roles = {
+                    str(k).strip(): str(v).strip()
+                    for k, v in ai_out.staff_roles.items()
+                    if str(k).strip() and str(v).strip()
+                }
+                if clean_roles:
+                    merged_roles = dict(data.get("staff_roles") or {})
+                    merged_roles.update(clean_roles)
+                    data["staff_roles"] = merged_roles
 
     # Persistir el estado ya fusionado.
     saved_payload = OnboardingPayload.model_validate(data)
@@ -603,6 +640,15 @@ async def chat(
         )
 
     next_question = _resolve_question(next_field_row, ai_out)
+    # Turno capturado en modo determinista: se le dice al cliente con claridad
+    # profesional que su respuesta quedó registrada tal cual (nada se perdió).
+    if ai_degraded and extracted:
+        ack = (
+            "Registré tu respuesta tal como la escribiste (tuve un problema "
+            "momentáneo para interpretarla con detalle; podrás revisarla al "
+            "final)."
+        )
+        next_question = f"{ack} {next_question}" if next_question else ack
     return OnboardingChatResponse(
         next_question=next_question,
         next_field=next_field,
