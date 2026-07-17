@@ -30,6 +30,7 @@ import argparse
 import asyncio
 import re
 import sys
+import unicodedata
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -147,6 +148,41 @@ def detect_numeral(text: str) -> str | None:
     return Counter(mentions).most_common(1)[0][0]
 
 
+# Numeral por TEMA de la sesión (según el nombre del archivo). Los chunks sin
+# mención explícita heredan el numeral de su sesión: sin esto, el RPC
+# match_knowledge_chunks (filtro por numeral con jerarquía) nunca los
+# recuperaría para la generación (solo 17/743 chunks traían mención hablada).
+# Un capítulo solo ("8") matcha cualquier 8.x por la cláusula de ancestros.
+# Los más específicos van primero ("trazado de mapas" antes que "operacion").
+_SESSION_NUMERAL_HINTS: tuple[tuple[str, str], ...] = (
+    ("gestion del riesgo", "6.1.1"),
+    ("plan de atencion a las emergencias", "8.2"),
+    ("inspeccion de equipos", "8.1"),
+    ("comunicacion, participacion y consulta", "7.4"),
+    ("perfiles de cargo", "5.3"),
+    ("trazado de mapas", "8.2"),
+    ("manual de seguridad", "8"),
+    ("operacion", "8"),
+    ("control documental", "7.5"),
+    ("control de documentos", "7.5"),
+    ("plan estrategico", "4"),
+    ("acciones de mejora", "10"),
+)
+
+
+def _session_numeral(video_name: str) -> str | None:
+    """Numeral heredado del tema de la sesión (nombre normalizado, sin tildes)."""
+    name = "".join(
+        ch
+        for ch in unicodedata.normalize("NFD", video_name.lower())
+        if unicodedata.category(ch) != "Mn"
+    )
+    for keyword, numeral in _SESSION_NUMERAL_HINTS:
+        if keyword in name:
+            return numeral
+    return None
+
+
 def chunk_transcript(video_name: str, cues: list[Cue]) -> list[dict]:
     """Ventanas de ~MAX_CHARS con solapamiento de cues completos."""
     chunks: list[dict] = []
@@ -202,8 +238,9 @@ def build_chunks(files: list[tuple[str, Path]]) -> list[Chunk]:
     index_por_numeral: Counter[str | None] = Counter()
     for video_name, transcript in files:
         cues = parse_cues(transcript)
+        session_numeral = _session_numeral(video_name)
         for piece in chunk_transcript(video_name, cues):
-            numeral = detect_numeral(piece["content"])
+            numeral = detect_numeral(piece["content"]) or session_numeral
             idx = index_por_numeral[numeral]
             index_por_numeral[numeral] += 1
             meta = {

@@ -83,11 +83,17 @@ def get_checklist(document_type: str, token: str) -> list[dict]:
 
 
 def get_generation_patterns(document_type: str, token: str) -> list[dict]:
+    """Patrones del documento + los transversales ('general').
+
+    Los 'general' concentran la mayor parte del conocimiento de auditoría real
+    (rechazos/requisitos que aplican a todo el árbol documental); con .eq()
+    nunca entraban a ningún prompt y 3 tipos generaban sin patrón alguno.
+    """
     client = get_user_client(token)
     res = (
         client.table("generation_patterns")
         .select("pattern_type, description")
-        .eq("document_type", document_type)
+        .in_("document_type", [document_type, "general"])
         .execute()
     )
     return res.data or []
