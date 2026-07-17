@@ -273,6 +273,32 @@ def test_staff_roles_captured_as_dict(client, make_token, wire):
     assert body["data"]["staff_roles"] == {"gerente": "1", "coordinador": "2", "guia": "6"}
 
 
+def test_staff_roles_correction_updates_and_removes(client, make_token, wire):
+    # Corrección del organigrama: el nuevo número pisa al viejo y un cargo
+    # devuelto con "0" se elimina (el merge por sí solo nunca borra).
+    wire(
+        ai_output={
+            "extracted": {},
+            "staff_roles": {"guia": "8", "auxiliar": "0"},
+            "next_field_key": "legal_representative",
+            "next_question": "Listo, corregí el organigrama. ¿Quién es el representante legal?",
+            "completed": False,
+        },
+        stored={
+            "activities": ["rafting"],
+            "staff_roles": {"gerente": "1", "guia": "6", "auxiliar": "2"},
+        },
+    )
+    resp = client.post(
+        "/onboarding/chat",
+        json={"message": "Son 8 guías, no 6, y ya no tenemos auxiliares."},
+        headers=_auth(make_token),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["data"]["staff_roles"] == {"gerente": "1", "guia": "8"}
+
+
 def test_invented_keys_are_dropped(client, make_token, wire):
     wire(
         ai_output={

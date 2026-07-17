@@ -600,7 +600,11 @@ async def chat(
                 if clean_roles:
                     merged_roles = dict(data.get("staff_roles") or {})
                     merged_roles.update(clean_roles)
-                    data["staff_roles"] = merged_roles
+                    # Corrección de organigrama: un cargo devuelto con "0"
+                    # significa "quítalo" (el merge por sí solo nunca borra).
+                    data["staff_roles"] = {
+                        k: v for k, v in merged_roles.items() if v != "0"
+                    }
 
     # Persistir el estado ya fusionado.
     saved_payload = OnboardingPayload.model_validate(data)
