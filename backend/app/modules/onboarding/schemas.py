@@ -355,6 +355,23 @@ class RoadmapResponse(BaseModel):
     total: int
 
 
+class CurrentStepInfo(BaseModel):
+    """El paso de la ruta guiada al que pertenece la próxima pregunta.
+
+    ``step_order`` 0 = fase de identidad ("Conozcamos tu empresa"), antes de
+    entrar a los documentos. ``fields_done``/``fields_total`` son el anillo de
+    progreso del paso en el frontend.
+    """
+
+    step_order: int
+    total: int
+    document_type: str | None = None
+    title: str
+    numeral: str | None = None
+    fields_done: int
+    fields_total: int
+
+
 class OnboardingChatResponse(BaseModel):
     """Respuesta de un turno: qué se extrajo + la próxima pregunta + avance."""
 
@@ -381,4 +398,14 @@ class OnboardingChatResponse(BaseModel):
     safety_note: str | None = Field(
         default=None,
         description="Explicación del rechazo por seguridad (requisito ISO + cómo replantear).",
+    )
+    # Ruta guiada (Fase 2): a qué paso pertenece la próxima pregunta y qué
+    # documentos ya tienen sus datos completos y esperan el botón "Generar".
+    current_step: CurrentStepInfo | None = Field(
+        default=None,
+        description="Paso activo de la ruta guiada; None si la ruta no está configurada.",
+    )
+    ready_to_generate: list[str] = Field(
+        default_factory=list,
+        description="document_types con datos completos y sin documento generado.",
     )

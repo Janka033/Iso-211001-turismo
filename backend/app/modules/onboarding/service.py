@@ -28,6 +28,7 @@ from fastapi import HTTPException, status
 from app.core.ai.factory import get_ai_provider
 from app.modules.onboarding import repository
 from app.modules.onboarding.schemas import (
+    CurrentStepInfo,
     OnboardingChatRequest,
     OnboardingChatResponse,
     OnboardingExtraction,
@@ -235,6 +236,190 @@ _KEY_FIELDS: tuple[str, ...] = (
     "legal_representative",
     "rnt_status",
 )
+
+# ---------------------------------------------------------------------------
+# Ruta guiada (Fase 2): agrupar las preguntas por el documento del paso activo.
+# La RUTA (orden de pasos) es dato (document_roadmap, 0045); el mapeo pregunta→
+# documento vive aquí junto a _UNIVERSAL_QUESTIONS, que también es código —
+# varias preguntas del onboarding no existen en extraction_checklist y meterlas
+# allí contaminaría los prompts de generación.
+# ---------------------------------------------------------------------------
+
+# Paso 0 — identidad de la empresa: se pregunta antes de cualquier documento.
+_IDENTITY_KEYS: tuple[str, ...] = (
+    "main_region",
+    "locations",
+    "scope",
+    "certified_guides",
+    "staff_roles",
+    "legal_representative",
+    "nit",
+    "rnt_status",
+    "rnt_number",
+)
+_IDENTITY_TITLE = "Conozcamos tu empresa"
+
+# Preguntas universales que alimentan cada documento de la ruta.
+_DOC_UNIVERSAL_KEYS: dict[str, tuple[str, ...]] = {
+    "politica_seguridad": (
+        "management_commitment",
+        "safety_objectives",
+        "approval_date",
+        "communication_channels",
+    ),
+    "matriz_riesgos": (
+        "existing_controls",
+        "activity_step_breakdown",
+        "risk_factors",
+        "business_risks",
+        "opportunities",
+    ),
+    "plan_emergencias": (
+        "emergency_contacts",
+        "brigada_emergencias",
+        "capacitaciones_personal_emergencias",
+        "equipos_emergencia",
+        "organismos_apoyo",
+        "hospital_cercano",
+        "vehiculos_evacuacion",
+    ),
+    "manual_inspeccion_equipos": ("equipment_maintenance",),
+    "comunicacion_participacion_consulta": (
+        "communication_matrix",
+        "participation_consultation",
+    ),
+    "gestion_incidentes": ("incident_classification", "incident_report_fields"),
+    "manual_perfiles_cargos": (),  # su insumo (staff_roles) es de identidad
+}
+
+# Categoría de la Parte B → documento de la ruta que la consume.
+_ACTIVITY_CAT_DOC: dict[str, str] = {
+    "equipo": "manual_inspeccion_equipos",
+    "competencias": "manual_perfiles_cargos",
+    "emergencias": "plan_emergencias",
+    "riesgos": "matriz_riesgos",
+    "edades": "matriz_riesgos",
+    "restricciones": "matriz_riesgos",
+    "seguimiento": "gestion_incidentes",
+}
+
+
+def _doc_of_field(field: dict) -> str | None:
+    """Documento de la ruta al que pertenece un pendiente (None = sin mapa)."""
+    if field.get("activity"):
+        return _ACTIVITY_CAT_DOC.get(_category_of(field["field_key"]))
+    for doc, keys in _DOC_UNIVERSAL_KEYS.items():
+        if field["field_key"] in keys:
+            return doc
+    return None
+
+
+def _doc_field_universe(doc: str, data: dict, checklist: list[dict]) -> tuple[int, int]:
+    """(respondidos, total) de los campos obligatorios que alimentan un doc."""
+    activity_fields = data.get("activity_fields") or {}
+    total = done = 0
+    for key in _DOC_UNIVERSAL_KEYS.get(doc, ()):
+        total += 1
+        done += 1 if _has_value(data.get(key)) else 0
+    for row in checklist:
+        if not row.get("required", True):
+            continue
+        if _ACTIVITY_CAT_DOC.get(_category_of(row["field_key"])) == doc:
+            total += 1
+            done += 1 if activity_fields.get(row["field_key"]) else 0
+    return done, total
+
+
+def _route_view(
+    pending: list[dict],
+    route_steps: list[dict],
+    statuses: dict[str, dict],
+    data: dict,
+    checklist: list[dict],
+) -> tuple[list[dict], dict | None, list[str]]:
+    """Reordena los pendientes por la ruta y calcula el paso activo.
+
+    Devuelve (pendientes ordenados, info del paso activo o None, documentos
+    listos para generar). Sin ruta configurada (lista vacía) el orden queda
+    intacto: modo lineal de siempre.
+    """
+    if not route_steps:
+        return pending, None, []
+
+    identity = [f for f in pending if f["field_key"] in _IDENTITY_KEYS]
+    by_doc: dict[str, list[dict]] = {}
+    rest: list[dict] = []
+    for field in pending:
+        if field["field_key"] in _IDENTITY_KEYS:
+            continue
+        doc = _doc_of_field(field)
+        if doc is None:
+            rest.append(field)
+        else:
+            by_doc.setdefault(doc, []).append(field)
+
+    ordered = list(identity)
+    ready: list[str] = []
+    for step in route_steps:
+        doc = step["document_type"]
+        doc_pending = by_doc.pop(doc, [])
+        ordered.extend(doc_pending)
+        if not doc_pending and statuses.get(doc) is None:
+            ready.append(doc)
+    for leftover in by_doc.values():  # docs fuera de la ruta habilitada
+        ordered.extend(leftover)
+    ordered.extend(rest)
+
+    total_steps = len(route_steps)
+    if not ordered:
+        return ordered, None, ready
+
+    first = ordered[0]
+    if first["field_key"] in _IDENTITY_KEYS:
+        done = sum(1 for k in _IDENTITY_KEYS if _has_value(data.get(k)))
+        step_info = {
+            "step_order": 0,
+            "total": total_steps,
+            "document_type": None,
+            "title": _IDENTITY_TITLE,
+            "numeral": None,
+            "fields_done": done,
+            "fields_total": len(_IDENTITY_KEYS),
+        }
+    else:
+        doc = _doc_of_field(first)
+        step_row = next((s for s in route_steps if s["document_type"] == doc), None)
+        if step_row is None:
+            return ordered, None, ready
+        done, total = _doc_field_universe(doc, data, checklist)
+        step_info = {
+            "step_order": step_row["step_order"],
+            "total": total_steps,
+            "document_type": doc,
+            "title": step_row["title"],
+            "numeral": step_row.get("numeral"),
+            "fields_done": done,
+            "fields_total": total,
+        }
+    return ordered, step_info, ready
+
+
+def _current_step_text(step_info: dict | None) -> str:
+    """Texto del marcador <<CURRENT_STEP>> del prompt (v6)."""
+    if step_info is None:
+        return "(ruta guiada no configurada; flujo lineal)"
+    if step_info["document_type"] is None:
+        return (
+            f"Paso 0 de {step_info['total']} — {step_info['title']}: datos "
+            "generales de la empresa antes de entrar a los documentos "
+            f"({step_info['fields_done']}/{step_info['fields_total']} respondidos)."
+        )
+    return (
+        f"Paso {step_info['step_order']} de {step_info['total']} — "
+        f"{step_info['title']} (numeral {step_info['numeral']}). Los campos "
+        "pendientes de abajo alimentan ESTE documento "
+        f"({step_info['fields_done']}/{step_info['fields_total']} respondidos)."
+    )
 
 
 async def _run(fn: Callable[..., T], *args: object) -> T:
@@ -570,6 +755,17 @@ async def chat(
     checklist = _dedupe_checklist(checklist)
     activity_keys = {row["field_key"] for row in checklist}
 
+    # Ruta guiada (0045): pasos con generador listo + estado de documentos del
+    # tenant. Sin ruta sembrada, el chat se comporta lineal (como siempre).
+    roadmap_rows = await _run(repository.get_roadmap, token)
+    route_steps = [r for r in roadmap_rows if r.get("generator_ready")]
+    statuses: dict[str, dict] = {}
+    if route_steps:
+        statuses = {
+            row["document_type"]: row
+            for row in await _run(repository.get_document_statuses, tenant_id, token)
+        }
+
     extracted: dict[str, str] = {}
     ai_out: OnboardingExtraction | None = None
     rejected = False  # el interceptor de seguridad rechazó la respuesta
@@ -586,7 +782,9 @@ async def chat(
             )
 
         provider = get_ai_provider()
-        pending_before = _pending_fields(data, checklist)
+        pending_before, step_before, _ = _route_view(
+            _pending_fields(data, checklist), route_steps, statuses, data, checklist
+        )
         optional_before = _optional_unanswered(data, checklist)
         chunks = await _rag(provider, activities, token)
 
@@ -598,6 +796,7 @@ async def chat(
             pending=pending_before,
             optional=optional_before,
             chunks=chunks,
+            current_step=_current_step_text(step_before),
         )
 
         try:
@@ -664,8 +863,11 @@ async def chat(
     data = saved_payload.model_dump()
 
     # Backend AUTORIDAD: recalcula pendientes y completitud sobre lo persistido.
-    pending_after = _pending_fields(data, checklist)
+    pending_after, step_after, ready_docs = _route_view(
+        _pending_fields(data, checklist), route_steps, statuses, data, checklist
+    )
     pct, completed = _measure_dynamic(data, checklist)
+    current_step = CurrentStepInfo(**step_after) if step_after else None
 
     next_field_row = pending_after[0] if pending_after else None
     next_field = (
@@ -690,6 +892,8 @@ async def chat(
             completed=False,
             blocked=True,
             safety_note=safety_note,
+            current_step=current_step,
+            ready_to_generate=ready_docs,
         )
 
     next_question = _resolve_question(next_field_row, ai_out)
@@ -722,6 +926,8 @@ async def chat(
         data=saved_payload,
         completeness=pct,
         completed=completed,
+        current_step=current_step,
+        ready_to_generate=ready_docs,
     )
 
 
@@ -799,6 +1005,7 @@ def _assemble_prompt(
     pending: list[dict],
     optional: list[dict],
     chunks: list[dict],
+    current_step: str = "(ruta guiada no configurada; flujo lineal)",
 ) -> str:
     """Rellena los marcadores ``<<...>>`` del prompt activo (mismo mecanismo que
     generation/quality: reemplazo de marcadores, no str.format)."""
@@ -844,4 +1051,5 @@ def _assemble_prompt(
         .replace("<<OPTIONAL_FIELDS>>", optional_lines)
         .replace("<<NORM_CONTEXT>>", norm_context)
         .replace("<<JSON_SCHEMA>>", json_schema)
+        .replace("<<CURRENT_STEP>>", current_step)
     )
