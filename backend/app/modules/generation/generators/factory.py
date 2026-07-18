@@ -22,6 +22,9 @@ from app.modules.generation.generators.equipment_manual import EquipmentManualGe
 from app.modules.generation.generators.incident_management import (
     IncidentManagementGenerator,
 )
+from app.modules.generation.generators.objetivos_seguridad import (
+    ObjetivosSeguridadGenerator,
+)
 from app.modules.generation.generators.partes_interesadas import (
     PartesInteresadasGenerator,
 )
@@ -35,6 +38,7 @@ from app.modules.generation.schemas import (
     EmergencyPlanVariables,
     EquipmentManualVariables,
     IncidentManagementVariables,
+    MatrizObjetivosVariables,
     MatrizPartesInteresadasVariables,
     ProfilesManualVariables,
     RiskMatrixVariables,
@@ -84,6 +88,15 @@ _REGISTRY: dict[str, DocumentSpec] = {
         generator=PartesInteresadasGenerator(),
         # 4.1 (contexto interno/externo) delimita qué partes son relevantes.
         extra_rag_numerales=("4.1",),
+    ),
+    "matriz_objetivos_seguridad": DocumentSpec(
+        document_type="matriz_objetivos_seguridad",
+        title="Matriz de objetivos de seguridad",
+        numeral="6.2",
+        variables_model=MatrizObjetivosVariables,
+        generator=ObjetivosSeguridadGenerator(),
+        # 5.2: la política es el marco de los objetivos (columna del molde).
+        extra_rag_numerales=("5.2",),
     ),
     "politica_seguridad": DocumentSpec(
         document_type="politica_seguridad",

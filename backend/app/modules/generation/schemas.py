@@ -836,3 +836,81 @@ class ActaCompromisoVariables(AIVariablesModel):
         default=None,
         description="Correo electrónico del firmante, SOLO si el cliente lo dio.",
     )
+
+
+class ObjectiveEntry(AIVariablesModel):
+    """Una fila de la matriz de objetivos de seguridad (un objetivo del 6.2)."""
+
+    origin: str | None = Field(
+        default=None,
+        description=(
+            "Origen del objetivo, uno de los del kit MinCIT: 'Contexto', "
+            "'Política de seguridad de turismo de aventura', 'Riesgos y "
+            "oportunidades', 'Gestión del riesgo de actividad de <actividad>' "
+            "o 'Requisitos del cliente'. Asígnalo según el contenido del "
+            "objetivo."
+        ),
+    )
+    objective: str | None = Field(
+        default=None,
+        description="Objetivo de seguridad, como enunciado completo del cliente.",
+    )
+    indicator_name: str | None = Field(
+        default=None,
+        description=(
+            "Nombre corto del indicador de gestión del objetivo. DERÍVALO del "
+            "indicador que el cliente incluyó en el objetivo."
+        ),
+    )
+    formula: str | None = Field(
+        default=None,
+        description=(
+            "Fórmula de cálculo del indicador (numerador/denominador x 100 u "
+            "otra). DERÍVALA del indicador del cliente; null si no se puede "
+            "derivar sin inventar."
+        ),
+    )
+    frequency: str | None = Field(
+        default=None,
+        description="Frecuencia de medición, SOLO si el cliente la dio o el plazo la implica.",
+    )
+    responsible: str | None = Field(
+        default=None,
+        description=(
+            "Responsable de la medición. DERÍVALO del organigrama del cliente "
+            "solo si es evidente (p. ej. gerente); null en caso contrario."
+        ),
+    )
+    goal: str | None = Field(
+        default=None,
+        description="Meta numérica y plazo del objetivo, tal como los dio el cliente.",
+    )
+
+
+class MatrizObjetivosVariables(AIVariablesModel):
+    """Variables de la Matriz de objetivos de seguridad (numeral 6.2).
+
+    Molde del kit MinCIT: bloque fijo de planificación (qué/recursos/
+    evaluación/cuándo) + tabla con la política y una fila por objetivo con
+    indicador, fórmula, frecuencia, responsable y meta. Resultado y análisis
+    se diligencian en el seguimiento (revisión por la dirección), no aquí.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    policy_statement: str | None = Field(
+        default=None,
+        description=(
+            "Enunciado breve de la política de seguridad que enmarca los "
+            "objetivos. DERÍVALO del compromiso de la dirección y el alcance "
+            "reales del cliente."
+        ),
+    )
+    objectives: list[ObjectiveEntry] = Field(
+        default_factory=list,
+        description=(
+            "Filas de la matriz: los objetivos de seguridad reales del "
+            "cliente (6.2), incluido el objetivo medible de la dirección."
+        ),
+    )

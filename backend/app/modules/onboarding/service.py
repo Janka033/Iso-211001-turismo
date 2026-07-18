@@ -327,6 +327,9 @@ _DOC_UNIVERSAL_KEYS: dict[str, tuple[str, ...]] = {
     ),
     "gestion_incidentes": ("incident_classification", "incident_report_fields"),
     "manual_perfiles_cargos": (),  # su insumo (staff_roles) es de identidad
+    # Su insumo (safety_objectives + management_commitment) se captura en el
+    # paso de la política: el paso de la matriz no pregunta nada propio.
+    "matriz_objetivos_seguridad": (),
 }
 
 # Categoría de la Parte B → documento de la ruta que la consume.

@@ -145,6 +145,16 @@ export const FIELD_LABELS: Record<string, string> = {
   signer_phone: "Teléfono del firmante",
   signer_email: "Correo del firmante",
 
+  // — Matriz de objetivos de seguridad (6.2) —
+  policy_statement: "Política que enmarca los objetivos",
+  objectives: "Filas de la matriz de objetivos",
+  origin: "Origen del objetivo",
+  objective: "Objetivo de seguridad",
+  indicator_name: "Nombre del indicador",
+  formula: "Fórmula del indicador",
+  frequency: "Frecuencia de medición",
+  goal: "Meta",
+
   // — Matriz de partes interesadas (4.2) —
   stakeholder_needs: "Partes interesadas y sus necesidades",
   stakeholder_compliance: "Cumplimiento a las partes interesadas",
