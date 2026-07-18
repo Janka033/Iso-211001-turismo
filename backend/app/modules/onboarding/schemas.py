@@ -205,6 +205,26 @@ class OnboardingPayload(BaseModel):
             "aplicables y su justificación, o su declaración de que aplican todos."
         ),
     )
+    # Matriz de partes interesadas (4.2). Fuente: taller "Comprensión de las
+    # partes interesadas" del kit MinCIT.
+    stakeholder_needs: str | None = Field(
+        default=None,
+        max_length=4000,
+        description=(
+            "Partes interesadas de la operación con las necesidades y "
+            "expectativas de cada una (proveedores, gubernamentales, ONG, "
+            "clientes, colaboradores, propietarios, comunidad)."
+        ),
+    )
+    stakeholder_compliance: str | None = Field(
+        default=None,
+        max_length=4000,
+        description=(
+            "Evaluación del cliente sobre si cumple los requisitos de cada "
+            "parte interesada, con acciones, responsables y fechas para lo que "
+            "se cumple parcialmente o no se cumple."
+        ),
+    )
     # Datos POR ACTIVIDAD (Parte B). Clave = field_key del checklist
     # (p.ej. ``equipo_rafting``), valor = lo que dijo el cliente. Flexible pero
     # tipado (dict[str, str], no ``dict`` a secas): cada actividad elegida aporta

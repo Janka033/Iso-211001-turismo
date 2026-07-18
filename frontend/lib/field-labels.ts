@@ -136,6 +136,12 @@ export const FIELD_LABELS: Record<string, string> = {
   site_characteristics: "Características del entorno",
   norm_exclusions: "Aplicabilidad de los requisitos de la norma",
 
+  // — Matriz de partes interesadas (4.2) —
+  stakeholder_needs: "Partes interesadas y sus necesidades",
+  stakeholder_compliance: "Cumplimiento a las partes interesadas",
+  stakeholders: "Filas de la matriz de partes interesadas",
+  elaborated_by: "Responsable de diligenciar",
+
   // — Checklist Parte A del plan de emergencias (8.2) —
   brigada_emergencias: "Brigada de emergencias",
   capacitaciones_personal_emergencias: "Capacitaciones del personal en emergencias",

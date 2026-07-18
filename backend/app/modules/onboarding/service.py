@@ -172,6 +172,21 @@ _UNIVERSAL_QUESTIONS: tuple[tuple[str, str], ...] = (
         "¿Hay requisitos de la norma NTC-ISO 21101 que NO apliquen a su "
         "operación? Si es así, ¿cuáles y por qué? Si aplican todos, indíquenlo.",
     ),
+    # Matriz de partes interesadas (4.2) — taller del kit MinCIT.
+    (
+        "stakeholder_needs",
+        "¿Quiénes son las partes interesadas de su operación y qué necesita y "
+        "espera cada una de ustedes? Recorran: proveedores (incluidos los de "
+        "actividades de aventura), organizaciones gubernamentales (Alcaldía, "
+        "MinCIT, ARL), ONG, clientes/participantes, colaboradores, propietarios "
+        "y la comunidad donde operan.",
+    ),
+    (
+        "stakeholder_compliance",
+        "¿Hoy cumplen lo que cada parte interesada les exige o espera? Si algo "
+        "se cumple a medias o no se cumple, digan qué acción tienen prevista, "
+        "quién es el responsable y para cuándo.",
+    ),
     # Gestión de incidentes (8.3)
     (
         "incident_classification",
@@ -274,6 +289,7 @@ _IDENTITY_TITLE = "Conozcamos tu empresa"
 # Preguntas universales que alimentan cada documento de la ruta.
 _DOC_UNIVERSAL_KEYS: dict[str, tuple[str, ...]] = {
     "alcance_sgsta": ("site_characteristics", "norm_exclusions"),
+    "matriz_partes_interesadas": ("stakeholder_needs", "stakeholder_compliance"),
     "politica_seguridad": (
         "management_commitment",
         "safety_objectives",

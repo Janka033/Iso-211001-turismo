@@ -21,6 +21,9 @@ from app.modules.generation.generators.equipment_manual import EquipmentManualGe
 from app.modules.generation.generators.incident_management import (
     IncidentManagementGenerator,
 )
+from app.modules.generation.generators.partes_interesadas import (
+    PartesInteresadasGenerator,
+)
 from app.modules.generation.generators.profiles_manual import ProfilesManualGenerator
 from app.modules.generation.generators.risk_matrix import RiskMatrixGenerator
 from app.modules.generation.generators.security_policy import SecurityPolicyGenerator
@@ -30,6 +33,7 @@ from app.modules.generation.schemas import (
     EmergencyPlanVariables,
     EquipmentManualVariables,
     IncidentManagementVariables,
+    MatrizPartesInteresadasVariables,
     ProfilesManualVariables,
     RiskMatrixVariables,
     SecurityPolicyVariables,
@@ -62,6 +66,15 @@ _REGISTRY: dict[str, DocumentSpec] = {
         # 4.1/4.2 (contexto y partes interesadas) delimitan qué debe cubrir
         # el alcance; amplían el contexto normativo del RAG.
         extra_rag_numerales=("4.1", "4.2"),
+    ),
+    "matriz_partes_interesadas": DocumentSpec(
+        document_type="matriz_partes_interesadas",
+        title="Matriz de partes interesadas",
+        numeral="4.2",
+        variables_model=MatrizPartesInteresadasVariables,
+        generator=PartesInteresadasGenerator(),
+        # 4.1 (contexto interno/externo) delimita qué partes son relevantes.
+        extra_rag_numerales=("4.1",),
     ),
     "politica_seguridad": DocumentSpec(
         document_type="politica_seguridad",

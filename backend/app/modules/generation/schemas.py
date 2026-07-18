@@ -704,3 +704,89 @@ class AlcanceVariables(AIVariablesModel):
             "cliente la indicó explícitamente; nunca derivada de otras fechas."
         ),
     )
+
+
+class StakeholderEntry(AIVariablesModel):
+    """Una fila de la matriz de partes interesadas (una parte por categoría)."""
+
+    stakeholder: str | None = Field(
+        default=None,
+        description=(
+            "Parte interesada: la categoría del kit MinCIT y, si el cliente la "
+            "nombró, la parte concreta (p. ej. 'Organizaciones gubernamentales "
+            "— Alcaldía de San Gil')."
+        ),
+    )
+    needs: str | None = Field(
+        default=None,
+        description="Necesidad(es) de la parte interesada respecto a la organización.",
+    )
+    expectations: str | None = Field(
+        default=None,
+        description="Expectativa(s) de la parte interesada con la organización.",
+    )
+    compliance: str | None = Field(
+        default=None,
+        description=(
+            "Si la organización cumple los requisitos de esta parte: C (cumple), "
+            "CP (cumple parcialmente) o NC (no cumple). SOLO según lo declarado "
+            "por el cliente; sin declaración => null."
+        ),
+    )
+    observations: str | None = Field(
+        default=None,
+        description=(
+            "Observaciones cuando el cumplimiento es CP o NC. Si es C, "
+            "'No aplica'."
+        ),
+    )
+    actions: str | None = Field(
+        default=None,
+        description=(
+            "Acciones a realizar para cumplir el requisito (aplica para CP y "
+            "NC). Si es C, 'No aplica'."
+        ),
+    )
+    execution_date: str | None = Field(
+        default=None,
+        description="Fecha prevista para ejecutar la acción, si el cliente la dio.",
+    )
+    responsible: str | None = Field(
+        default=None, description="Responsable de ejecutar la acción."
+    )
+    follow_up_date: str | None = Field(
+        default=None, description="Fecha de seguimiento, si el cliente la dio."
+    )
+    status: str | None = Field(
+        default=None,
+        description="Estado de la acción: ABIERTA o CERRADA. Si es C, 'No aplica'.",
+    )
+
+
+class MatrizPartesInteresadasVariables(AIVariablesModel):
+    """Variables de la Matriz de partes interesadas (numeral 4.2).
+
+    Molde del kit MinCIT: una fila por categoría (proveedores, proveedores de
+    actividades de aventura, organizaciones gubernamentales y no
+    gubernamentales, participantes/clientes, colaboradores, accionistas,
+    comunidad) con necesidades, expectativas y evaluación de cumplimiento.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    elaborated_by: str | None = Field(
+        default=None,
+        description=(
+            "Responsable de diligenciar la matriz (cargo o nombre). DERÍVALO "
+            "del organigrama del cliente (gerente o representante legal) si no "
+            "lo dijo explícitamente."
+        ),
+    )
+    stakeholders: list[StakeholderEntry] = Field(
+        default_factory=list,
+        description=(
+            "Filas de la matriz: las partes interesadas identificadas por el "
+            "cliente con sus necesidades y expectativas."
+        ),
+    )

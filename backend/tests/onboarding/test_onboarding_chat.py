@@ -393,6 +393,8 @@ _ALL_UNIVERSAL = {
     "opportunities": ["Certificación NTC-ISO 21101"],
     "site_characteristics": "Zona rural, ribera del río Suárez",
     "norm_exclusions": "Aplican todos los requisitos de la norma",
+    "stakeholder_needs": "Clientes: seguridad; Alcaldía: RNT vigente; comunidad: empleo local",
+    "stakeholder_compliance": "Cumplimos; la señalización está a medias (gerente, dic 2026)",
     "equipment_maintenance": "Balsas: inspección visual diaria y técnica mensual",
     "communication_matrix": "Briefing — clientes — verbal — antes de cada salida",
     "participation_consultation": "Reunión semanal de seguridad con los guías",
