@@ -136,6 +136,15 @@ export const FIELD_LABELS: Record<string, string> = {
   site_characteristics: "Características del entorno",
   norm_exclusions: "Aplicabilidad de los requisitos de la norma",
 
+  // — Acta de compromiso (5.1) —
+  management_signer: "Firmante del acta de compromiso",
+  city: "Ciudad de firma",
+  acta_date: "Fecha de firma del acta",
+  signer_name: "Nombre del firmante",
+  signer_role: "Cargo del firmante",
+  signer_phone: "Teléfono del firmante",
+  signer_email: "Correo del firmante",
+
   // — Matriz de partes interesadas (4.2) —
   stakeholder_needs: "Partes interesadas y sus necesidades",
   stakeholder_compliance: "Cumplimiento a las partes interesadas",

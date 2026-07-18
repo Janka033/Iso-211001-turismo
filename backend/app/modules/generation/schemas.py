@@ -790,3 +790,49 @@ class MatrizPartesInteresadasVariables(AIVariablesModel):
             "cliente con sus necesidades y expectativas."
         ),
     )
+
+
+class ActaCompromisoVariables(AIVariablesModel):
+    """Variables del Acta de compromiso de la alta dirección (numeral 5.1).
+
+    El cuerpo del acta (tabla de requisitos 5.1 → compromisos) es contenido
+    normativo FIJO del kit MinCIT y vive en la plantilla; la IA solo aporta
+    los datos de identidad, firmante y fecha.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    city: str | None = Field(
+        default=None,
+        description=(
+            "Ciudad donde se firma el acta. DERÍVALA del municipio sede de la "
+            "operación (ubicaciones del cliente) si no la dijo explícitamente."
+        ),
+    )
+    acta_date: str | None = Field(
+        default=None,
+        description=(
+            "Fecha de firma del acta (día, mes y año), SOLO si el cliente la "
+            "indicó explícitamente; nunca derivada de otras fechas."
+        ),
+    )
+    signer_name: str | None = Field(
+        default=None,
+        description=(
+            "Nombre de quien firma por la alta dirección. DERÍVALO del "
+            "representante legal o gerente del cliente."
+        ),
+    )
+    signer_role: str | None = Field(
+        default=None,
+        description="Cargo del firmante (representante legal o gerente).",
+    )
+    signer_phone: str | None = Field(
+        default=None,
+        description="Teléfono del firmante, SOLO si el cliente lo dio.",
+    )
+    signer_email: str | None = Field(
+        default=None,
+        description="Correo electrónico del firmante, SOLO si el cliente lo dio.",
+    )

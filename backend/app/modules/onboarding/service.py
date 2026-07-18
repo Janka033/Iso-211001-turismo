@@ -172,6 +172,13 @@ _UNIVERSAL_QUESTIONS: tuple[tuple[str, str], ...] = (
         "¿Hay requisitos de la norma NTC-ISO 21101 que NO apliquen a su "
         "operación? Si es así, ¿cuáles y por qué? Si aplican todos, indíquenlo.",
     ),
+    # Acta de compromiso de la alta dirección (5.1) — molde del kit MinCIT.
+    (
+        "management_signer",
+        "Para el acta de compromiso de la dirección: ¿quién la firma (nombre y "
+        "cargo), con qué teléfono y correo se le contacta, y en qué ciudad y "
+        "fecha se firma (o firmará)?",
+    ),
     # Matriz de partes interesadas (4.2) — taller del kit MinCIT.
     (
         "stakeholder_needs",
@@ -290,6 +297,7 @@ _IDENTITY_TITLE = "Conozcamos tu empresa"
 _DOC_UNIVERSAL_KEYS: dict[str, tuple[str, ...]] = {
     "alcance_sgsta": ("site_characteristics", "norm_exclusions"),
     "matriz_partes_interesadas": ("stakeholder_needs", "stakeholder_compliance"),
+    "acta_compromiso": ("management_signer",),
     "politica_seguridad": (
         "management_commitment",
         "safety_objectives",

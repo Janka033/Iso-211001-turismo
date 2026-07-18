@@ -205,6 +205,15 @@ class OnboardingPayload(BaseModel):
             "aplicables y su justificación, o su declaración de que aplican todos."
         ),
     )
+    # Acta de compromiso de la alta dirección (5.1). Molde del kit MinCIT.
+    management_signer: str | None = Field(
+        default=None,
+        max_length=1000,
+        description=(
+            "Firmante del acta de compromiso: nombre, cargo, teléfono, correo, "
+            "y ciudad y fecha de la firma."
+        ),
+    )
     # Matriz de partes interesadas (4.2). Fuente: taller "Comprensión de las
     # partes interesadas" del kit MinCIT.
     stakeholder_needs: str | None = Field(

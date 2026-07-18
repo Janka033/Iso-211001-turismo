@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 
+from app.modules.generation.generators.acta_compromiso import ActaCompromisoGenerator
 from app.modules.generation.generators.alcance import AlcanceGenerator
 from app.modules.generation.generators.base import DocumentGenerator
 from app.modules.generation.generators.communication_procedure import (
@@ -28,6 +29,7 @@ from app.modules.generation.generators.profiles_manual import ProfilesManualGene
 from app.modules.generation.generators.risk_matrix import RiskMatrixGenerator
 from app.modules.generation.generators.security_policy import SecurityPolicyGenerator
 from app.modules.generation.schemas import (
+    ActaCompromisoVariables,
     AlcanceVariables,
     CommunicationProcedureVariables,
     EmergencyPlanVariables,
@@ -66,6 +68,13 @@ _REGISTRY: dict[str, DocumentSpec] = {
         # 4.1/4.2 (contexto y partes interesadas) delimitan qué debe cubrir
         # el alcance; amplían el contexto normativo del RAG.
         extra_rag_numerales=("4.1", "4.2"),
+    ),
+    "acta_compromiso": DocumentSpec(
+        document_type="acta_compromiso",
+        title="Acta de compromiso de la alta dirección",
+        numeral="5.1",
+        variables_model=ActaCompromisoVariables,
+        generator=ActaCompromisoGenerator(),
     ),
     "matriz_partes_interesadas": DocumentSpec(
         document_type="matriz_partes_interesadas",
