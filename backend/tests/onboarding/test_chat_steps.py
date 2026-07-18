@@ -56,7 +56,8 @@ def test_identity_phase_is_step_zero(client, make_token, wire):
     assert step["step_order"] == 0
     assert step["document_type"] is None
     assert step["total"] == 3
-    assert step["fields_total"] == 9
+    # Identidad = 8 campos (scope salió: es derivado, no una pregunta).
+    assert step["fields_total"] == 8
 
 
 def test_after_identity_asks_active_step_fields_only(client, make_token, wire):

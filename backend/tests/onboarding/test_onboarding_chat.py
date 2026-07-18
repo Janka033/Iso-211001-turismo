@@ -113,8 +113,8 @@ def test_extracts_multiple_universal_fields(client, make_token, wire):
                 "locations": "río Suárez",
                 "certified_guides": "8",
             },
-            "next_field_key": "scope",
-            "next_question": "¿Cuál es el alcance de su operación?",
+            "next_field_key": "staff_roles",
+            "next_question": "¿Qué cargos tiene tu equipo?",
             "completed": False,
         },
         stored={"activities": ["rafting"]},
@@ -130,9 +130,12 @@ def test_extracts_multiple_universal_fields(client, make_token, wire):
     assert body["data"]["locations"] == ["río Suárez"]  # campo de lista
     assert body["data"]["certified_guides"] == "8"
     assert body["extracted"]["main_region"] == "Santander"
+    # El alcance se DERIVA de actividades + ubicaciones + región (no se pregunta).
+    assert body["data"]["scope"].startswith("Prestación de servicios de turismo")
+    assert "río Suárez" in body["data"]["scope"]
     # La pregunta de la IA se usa porque coincide con el campo que eligió el backend.
-    assert body["next_field"]["field_key"] == "scope"
-    assert body["next_question"] == "¿Cuál es el alcance de su operación?"
+    assert body["next_field"]["field_key"] == "staff_roles"
+    assert body["next_question"] == "¿Qué cargos tiene tu equipo?"
 
 
 def test_extraction_disables_thinking(client, make_token, wire):

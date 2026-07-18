@@ -49,7 +49,9 @@ T = TypeVar("T")
 _UNIVERSAL_QUESTIONS: tuple[tuple[str, str], ...] = (
     ("main_region", "¿En qué departamento o zona operan principalmente?"),
     ("locations", "¿En qué ubicaciones específicas operan (ríos, cañones, sedes)?"),
-    ("scope", "¿Cuál es el alcance de su operación: qué actividades y dónde las prestan?"),
+    # `scope` NO se pregunta: era redundante con las actividades (chips) + región
+    # + ubicaciones que el cliente ya dio. Se DERIVA de esos tres (ver
+    # _derive_scope) y alimenta la sección "Alcance" de los documentos.
     ("certified_guides", "¿Cuántos guías certificados tiene su operación?"),
     ("staff_roles", "¿Qué cargos tiene su equipo y cuántas personas hay en cada uno?"),
     ("legal_representative", "¿Quién es el representante legal de la empresa?"),
@@ -301,10 +303,10 @@ _KEY_FIELDS: tuple[str, ...] = (
 # ---------------------------------------------------------------------------
 
 # Paso 0 — identidad de la empresa: se pregunta antes de cualquier documento.
+# `scope` NO está aquí: es derivado (ver _derive_scope), no una pregunta.
 _IDENTITY_KEYS: tuple[str, ...] = (
     "main_region",
     "locations",
-    "scope",
     "certified_guides",
     "staff_roles",
     "legal_representative",
@@ -313,6 +315,30 @@ _IDENTITY_KEYS: tuple[str, ...] = (
     "rnt_number",
 )
 _IDENTITY_TITLE = "Conozcamos tu empresa"
+
+# Etiquetas legibles de los slugs de actividad (espejo de las del frontend),
+# para componer el alcance en español natural. Un slug sin etiqueta usa su
+# propio texto.
+_ACTIVITY_LABELS: dict[str, str] = {
+    "rafting": "rafting",
+    "rapel": "rápel",
+    "espeleologia": "espeleología",
+    "parapente": "parapente",
+    "cabalgata": "cabalgata",
+    "canyoning": "canyoning (torrentismo)",
+    "buceo": "buceo",
+    "canopy": "canopy (tirolesa)",
+    "senderismo": "senderismo",
+    "atv": "cuatrimotos (ATV)",
+    "kayak": "kayak",
+    "ciclomontanismo": "ciclomontañismo",
+    "escalada": "escalada",
+}
+
+# Marca de un scope compuesto por el sistema: permite RECOMPONERLO cuando el
+# cliente cambia actividades/ubicaciones, sin pisar un scope escrito a mano por
+# un tenant antiguo (que no empieza con esta frase).
+_DERIVED_SCOPE_PREFIX = "Prestación de servicios de turismo de aventura"
 
 # Preguntas universales que alimentan cada documento de la ruta.
 _DOC_UNIVERSAL_KEYS: dict[str, tuple[str, ...]] = {
@@ -530,6 +556,45 @@ def _to_list(value: str) -> list[str]:
         if item:
             parts.append(item)
     return parts
+
+
+def _join_es(items: list[str]) -> str:
+    """Une una lista en español natural: [a, b, c] -> 'a, b y c'."""
+    items = [i for i in items if i]
+    if not items:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    return f"{', '.join(items[:-1])} y {items[-1]}"
+
+
+def _derive_scope(data: dict) -> str | None:
+    """Compone el ALCANCE de forma DETERMINISTA a partir de datos que el cliente
+    ya dio: actividades (chips) + ubicaciones + región. No lo pregunta ni lo
+    inventa la IA — es concatenación de datos del cliente, así que vive en
+    ``onboarding_data``. Sin actividades no hay alcance que componer (None).
+    """
+    activities = [a for a in (data.get("activities") or []) if isinstance(a, str) and a.strip()]
+    if not activities:
+        return None
+    acts = _join_es([_ACTIVITY_LABELS.get(a, a) for a in activities])
+    locations = [str(x).strip() for x in (data.get("locations") or []) if str(x).strip()]
+    region = (data.get("main_region") or "").strip()
+    place = ", ".join(p for p in [_join_es(locations), region] if p)
+    tail = f" en {place}" if place else ""
+    return f"{_DERIVED_SCOPE_PREFIX} ({acts}){tail}."
+
+
+def _apply_derived_scope(data: dict) -> None:
+    """Rellena/actualiza ``scope`` con el derivado, SIN pisar un scope escrito a
+    mano por un tenant antiguo (el compuesto empieza con _DERIVED_SCOPE_PREFIX;
+    uno manual, no). Así el alcance se mantiene fresco al cambiar actividades."""
+    current = (data.get("scope") or "").strip()
+    if current and not current.startswith(_DERIVED_SCOPE_PREFIX):
+        return
+    derived = _derive_scope(data)
+    if derived:
+        data["scope"] = derived
 
 
 # ---------------------------------------------------------------------------
@@ -948,6 +1013,11 @@ async def chat(
                         k: v for k, v in merged_roles.items() if v != "0"
                     }
                     roles_changed = True
+
+    # El alcance es derivado, no una pregunta: se compone de las actividades +
+    # ubicaciones + región que el cliente ya dio, y se mantiene fresco en cada
+    # turno (p. ej. si agrega una actividad).
+    _apply_derived_scope(data)
 
     # Persistir el estado ya fusionado.
     saved_payload = OnboardingPayload.model_validate(data)

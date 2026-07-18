@@ -52,7 +52,7 @@ def wire(monkeypatch):
 async def test_merge_routes_each_key_to_its_home(wire):
     saved = await service.apply_remediation(
         {
-            "scope": "  Rafting y rapel en el Melcocho.  ",  # universal escalar
+            "main_region": "  Antioquia.  ",  # universal escalar
             "organismos_apoyo": "Cruz Roja, Bomberos Cocorná",  # universal lista
             # universal lista
             "safety_objectives": "Reducir incidentes 20%; cero accidentes graves",
@@ -67,13 +67,13 @@ async def test_merge_routes_each_key_to_its_home(wire):
     assert saved == [
         "equipo_rafting",
         "legal_commitment",
+        "main_region",
         "organismos_apoyo",
         "safety_objectives",
-        "scope",
     ]
     data = wire["data"]
     assert wire["tenant_id"] == TENANT_A
-    assert data["scope"] == "Rafting y rapel en el Melcocho."
+    assert data["main_region"] == "Antioquia."
     assert data["organismos_apoyo"] == ["Cruz Roja", "Bomberos Cocorná"]
     assert data["safety_objectives"] == [
         "Reducir incidentes 20%",
@@ -102,6 +102,6 @@ async def test_staff_roles_as_text_does_not_clobber_dict(wire):
 
 
 async def test_all_empty_returns_empty_and_saves_nothing(wire):
-    saved = await service.apply_remediation({"scope": "   "}, TENANT_A, "token")
+    saved = await service.apply_remediation({"main_region": "   "}, TENANT_A, "token")
     assert saved == []
     assert "data" not in wire
