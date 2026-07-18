@@ -28,6 +28,9 @@ from app.modules.generation.generators.objetivos_seguridad import (
 from app.modules.generation.generators.partes_interesadas import (
     PartesInteresadasGenerator,
 )
+from app.modules.generation.generators.procedimiento_riesgos import (
+    ProcedimientoRiesgosGenerator,
+)
 from app.modules.generation.generators.profiles_manual import ProfilesManualGenerator
 from app.modules.generation.generators.risk_matrix import RiskMatrixGenerator
 from app.modules.generation.generators.security_policy import SecurityPolicyGenerator
@@ -40,6 +43,7 @@ from app.modules.generation.schemas import (
     IncidentManagementVariables,
     MatrizObjetivosVariables,
     MatrizPartesInteresadasVariables,
+    ProcedimientoRiesgosVariables,
     ProfilesManualVariables,
     RiskMatrixVariables,
     SecurityPolicyVariables,
@@ -88,6 +92,15 @@ _REGISTRY: dict[str, DocumentSpec] = {
         generator=PartesInteresadasGenerator(),
         # 4.1 (contexto interno/externo) delimita qué partes son relevantes.
         extra_rag_numerales=("4.1",),
+    ),
+    "procedimiento_riesgos_oportunidades": DocumentSpec(
+        document_type="procedimiento_riesgos_oportunidades",
+        title="Procedimiento de gestión de riesgos y oportunidades",
+        numeral="6.1.1",
+        variables_model=ProcedimientoRiesgosVariables,
+        generator=ProcedimientoRiesgosGenerator(),
+        # Anexo A: proceso de gestión del riesgo, base del procedimiento.
+        extra_rag_numerales=("A",),
     ),
     "matriz_objetivos_seguridad": DocumentSpec(
         document_type="matriz_objetivos_seguridad",

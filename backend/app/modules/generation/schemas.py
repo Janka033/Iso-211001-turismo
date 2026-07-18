@@ -914,3 +914,42 @@ class MatrizObjetivosVariables(AIVariablesModel):
             "cliente (6.2), incluido el objetivo medible de la dirección."
         ),
     )
+
+
+class ProcedimientoRiesgosVariables(AIVariablesModel):
+    """Variables del Procedimiento de gestión de riesgos y oportunidades (6.1.1).
+
+    La metodología (objetivo, alcance, definiciones, aclaraciones y los 7
+    pasos del molde MinCIT) es contenido normativo FIJO de la plantilla; la
+    IA solo aporta identidad, el cargo que lidera la gestión, la frecuencia
+    de seguimiento y los datos de aprobación.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    responsible_role: str | None = Field(
+        default=None,
+        description=(
+            "Cargo que lidera la gestión de riesgos y oportunidades. DERÍVALO "
+            "de lo que dijo el cliente (risk_management_lead) o de su "
+            "organigrama (p. ej. Gerente). Escríbelo con inicial mayúscula."
+        ),
+    )
+    follow_up_frequency: str | None = Field(
+        default=None,
+        description=(
+            "Frecuencia del seguimiento formal de los riesgos: 'Semestral' o "
+            "'Anual', SOLO según lo declarado por el cliente."
+        ),
+    )
+    legal_representative: str | None = Field(
+        default=None, description="Representante legal que aprueba el procedimiento."
+    )
+    approval_date: str | None = Field(
+        default=None,
+        description=(
+            "Fecha de aprobación de ESTE documento (YYYY-MM-DD), SOLO si el "
+            "cliente la indicó explícitamente; nunca derivada de otras fechas."
+        ),
+    )

@@ -113,6 +113,13 @@ _UNIVERSAL_QUESTIONS: tuple[tuple[str, str], ...] = (
         "¿Por qué canales divulgan la política y las normas de seguridad "
         "(cartelera, inducción, WhatsApp, página web, briefing pre-actividad)?",
     ),
+    # Procedimiento de gestión de riesgos y oportunidades (6.1.1)
+    (
+        "risk_management_lead",
+        "¿Qué cargo lidera la gestión de riesgos y oportunidades en su empresa "
+        "(p. ej. el gerente), y con qué frecuencia le hacen seguimiento formal "
+        "a los riesgos: semestral o anual?",
+    ),
     # Matriz de riesgos y oportunidades (6.1.1)
     (
         "activity_step_breakdown",
@@ -298,6 +305,7 @@ _DOC_UNIVERSAL_KEYS: dict[str, tuple[str, ...]] = {
     "alcance_sgsta": ("site_characteristics", "norm_exclusions"),
     "matriz_partes_interesadas": ("stakeholder_needs", "stakeholder_compliance"),
     "acta_compromiso": ("management_signer",),
+    "procedimiento_riesgos_oportunidades": ("risk_management_lead",),
     "politica_seguridad": (
         "management_commitment",
         "safety_objectives",

@@ -145,6 +145,11 @@ export const FIELD_LABELS: Record<string, string> = {
   signer_phone: "Teléfono del firmante",
   signer_email: "Correo del firmante",
 
+  // — Procedimiento de riesgos y oportunidades (6.1.1) —
+  risk_management_lead: "Líder y frecuencia de la gestión de riesgos",
+  responsible_role: "Cargo que lidera la gestión de riesgos",
+  follow_up_frequency: "Frecuencia de seguimiento",
+
   // — Matriz de objetivos de seguridad (6.2) —
   policy_statement: "Política que enmarca los objetivos",
   objectives: "Filas de la matriz de objetivos",

@@ -214,6 +214,15 @@ class OnboardingPayload(BaseModel):
             "y ciudad y fecha de la firma."
         ),
     )
+    # Procedimiento de gestión de riesgos y oportunidades (6.1.1).
+    risk_management_lead: str | None = Field(
+        default=None,
+        max_length=500,
+        description=(
+            "Cargo que lidera la gestión de riesgos y frecuencia del "
+            "seguimiento formal (semestral o anual)."
+        ),
+    )
     # Matriz de partes interesadas (4.2). Fuente: taller "Comprensión de las
     # partes interesadas" del kit MinCIT.
     stakeholder_needs: str | None = Field(
