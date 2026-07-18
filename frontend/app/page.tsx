@@ -29,7 +29,7 @@ const RUTA = [
   {
     n: "03",
     title: "Descargas tu expediente",
-    body: "Siete documentos, de la política de seguridad a la inspección de equipos, en Word y Excel, cada uno con su numeral y su versión.",
+    body: "Tu árbol documental, del alcance del sistema a la gestión de incidentes, en Word y Excel, cada uno con su numeral y su versión.",
   },
   {
     n: "04",
@@ -40,6 +40,20 @@ const RUTA = [
 
 /** Qué le importa al auditor de cada documento del expediente. */
 const AUDITOR_LINE: Record<DocumentType, string> = {
+  alcance_sgsta:
+    "La primera pregunta del sistema: qué cubre, dónde opera y qué aplica.",
+  matriz_partes_interesadas:
+    "Quién se relaciona con tu operación y cómo les cumples, evaluado.",
+  acta_compromiso:
+    "La firma de la dirección: el compromiso con el sistema, por escrito.",
+  procedimiento_riesgos_oportunidades:
+    "El método: cómo identificas, evalúas y tratas cada riesgo, paso a paso.",
+  matriz_objetivos_seguridad:
+    "Objetivos medibles con indicador, fórmula, meta y responsable.",
+  control_informacion_documentada:
+    "Cómo viven tus documentos: versiones, distribución y retención.",
+  control_operacional:
+    "Por actividad: normas aplicables, qué se controla y cómo.",
   politica_seguridad:
     "Lo primero que pide el auditor: el compromiso de la dirección, por escrito.",
   matriz_riesgos:

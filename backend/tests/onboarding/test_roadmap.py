@@ -62,7 +62,10 @@ def test_roadmap_all_pending(client, make_token, wire_roadmap):
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["total"] == 3
-    assert body["current_step"] == 1  # el primero sin documento generado
+    # El actual es el primero sin documento CUYO GENERADOR EXISTE: el paso 1
+    # (generator_ready=false, "próximamente") se salta — el chat tampoco lo
+    # pregunta y el mapa quedaría sin nodo accionable.
+    assert body["current_step"] == 4
     assert [s["step_order"] for s in body["steps"]] == [1, 4, 7]
     assert all(s["status"] == "pendiente" for s in body["steps"])
     assert all(s["last_score"] is None for s in body["steps"])
@@ -95,8 +98,8 @@ def test_roadmap_merges_status_and_latest_score(client, make_token, wire_roadmap
     assert politica["status"] == "generated"
     assert politica["completeness"] == 100.0
     assert politica["last_score"] == 85.0
-    # El paso 4 tiene documento: el actual es el 1 (alcance, aún pendiente).
-    assert body["current_step"] == 1
+    # El paso 4 tiene documento y el 1 no tiene generador: el actual es el 7.
+    assert body["current_step"] == 7
     assert by_type["matriz_riesgos"]["status"] == "pendiente"
 
 

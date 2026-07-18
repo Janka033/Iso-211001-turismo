@@ -356,6 +356,15 @@ _DOC_UNIVERSAL_KEYS: dict[str, tuple[str, ...]] = {
     "matriz_objetivos_seguridad": (),
 }
 
+# Insumos que deben existir para OFRECER generar un documento cuyo paso no
+# tiene preguntas propias (su dato se captura en OTRO paso). Sin esto, esos
+# pasos salían "listos para generar" apenas terminaba la identidad y el
+# documento se generaba lleno de [PENDIENTE].
+_DOC_READY_KEYS: dict[str, tuple[str, ...]] = {
+    "manual_perfiles_cargos": ("staff_roles",),
+    "matriz_objetivos_seguridad": ("safety_objectives", "management_commitment"),
+}
+
 # Categoría de la Parte B → documento de la ruta que la consume.
 _ACTIVITY_CAT_DOC: dict[str, str] = {
     "equipo": "manual_inspeccion_equipos",
@@ -424,11 +433,22 @@ def _route_view(
 
     ordered = list(identity)
     ready: list[str] = []
+    # "Listo para generar" exige: identidad completa (paso 0 cerrado), los
+    # campos del paso respondidos, los insumos de otros pasos que el documento
+    # consume (_DOC_READY_KEYS) con dato, y que no exista ya un documento.
+    identity_done = not identity
     for step in route_steps:
         doc = step["document_type"]
         doc_pending = by_doc.pop(doc, [])
         ordered.extend(doc_pending)
-        if not doc_pending and statuses.get(doc) is None:
+        status_row = statuses.get(doc)
+        already_generated = (
+            status_row is not None and status_row.get("status") != "pending"
+        )
+        inputs_ready = all(
+            _has_value(data.get(k)) for k in _DOC_READY_KEYS.get(doc, ())
+        )
+        if identity_done and not doc_pending and inputs_ready and not already_generated:
             ready.append(doc)
     for leftover in by_doc.values():  # docs fuera de la ruta habilitada
         ordered.extend(leftover)
@@ -733,7 +753,15 @@ async def get_roadmap(tenant_id: str, token: str) -> RoadmapResponse:
                 last_score=scores.get(doc_type),
             )
         )
-        if current_step is None and status_row is None:
+        # El paso actual es el primero SIN documento cuyo generador ya existe:
+        # un paso "próximamente" (generator_ready=false) no puede ser el
+        # activo — el chat tampoco lo pregunta y el mapa quedaría sin nodo
+        # accionable.
+        if (
+            current_step is None
+            and status_row is None
+            and row.get("generator_ready")
+        ):
             current_step = row["step_order"]
     return RoadmapResponse(steps=steps, current_step=current_step, total=len(steps))
 

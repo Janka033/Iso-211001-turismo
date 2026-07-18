@@ -173,6 +173,54 @@ def test_alcance_step_asks_its_fields_first(client, make_token, wire):
     assert body["current_step"]["document_type"] == "politica_seguridad"
 
 
+def test_step_without_own_fields_waits_for_its_inputs(client, make_token, wire):
+    # La matriz de objetivos no tiene preguntas propias: su insumo
+    # (safety_objectives) se captura en el paso de la política. NO debe salir
+    # "lista para generar" apenas termina la identidad (generaría un documento
+    # lleno de [PENDIENTE]).
+    route = [
+        *_ROUTE,
+        {
+            "step_order": 9,
+            "document_type": "matriz_objetivos_seguridad",
+            "title": "Matriz de objetivos de seguridad",
+            "numeral": "6.2",
+            "generator_ready": True,
+        },
+    ]
+    wire(stored=dict(_IDENTITY_DONE), roadmap=route)
+    resp = client.post("/onboarding/chat", json={}, headers=_auth(make_token))
+    assert "matriz_objetivos_seguridad" not in resp.json()["ready_to_generate"]
+
+    # Con los datos de la política capturados, SÍ está lista.
+    stored = dict(
+        _IDENTITY_DONE,
+        management_commitment="La dirección prioriza la seguridad",
+        safety_objectives=["Reducir incidentes 20% a dic 2026"],
+        approval_date="15/01/2026",
+        communication_channels=["Briefing"],
+    )
+    wire(stored=stored, roadmap=route)
+    resp = client.post("/onboarding/chat", json={}, headers=_auth(make_token))
+    assert "matriz_objetivos_seguridad" in resp.json()["ready_to_generate"]
+
+
+def test_nothing_ready_before_identity_completes(client, make_token, wire):
+    # Con la identidad a medias, ningún documento se ofrece para generar
+    # aunque sus campos propios estén respondidos.
+    stored = {
+        "activities": ["rafting"],
+        "main_region": "Santander",
+        "management_commitment": "ok",
+        "safety_objectives": ["obj"],
+        "approval_date": "15/01/2026",
+        "communication_channels": ["Briefing"],
+    }
+    wire(stored=stored, roadmap=_ROUTE)
+    resp = client.post("/onboarding/chat", json={}, headers=_auth(make_token))
+    assert resp.json()["ready_to_generate"] == []
+
+
 def test_without_route_flow_stays_linear(client, make_token, wire):
     wire(stored=dict(_IDENTITY_DONE))  # sin roadmap => lineal
     resp = client.post("/onboarding/chat", json={}, headers=_auth(make_token))
