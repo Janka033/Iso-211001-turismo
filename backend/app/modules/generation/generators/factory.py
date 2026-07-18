@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 
+from app.modules.generation.generators.alcance import AlcanceGenerator
 from app.modules.generation.generators.base import DocumentGenerator
 from app.modules.generation.generators.communication_procedure import (
     CommunicationProcedureGenerator,
@@ -24,6 +25,7 @@ from app.modules.generation.generators.profiles_manual import ProfilesManualGene
 from app.modules.generation.generators.risk_matrix import RiskMatrixGenerator
 from app.modules.generation.generators.security_policy import SecurityPolicyGenerator
 from app.modules.generation.schemas import (
+    AlcanceVariables,
     CommunicationProcedureVariables,
     EmergencyPlanVariables,
     EquipmentManualVariables,
@@ -51,6 +53,16 @@ class DocumentSpec:
 
 
 _REGISTRY: dict[str, DocumentSpec] = {
+    "alcance_sgsta": DocumentSpec(
+        document_type="alcance_sgsta",
+        title="Alcance del SGSTA",
+        numeral="4.3",
+        variables_model=AlcanceVariables,
+        generator=AlcanceGenerator(),
+        # 4.1/4.2 (contexto y partes interesadas) delimitan qué debe cubrir
+        # el alcance; amplían el contexto normativo del RAG.
+        extra_rag_numerales=("4.1", "4.2"),
+    ),
     "politica_seguridad": DocumentSpec(
         document_type="politica_seguridad",
         title="Política de seguridad",

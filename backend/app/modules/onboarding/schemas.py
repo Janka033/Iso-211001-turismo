@@ -186,6 +186,25 @@ class OnboardingPayload(BaseModel):
         max_length=2000,
         description="Vehículos disponibles para evacuación: tipo y contacto del encargado.",
     )
+    # Alcance del SGSTA (4.3). Fuente: taller "Alcance del SGSTA" del kit
+    # MinCIT (servicios/ubicación ya se capturan en identidad; estas dos
+    # preguntas completan el taller).
+    site_characteristics: str | None = Field(
+        default=None,
+        max_length=2000,
+        description=(
+            "Características especiales de la zona de operación (zona rural, "
+            "reserva o área natural protegida, ribera de río, montaña)."
+        ),
+    )
+    norm_exclusions: str | None = Field(
+        default=None,
+        max_length=2000,
+        description=(
+            "Requisitos de la NTC-ISO 21101 que el cliente declara no "
+            "aplicables y su justificación, o su declaración de que aplican todos."
+        ),
+    )
     # Datos POR ACTIVIDAD (Parte B). Clave = field_key del checklist
     # (p.ej. ``equipo_rafting``), valor = lo que dijo el cliente. Flexible pero
     # tipado (dict[str, str], no ``dict`` a secas): cada actividad elegida aporta

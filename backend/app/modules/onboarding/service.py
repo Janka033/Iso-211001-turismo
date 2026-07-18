@@ -160,6 +160,18 @@ _UNIVERSAL_QUESTIONS: tuple[tuple[str, str], ...] = (
         "consultado en temas de seguridad (reuniones periódicas, comité, buzón "
         "de sugerencias, evaluación de simulacros)?",
     ),
+    # Alcance del SGSTA (4.3) — completan el taller del kit MinCIT; los
+    # servicios y ubicaciones del alcance ya se capturan en identidad.
+    (
+        "site_characteristics",
+        "¿Qué características especiales tiene la zona donde operan (zona "
+        "rural, reserva o área natural protegida, ribera de río, montaña)?",
+    ),
+    (
+        "norm_exclusions",
+        "¿Hay requisitos de la norma NTC-ISO 21101 que NO apliquen a su "
+        "operación? Si es así, ¿cuáles y por qué? Si aplican todos, indíquenlo.",
+    ),
     # Gestión de incidentes (8.3)
     (
         "incident_classification",
@@ -261,6 +273,7 @@ _IDENTITY_TITLE = "Conozcamos tu empresa"
 
 # Preguntas universales que alimentan cada documento de la ruta.
 _DOC_UNIVERSAL_KEYS: dict[str, tuple[str, ...]] = {
+    "alcance_sgsta": ("site_characteristics", "norm_exclusions"),
     "politica_seguridad": (
         "management_commitment",
         "safety_objectives",

@@ -130,6 +130,12 @@ export const FIELD_LABELS: Record<string, string> = {
   participation_consultation: "Participación y consulta",
   incident_report_fields: "Campos del reporte de incidentes",
 
+  // — Alcance del SGSTA (4.3) —
+  scope_statement: "Declaración del alcance",
+  locations_detail: "Ubicación de la operación",
+  site_characteristics: "Características del entorno",
+  norm_exclusions: "Aplicabilidad de los requisitos de la norma",
+
   // — Checklist Parte A del plan de emergencias (8.2) —
   brigada_emergencias: "Brigada de emergencias",
   capacitaciones_personal_emergencias: "Capacitaciones del personal en emergencias",

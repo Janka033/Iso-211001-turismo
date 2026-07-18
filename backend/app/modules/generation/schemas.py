@@ -643,3 +643,64 @@ class EquipmentManualVariables(AIVariablesModel):
             "cliente la indicó explícitamente; nunca derivada de otras fechas."
         ),
     )
+
+
+class AlcanceVariables(AIVariablesModel):
+    """Variables del Alcance del SGSTA (numeral 4.3).
+
+    Documento corto (1 página) que declara qué cubre el sistema de gestión:
+    servicios, ubicaciones, entorno y aplicabilidad de requisitos. Es variable
+    clave para TODOS los demás documentos del árbol.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    nit: str | None = Field(default=None, description="NIT de la empresa.")
+    activities: list[str] = Field(
+        default_factory=list,
+        description="Actividades de turismo de aventura que cubre el sistema.",
+    )
+    scope_statement: str | None = Field(
+        default=None,
+        description=(
+            "Declaración del alcance del SGSTA: un párrafo formal que enuncia "
+            "los servicios de turismo de aventura cubiertos y dónde se prestan. "
+            "DERÍVALO de las actividades, el alcance y las ubicaciones reales "
+            "del cliente; no lo dejes null por falta de un enunciado literal."
+        ),
+    )
+    locations_detail: str | None = Field(
+        default=None,
+        description=(
+            "Ubicación de la operación: departamento/región, municipio y sitios "
+            "específicos (ríos, cañones, sedes). DERÍVALO de main_region y "
+            "locations del cliente."
+        ),
+    )
+    site_characteristics: str | None = Field(
+        default=None,
+        description=(
+            "Características especiales del entorno donde opera el prestador "
+            "(zona rural, reserva o área natural protegida, ribera de río, "
+            "montaña). SOLO si el cliente las describió."
+        ),
+    )
+    norm_exclusions: str | None = Field(
+        default=None,
+        description=(
+            "Requisitos de la NTC-ISO 21101 que NO aplican a la operación, con "
+            "su justificación; o la declaración del cliente de que aplican "
+            "todos. NUNCA decidas una exclusión que el cliente no declaró."
+        ),
+    )
+    legal_representative: str | None = Field(
+        default=None, description="Representante legal que aprueba el alcance."
+    )
+    approval_date: str | None = Field(
+        default=None,
+        description=(
+            "Fecha de aprobación de ESTE documento (YYYY-MM-DD), SOLO si el "
+            "cliente la indicó explícitamente; nunca derivada de otras fechas."
+        ),
+    )

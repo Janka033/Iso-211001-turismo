@@ -137,6 +137,42 @@ def test_activity_fields_belong_to_their_step(client, make_token, wire):
     assert body["next_field"]["field_key"] == "riesgos_rafting"
 
 
+def test_alcance_step_asks_its_fields_first(client, make_token, wire):
+    # Fase 4: el alcance (4.3) es el paso 1 de la ruta real. Con identidad
+    # completa, sus dos preguntas del taller MinCIT van ANTES que la política.
+    route = [
+        {
+            "step_order": 1,
+            "document_type": "alcance_sgsta",
+            "title": "Alcance del SGSTA",
+            "numeral": "4.3",
+            "generator_ready": True,
+        },
+        *_ROUTE,
+    ]
+    wire(stored=dict(_IDENTITY_DONE), roadmap=route)
+    resp = client.post("/onboarding/chat", json={}, headers=_auth(make_token))
+    body = resp.json()
+    assert body["next_field"]["field_key"] == "site_characteristics"
+    step = body["current_step"]
+    assert step["step_order"] == 1
+    assert step["document_type"] == "alcance_sgsta"
+    assert step["fields_total"] == 2
+
+    # Con el taller respondido, el alcance queda listo para generar y el paso
+    # activo avanza a la política.
+    stored = dict(
+        _IDENTITY_DONE,
+        site_characteristics="Zona rural, ribera del río Fonce",
+        norm_exclusions="Aplican todos los requisitos",
+    )
+    wire(stored=stored, roadmap=route)
+    resp = client.post("/onboarding/chat", json={}, headers=_auth(make_token))
+    body = resp.json()
+    assert body["ready_to_generate"] == ["alcance_sgsta"]
+    assert body["current_step"]["document_type"] == "politica_seguridad"
+
+
 def test_without_route_flow_stays_linear(client, make_token, wire):
     wire(stored=dict(_IDENTITY_DONE))  # sin roadmap => lineal
     resp = client.post("/onboarding/chat", json={}, headers=_auth(make_token))
