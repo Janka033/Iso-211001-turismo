@@ -145,6 +145,13 @@ export const FIELD_LABELS: Record<string, string> = {
   signer_phone: "Teléfono del firmante",
   signer_email: "Correo del firmante",
 
+  // — Planificación y control operacional (8.1) —
+  operational_standards: "Normas y estándares técnicos de las actividades",
+  controls: "Filas de la planificación de control operacional",
+  national_standards: "Normas aplicables (nacional)",
+  international_standards: "Normas aplicables (internacional)",
+  aspects: "Aspectos a controlar",
+
   // — Control de la información documentada (7.5.1) —
   document_control_info: "Responsable y almacenamiento de documentos",
   storage_description: "Almacenamiento de los documentos",

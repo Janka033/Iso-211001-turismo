@@ -214,6 +214,16 @@ class OnboardingPayload(BaseModel):
             "y ciudad y fecha de la firma."
         ),
     )
+    # Planificación y control operacional (8.1).
+    operational_standards: str | None = Field(
+        default=None,
+        max_length=2000,
+        description=(
+            "Normas o estándares técnicos que el cliente sigue en sus "
+            "actividades (NTC específicas, estándares internacionales), o su "
+            "declaración de no tenerlos identificados."
+        ),
+    )
     # Control de la información documentada (7.5.1).
     document_control_info: str | None = Field(
         default=None,

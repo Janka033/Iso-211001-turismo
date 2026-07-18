@@ -993,3 +993,62 @@ class ControlDocumentalVariables(AIVariablesModel):
             "cliente la indicó explícitamente; nunca derivada de otras fechas."
         ),
     )
+
+
+class OperationalControlEntry(AIVariablesModel):
+    """Una fila de la planificación de control operacional (una actividad)."""
+
+    activity: str | None = Field(
+        default=None, description="Actividad de turismo de aventura."
+    )
+    national_standards: str | None = Field(
+        default=None,
+        description=(
+            "Normas aplicables nacionales (NTC u otras). SOLO normas que "
+            "aparezcan textualmente en el contexto del cliente o en los "
+            "extractos normativos; NUNCA cites una norma de memoria."
+        ),
+    )
+    international_standards: str | None = Field(
+        default=None,
+        description=(
+            "Normas o estándares internacionales aplicables. SOLO los que "
+            "aparezcan textualmente en el contexto; NUNCA de memoria."
+        ),
+    )
+    aspects: str | None = Field(
+        default=None,
+        description=(
+            "Aspectos a controlar de la actividad (equipos, competencias del "
+            "guía, condiciones del sitio, aptitud del participante). DERÍVALOS "
+            "de los datos reales del cliente para esa actividad."
+        ),
+    )
+    controls: str | None = Field(
+        default=None,
+        description=(
+            "Cómo se controlan esos aspectos (inspecciones, briefing, "
+            "protocolos, registros). DERÍVALO de los controles y protocolos "
+            "que el cliente ya describió; NUNCA inventes prácticas."
+        ),
+    )
+
+
+class ControlOperacionalVariables(AIVariablesModel):
+    """Variables de la Planificación y control operacional (numeral 8.1).
+
+    Molde del kit MinCIT: una fila por actividad de aventura con las normas
+    aplicables (nacional/internacional), los aspectos a controlar y cómo se
+    controlan.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    controls: list[OperationalControlEntry] = Field(
+        default_factory=list,
+        description=(
+            "Filas de la planificación: una por cada actividad de aventura "
+            "del cliente. PROHIBIDO omitir actividades declaradas."
+        ),
+    )

@@ -201,6 +201,13 @@ _UNIVERSAL_QUESTIONS: tuple[tuple[str, str], ...] = (
         "se cumple a medias o no se cumple, digan qué acción tienen prevista, "
         "quién es el responsable y para cuándo.",
     ),
+    # Planificación y control operacional (8.1)
+    (
+        "operational_standards",
+        "¿Qué normas o estándares técnicos siguen en sus actividades (NTC "
+        "específicas de la actividad, estándares de federaciones "
+        "internacionales)? Si no los tienen identificados, indíquenlo.",
+    ),
     # Control de la información documentada (7.5.1)
     (
         "document_control_info",
@@ -314,6 +321,7 @@ _DOC_UNIVERSAL_KEYS: dict[str, tuple[str, ...]] = {
     "acta_compromiso": ("management_signer",),
     "procedimiento_riesgos_oportunidades": ("risk_management_lead",),
     "control_informacion_documentada": ("document_control_info",),
+    "control_operacional": ("operational_standards",),
     "politica_seguridad": (
         "management_commitment",
         "safety_objectives",

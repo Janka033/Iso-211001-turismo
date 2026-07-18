@@ -20,6 +20,9 @@ from app.modules.generation.generators.communication_procedure import (
 from app.modules.generation.generators.control_documental import (
     ControlDocumentalGenerator,
 )
+from app.modules.generation.generators.control_operacional import (
+    ControlOperacionalGenerator,
+)
 from app.modules.generation.generators.emergency_plan import EmergencyPlanGenerator
 from app.modules.generation.generators.equipment_manual import EquipmentManualGenerator
 from app.modules.generation.generators.incident_management import (
@@ -42,6 +45,7 @@ from app.modules.generation.schemas import (
     AlcanceVariables,
     CommunicationProcedureVariables,
     ControlDocumentalVariables,
+    ControlOperacionalVariables,
     EmergencyPlanVariables,
     EquipmentManualVariables,
     IncidentManagementVariables,
@@ -114,6 +118,15 @@ _REGISTRY: dict[str, DocumentSpec] = {
         generator=ObjetivosSeguridadGenerator(),
         # 5.2: la política es el marco de los objetivos (columna del molde).
         extra_rag_numerales=("5.2",),
+    ),
+    "control_operacional": DocumentSpec(
+        document_type="control_operacional",
+        title="Planificación y control operacional",
+        numeral="8.1",
+        variables_model=ControlOperacionalVariables,
+        generator=ControlOperacionalGenerator(),
+        # Anexo A: proceso de gestión del riesgo, base de los controles.
+        extra_rag_numerales=("A",),
     ),
     "control_informacion_documentada": DocumentSpec(
         document_type="control_informacion_documentada",
