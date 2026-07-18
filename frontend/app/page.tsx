@@ -48,6 +48,8 @@ const AUDITOR_LINE: Record<DocumentType, string> = {
     "La firma de la dirección: el compromiso con el sistema, por escrito.",
   procedimiento_riesgos_oportunidades:
     "El método: cómo identificas, evalúas y tratas cada riesgo, paso a paso.",
+  matriz_requisitos_legales:
+    "Las leyes que te aplican, identificadas y con acción de cumplimiento.",
   matriz_objetivos_seguridad:
     "Objetivos medibles con indicador, fórmula, meta y responsable.",
   control_informacion_documentada:

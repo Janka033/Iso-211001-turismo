@@ -38,6 +38,9 @@ from app.modules.generation.generators.procedimiento_riesgos import (
     ProcedimientoRiesgosGenerator,
 )
 from app.modules.generation.generators.profiles_manual import ProfilesManualGenerator
+from app.modules.generation.generators.requisitos_legales import (
+    RequisitosLegalesGenerator,
+)
 from app.modules.generation.generators.risk_matrix import RiskMatrixGenerator
 from app.modules.generation.generators.security_policy import SecurityPolicyGenerator
 from app.modules.generation.schemas import (
@@ -51,6 +54,7 @@ from app.modules.generation.schemas import (
     IncidentManagementVariables,
     MatrizObjetivosVariables,
     MatrizPartesInteresadasVariables,
+    MatrizRequisitosLegalesVariables,
     ProcedimientoRiesgosVariables,
     ProfilesManualVariables,
     RiskMatrixVariables,
@@ -109,6 +113,13 @@ _REGISTRY: dict[str, DocumentSpec] = {
         generator=ProcedimientoRiesgosGenerator(),
         # Anexo A: proceso de gestión del riesgo, base del procedimiento.
         extra_rag_numerales=("A",),
+    ),
+    "matriz_requisitos_legales": DocumentSpec(
+        document_type="matriz_requisitos_legales",
+        title="Matriz de requisitos legales",
+        numeral="6.1.3",
+        variables_model=MatrizRequisitosLegalesVariables,
+        generator=RequisitosLegalesGenerator(),
     ),
     "matriz_objetivos_seguridad": DocumentSpec(
         document_type="matriz_objetivos_seguridad",

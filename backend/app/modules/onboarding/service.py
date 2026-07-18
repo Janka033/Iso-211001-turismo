@@ -354,6 +354,9 @@ _DOC_UNIVERSAL_KEYS: dict[str, tuple[str, ...]] = {
     # Su insumo (safety_objectives + management_commitment) se captura en el
     # paso de la política: el paso de la matriz no pregunta nada propio.
     "matriz_objetivos_seguridad": (),
+    # Catálogo legal fijo (curado por Felipe); su único insumo (activities)
+    # es de identidad: el paso no pregunta nada propio.
+    "matriz_requisitos_legales": (),
 }
 
 # Insumos que deben existir para OFRECER generar un documento cuyo paso no

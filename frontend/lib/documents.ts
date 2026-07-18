@@ -11,6 +11,7 @@ export type DocumentType =
   | "manual_perfiles_cargos"
   | "procedimiento_riesgos_oportunidades"
   | "matriz_riesgos"
+  | "matriz_requisitos_legales"
   | "matriz_objetivos_seguridad"
   | "comunicacion_participacion_consulta"
   | "control_informacion_documentada"
@@ -27,8 +28,7 @@ export interface DocumentMeta {
   description: string;
 }
 
-// En el orden de la ruta guiada (document_roadmap). La matriz de requisitos
-// legales (6.1.3) se añadirá cuando exista su generador.
+// En el orden de la ruta guiada (document_roadmap).
 export const DOCUMENTS: DocumentMeta[] = [
   {
     type: "alcance_sgsta",
@@ -61,6 +61,14 @@ export const DOCUMENTS: DocumentMeta[] = [
     engine: "docx",
     description:
       "El paso a paso para identificar, evaluar, tratar y hacer seguimiento a riesgos y oportunidades.",
+  },
+  {
+    type: "matriz_requisitos_legales",
+    title: "Matriz de requisitos legales",
+    numeral: "6.1.3",
+    engine: "xlsx",
+    description:
+      "Las leyes, decretos y resoluciones que te aplican, con su acción de cumplimiento (catálogo curado por el experto).",
   },
   {
     type: "matriz_objetivos_seguridad",

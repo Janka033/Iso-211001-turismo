@@ -1052,3 +1052,25 @@ class ControlOperacionalVariables(AIVariablesModel):
             "del cliente. PROHIBIDO omitir actividades declaradas."
         ),
     )
+
+
+class MatrizRequisitosLegalesVariables(AIVariablesModel):
+    """Variables de la Matriz de requisitos legales (numeral 6.1.3).
+
+    El catálogo legal (23 normas) es contenido CURADO por el experto y vive
+    fijo en la plantilla — la IA NUNCA escribe una cita legal. Solo aporta
+    identidad y las actividades (para el filtro determinista de normas
+    específicas de actividad, p. ej. cuatrimotos).
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    activities: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Actividades de turismo de aventura del cliente, con sus slugs "
+            "tal como están en onboarding_data.activities (el sistema filtra "
+            "con ellas las normas específicas de actividad)."
+        ),
+    )
