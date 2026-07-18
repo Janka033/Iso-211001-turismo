@@ -395,6 +395,7 @@ _ALL_UNIVERSAL = {
     "norm_exclusions": "Aplican todos los requisitos de la norma",
     "management_signer": "Ana Ruiz, gerente; tel 300 111 2233; ana@x.co; San Gil, 15/01/2026",
     "risk_management_lead": "El gerente; seguimiento semestral",
+    "document_control_info": "El gerente; electrónicos en la nube, físicos en la oficina",
     "stakeholder_needs": "Clientes: seguridad; Alcaldía: RNT vigente; comunidad: empleo local",
     "stakeholder_compliance": "Cumplimos; la señalización está a medias (gerente, dic 2026)",
     "equipment_maintenance": "Balsas: inspección visual diaria y técnica mensual",

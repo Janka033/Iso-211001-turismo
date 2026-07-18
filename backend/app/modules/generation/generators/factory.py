@@ -17,6 +17,9 @@ from app.modules.generation.generators.base import DocumentGenerator
 from app.modules.generation.generators.communication_procedure import (
     CommunicationProcedureGenerator,
 )
+from app.modules.generation.generators.control_documental import (
+    ControlDocumentalGenerator,
+)
 from app.modules.generation.generators.emergency_plan import EmergencyPlanGenerator
 from app.modules.generation.generators.equipment_manual import EquipmentManualGenerator
 from app.modules.generation.generators.incident_management import (
@@ -38,6 +41,7 @@ from app.modules.generation.schemas import (
     ActaCompromisoVariables,
     AlcanceVariables,
     CommunicationProcedureVariables,
+    ControlDocumentalVariables,
     EmergencyPlanVariables,
     EquipmentManualVariables,
     IncidentManagementVariables,
@@ -110,6 +114,16 @@ _REGISTRY: dict[str, DocumentSpec] = {
         generator=ObjetivosSeguridadGenerator(),
         # 5.2: la política es el marco de los objetivos (columna del molde).
         extra_rag_numerales=("5.2",),
+    ),
+    "control_informacion_documentada": DocumentSpec(
+        document_type="control_informacion_documentada",
+        title="Procedimiento de control de la información documentada",
+        numeral="7.5.1",
+        variables_model=ControlDocumentalVariables,
+        generator=ControlDocumentalGenerator(),
+        # 7.5.2/7.5.3: creación, actualización y control de la información
+        # documentada, complemento directo del 7.5.1.
+        extra_rag_numerales=("7.5.2", "7.5.3"),
     ),
     "politica_seguridad": DocumentSpec(
         document_type="politica_seguridad",

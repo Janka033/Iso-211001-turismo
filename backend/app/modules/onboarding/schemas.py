@@ -214,6 +214,15 @@ class OnboardingPayload(BaseModel):
             "y ciudad y fecha de la firma."
         ),
     )
+    # Control de la información documentada (7.5.1).
+    document_control_info: str | None = Field(
+        default=None,
+        max_length=1000,
+        description=(
+            "Cargo responsable del control de documentos y dónde se "
+            "almacenan (plataforma para electrónicos, lugar físico)."
+        ),
+    )
     # Procedimiento de gestión de riesgos y oportunidades (6.1.1).
     risk_management_lead: str | None = Field(
         default=None,

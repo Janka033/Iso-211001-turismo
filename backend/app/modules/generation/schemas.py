@@ -953,3 +953,43 @@ class ProcedimientoRiesgosVariables(AIVariablesModel):
             "cliente la indicó explícitamente; nunca derivada de otras fechas."
         ),
     )
+
+
+class ControlDocumentalVariables(AIVariablesModel):
+    """Variables del Procedimiento de control de la información documentada (7.5.1).
+
+    La metodología del molde MinCIT (objetivo, alcance, definiciones,
+    aclaraciones, los 9 pasos y los tiempos de retención) es contenido FIJO
+    de la plantilla; la IA solo aporta identidad, el cargo responsable del
+    sistema documental, el almacenamiento real y la aprobación.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    responsible_role: str | None = Field(
+        default=None,
+        description=(
+            "Cargo responsable del sistema de gestión / control de documentos. "
+            "DERÍVALO de lo que dijo el cliente (document_control_info) o de "
+            "su organigrama (p. ej. Gerente). Escríbelo con inicial mayúscula."
+        ),
+    )
+    storage_description: str | None = Field(
+        default=None,
+        description=(
+            "Dónde almacena la empresa sus documentos: la herramienta o "
+            "plataforma para los electrónicos y el lugar físico para los "
+            "impresos, SOLO según lo declarado por el cliente."
+        ),
+    )
+    legal_representative: str | None = Field(
+        default=None, description="Representante legal que aprueba el procedimiento."
+    )
+    approval_date: str | None = Field(
+        default=None,
+        description=(
+            "Fecha de aprobación de ESTE documento (YYYY-MM-DD), SOLO si el "
+            "cliente la indicó explícitamente; nunca derivada de otras fechas."
+        ),
+    )

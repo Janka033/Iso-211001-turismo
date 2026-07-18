@@ -145,6 +145,10 @@ export const FIELD_LABELS: Record<string, string> = {
   signer_phone: "Teléfono del firmante",
   signer_email: "Correo del firmante",
 
+  // — Control de la información documentada (7.5.1) —
+  document_control_info: "Responsable y almacenamiento de documentos",
+  storage_description: "Almacenamiento de los documentos",
+
   // — Procedimiento de riesgos y oportunidades (6.1.1) —
   risk_management_lead: "Líder y frecuencia de la gestión de riesgos",
   responsible_role: "Cargo que lidera la gestión de riesgos",

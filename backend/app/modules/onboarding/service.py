@@ -201,6 +201,13 @@ _UNIVERSAL_QUESTIONS: tuple[tuple[str, str], ...] = (
         "se cumple a medias o no se cumple, digan qué acción tienen prevista, "
         "quién es el responsable y para cuándo.",
     ),
+    # Control de la información documentada (7.5.1)
+    (
+        "document_control_info",
+        "¿Qué cargo es responsable del control de los documentos del sistema, "
+        "y dónde los almacenan: qué plataforma o nube para los electrónicos y "
+        "qué lugar físico para los impresos?",
+    ),
     # Gestión de incidentes (8.3)
     (
         "incident_classification",
@@ -306,6 +313,7 @@ _DOC_UNIVERSAL_KEYS: dict[str, tuple[str, ...]] = {
     "matriz_partes_interesadas": ("stakeholder_needs", "stakeholder_compliance"),
     "acta_compromiso": ("management_signer",),
     "procedimiento_riesgos_oportunidades": ("risk_management_lead",),
+    "control_informacion_documentada": ("document_control_info",),
     "politica_seguridad": (
         "management_commitment",
         "safety_objectives",
