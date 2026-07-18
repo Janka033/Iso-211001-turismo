@@ -14,6 +14,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Panel", icon: <IconHome /> },
+  { href: "/dashboard/ruta", label: "Tu ruta", icon: <IconRoute /> },
   { href: "/dashboard#documentos", label: "Documentos", icon: <IconDoc /> },
   { href: "/dashboard/inventario", label: "Inventario", icon: <IconBox /> },
   { href: "/campo", label: "Terreno", icon: <IconCompass /> },
@@ -68,6 +69,15 @@ function IconHome() {
   return (
     <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
       <path d="M3 9l7-5.5L17 9v7a1 1 0 0 1-1 1h-3v-5H7v5H4a1 1 0 0 1-1-1V9Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconRoute() {
+  return (
+    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none">
+      <circle cx="5" cy="4.5" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="15" cy="15.5" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M7 4.5h6a3 3 0 0 1 0 6H7a3 3 0 0 0 0 6h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }

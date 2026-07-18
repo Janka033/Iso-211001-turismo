@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { apiBase } from "@/lib/api";
+import { ROUTE_TITLES } from "@/lib/route";
 import { createClient } from "@/lib/supabase/client";
 
 /**
@@ -98,6 +99,16 @@ interface OnboardingData {
   [key: string]: unknown;
 }
 
+interface CurrentStep {
+  step_order: number;
+  total: number;
+  document_type: string | null;
+  title: string;
+  numeral: string | null;
+  fields_done: number;
+  fields_total: number;
+}
+
 interface ChatResponse {
   next_question: string | null;
   next_field: { field_key: string; activity: string | null } | null;
@@ -109,6 +120,10 @@ interface ChatResponse {
   // norma (no se guardó nada); safety_note explica el requisito ISO.
   blocked?: boolean;
   safety_note?: string | null;
+  // Ruta guiada (Fase 2/3): el paso activo y los documentos con datos
+  // completos listos para generar. null/[] cuando la ruta no está sembrada.
+  current_step?: CurrentStep | null;
+  ready_to_generate?: string[];
 }
 
 interface Bubble {
@@ -130,6 +145,14 @@ export function OnboardingChat() {
   const [data, setData] = useState<OnboardingData>({});
   const [completeness, setCompleteness] = useState(0);
   const [completed, setCompleted] = useState(false);
+  // Ruta guiada: el paso activo (barra "Paso X de Y") y los documentos listos
+  // para generar. `generatedNow` recuerda los generados desde el chat en esta
+  // sesión para no repetir la tarjeta de celebración.
+  const [currentStep, setCurrentStep] = useState<CurrentStep | null>(null);
+  const [readyDocs, setReadyDocs] = useState<string[]>([]);
+  const [generatedNow, setGeneratedNow] = useState<string[]>([]);
+  const [generating, setGenerating] = useState<string | null>(null);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const [textVal, setTextVal] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -173,6 +196,8 @@ export function OnboardingChat() {
         setData(resp.data);
         setCompleteness(resp.completeness);
         setCompleted(resp.completed);
+        setCurrentStep(resp.current_step ?? null);
+        setReadyDocs(resp.ready_to_generate ?? []);
         const bubbles: Bubble[] = [{ role: "ai", text: GREETING }];
         if (resp.next_question) bubbles.push({ role: "ai", text: resp.next_question });
         setHistory(bubbles);
@@ -229,6 +254,8 @@ export function OnboardingChat() {
     setData(resp.data);
     setCompleteness(resp.completeness);
     setCompleted(resp.completed);
+    setCurrentStep(resp.current_step ?? null);
+    setReadyDocs(resp.ready_to_generate ?? []);
     setHistory((h) => [
       ...h,
       {
@@ -281,6 +308,42 @@ export function OnboardingChat() {
       // El envío falló: se RESTAURA lo escrito para que el cliente solo
       // reintente con Enter — nunca debe reescribir una respuesta larga.
       setTextVal(text);
+    }
+  }
+
+  // Genera un documento cuyo paso quedó completo, sin salir del chat
+  // (celebración: el CTA grande del cierre de paso).
+  async function generateDoc(docType: string) {
+    setGenerating(docType);
+    setGenerateError(null);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("sesión");
+      const res = await fetch(`${apiBase()}/generation/${docType}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      setGeneratedNow((g) => [...g, docType]);
+      setHistory((h) => [
+        ...h,
+        {
+          role: "ai",
+          text: `🎉 ¡Generé tu ${ROUTE_TITLES[docType] ?? docType}! Puedes verlo en tu ruta o descargarlo desde Documentos. Sigamos con el siguiente paso.`,
+        },
+      ]);
+    } catch {
+      setGenerateError(
+        "No se pudo generar el documento. Intenta de nuevo o hazlo desde el panel.",
+      );
+    } finally {
+      setGenerating(null);
     }
   }
 
@@ -343,6 +406,29 @@ export function OnboardingChat() {
       {/* Conversación */}
       <div className="card flex h-[560px] flex-col overflow-hidden">
         <div className="border-b border-slate-100 px-5 py-4">
+          {/* Ruta guiada: el paso activo con su propio anillo de progreso.
+              Sin ruta sembrada (currentStep null) se muestra solo el global. */}
+          {currentStep && (
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-slate-900">
+                  {currentStep.step_order === 0
+                    ? currentStep.title
+                    : `Paso ${currentStep.step_order} de ${currentStep.total} — ${currentStep.title}`}
+                </p>
+                {currentStep.numeral && (
+                  <p className="text-xs text-slate-400">
+                    Numeral {currentStep.numeral}
+                  </p>
+                )}
+              </div>
+              {currentStep.fields_total > 0 && (
+                <span className="badge shrink-0 bg-marca-50 text-marca-700">
+                  {currentStep.fields_done} / {currentStep.fields_total} datos
+                </span>
+              )}
+            </div>
+          )}
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium text-slate-700">Datos capturados</span>
             <span className="font-semibold text-marca-700">{Math.round(completeness)}%</span>
@@ -388,6 +474,40 @@ export function OnboardingChat() {
           )}
         </div>
 
+        {/* Celebración de cierre de paso: documentos con datos completos aún
+            sin generar. CTA grande sin salir del chat. */}
+        {readyDocs.filter((d) => !generatedNow.includes(d)).length > 0 && (
+          <div className="border-t border-accent-100 bg-accent-50 px-5 py-3">
+            {readyDocs
+              .filter((d) => !generatedNow.includes(d))
+              .map((docType) => (
+                <div
+                  key={docType}
+                  className="flex flex-wrap items-center justify-between gap-2 py-1"
+                >
+                  <p className="text-sm font-medium text-slate-800">
+                    ✦ ¡Completaste los datos de{" "}
+                    <span className="font-semibold">
+                      {ROUTE_TITLES[docType] ?? docType}
+                    </span>
+                    !
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void generateDoc(docType)}
+                    disabled={generating !== null}
+                    className="btn-primary px-3 py-1.5 text-xs"
+                  >
+                    {generating === docType ? "Generando…" : "Generar mi documento"}
+                  </button>
+                </div>
+              ))}
+            {generateError && (
+              <p className="mt-1 text-xs text-amber-700">{generateError}</p>
+            )}
+          </div>
+        )}
+
         <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-4">
           {!completed ? (
             <form
@@ -426,8 +546,8 @@ export function OnboardingChat() {
               </button>
             </form>
           ) : (
-            <Link href="/dashboard" className="btn-marca w-full justify-center">
-              Generar mis documentos
+            <Link href="/dashboard/ruta" className="btn-marca w-full justify-center">
+              Ver tu ruta a la certificación
             </Link>
           )}
           {error && <p className="mt-3 text-xs text-amber-600">{error}</p>}

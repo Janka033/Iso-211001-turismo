@@ -165,10 +165,10 @@ export const FIELD_LABELS: Record<string, string> = {
   policy_statement: "Política que enmarca los objetivos",
   objectives: "Filas de la matriz de objetivos",
   origin: "Origen del objetivo",
-  objective: "Objetivo de seguridad",
+  // ("objective" ya existe arriba como label genérico "Objetivo")
   indicator_name: "Nombre del indicador",
   formula: "Fórmula del indicador",
-  frequency: "Frecuencia de medición",
+  // ("frequency" ya existe arriba como label genérico "Frecuencia")
   goal: "Meta",
 
   // — Matriz de partes interesadas (4.2) —
