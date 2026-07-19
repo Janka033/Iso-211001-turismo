@@ -19,6 +19,7 @@ from __future__ import annotations
 import functools
 import json
 import logging
+import re
 from collections.abc import Callable
 from typing import TypeVar
 
@@ -593,6 +594,69 @@ def _apply_absent(data: dict, fields: list[str], activity_keys: set[str]) -> lis
     return marked
 
 
+# Cargos que cuentan como guías para el cruce guías/organigrama.
+_GUIDE_ROLE_HINTS = ("guia", "guía")
+
+
+def _first_int(value: object) -> int | None:
+    """Primer entero que aparece en el texto ('5', '5 guías' -> 5); None si no hay."""
+    if value is None:
+        return None
+    match = re.search(r"\d+", str(value))
+    return int(match.group()) if match else None
+
+
+def _guides_in_org(staff_roles: dict) -> int | None:
+    """Personas en cargos de guía del organigrama. None si no hay ningún cargo
+    de guía (no se puede cruzar)."""
+    total = 0
+    found = False
+    for role, count in (staff_roles or {}).items():
+        if any(h in str(role).lower() for h in _GUIDE_ROLE_HINTS):
+            n = _first_int(count)
+            if n is not None:
+                total += n
+                found = True
+    return total if found else None
+
+
+def _data_warnings(data: dict, touched: set[str]) -> list[str]:
+    """Avisos DETERMINISTAS sobre datos sospechosos o incongruentes, SOLO de los
+    campos tocados este turno (no se repiten cada turno). No bloquean: invitan a
+    confirmar o corregir. Complementan la regla 'valor sospechoso' de la IA con
+    chequeos que el sistema hace siempre igual."""
+    warnings: list[str] = []
+
+    if "nit" in touched:
+        nit = str(data.get("nit") or "").strip()
+        digits = re.sub(r"\D", "", nit)
+        if digits and not 8 <= len(digits) <= 11:
+            warnings.append(
+                f"El NIT que registré (“{nit}”) tiene {len(digits)} dígitos; un "
+                "NIT colombiano suele tener 9 más el dígito de verificación. "
+                "¿Lo confirmas o lo corriges?"
+            )
+
+    if "rnt_number" in touched:
+        rnt = str(data.get("rnt_number") or "").strip()
+        if rnt and not re.fullmatch(r"[\d\s.\-]+", rnt):
+            warnings.append(
+                f"El número de RNT (“{rnt}”) no parece numérico. ¿Lo confirmas "
+                "o lo corriges?"
+            )
+
+    if touched & {"certified_guides", "staff_roles"}:
+        declared = _first_int(data.get("certified_guides"))
+        in_org = _guides_in_org(data.get("staff_roles") or {})
+        if declared is not None and in_org is not None and declared != in_org:
+            warnings.append(
+                f"Registré {declared} guías certificados, pero en el organigrama "
+                f"aparecen {in_org} en cargos de guía. ¿Cuál es el número correcto?"
+            )
+
+    return warnings
+
+
 def _to_list(value: str) -> list[str]:
     """Parte un texto en lista por saltos de línea, ';' o ','. Sin inventar."""
     parts: list[str] = []
@@ -1101,6 +1165,13 @@ async def chat(
     pct, completed = _measure_dynamic(data, checklist)
     current_step = CurrentStepInfo(**step_after) if step_after else None
 
+    # Validación proactiva determinista sobre lo tocado este turno (NIT/RNT con
+    # formato raro, guías que no cuadran con el organigrama). No bloquea.
+    touched_keys = set(extracted)
+    if roles_changed:
+        touched_keys.add("staff_roles")
+    warnings = _data_warnings(data, touched_keys)
+
     next_field_row = pending_after[0] if pending_after else None
     next_field = (
         OnboardingField(
@@ -1160,6 +1231,7 @@ async def chat(
         completed=completed,
         current_step=current_step,
         ready_to_generate=ready_docs,
+        data_warnings=warnings,
     )
 
 

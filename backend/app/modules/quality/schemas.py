@@ -158,6 +158,38 @@ class QualityEvaluation(BaseModel):
     suggested_corrections: list[SuggestedCorrection] = Field(default_factory=list)
 
 
+class ReadinessItem(BaseModel):
+    """Estado de preparación de UN documento de la ruta para la auditoría."""
+
+    document_type: str
+    title: str
+    numeral: str
+    # ok | missing | incomplete | unevaluated | below_threshold
+    state: str = Field(description="Estado del documento frente al umbral de auditoría.")
+    detail: str = Field(description="Qué falta (o 'Listo'), en lenguaje del cliente.")
+    score: float | None = Field(default=None, description="Score del Auditor, si existe.")
+
+
+class AuditReadiness(BaseModel):
+    """Veredicto de PREPARACIÓN DOCUMENTAL para la auditoría (no es una garantía
+    de certificación: esa la da un organismo acreditado sobre evidencia real).
+
+    Agrega los documentos de la ruta y responde si el expediente está completo,
+    coherente y sin pendientes, listando lo que aún bloquea presentarlo.
+    """
+
+    ready: bool = Field(description="True si no queda ningún bloqueador documental.")
+    total: int = Field(description="Documentos de la ruta.")
+    ready_count: int = Field(description="Documentos que ya pasan el umbral, sin pendientes.")
+    threshold: float = Field(description="Score mínimo del Auditor para 'presentable'.")
+    blockers: list[str] = Field(
+        default_factory=list,
+        description="Qué falta para presentar, en lenguaje del cliente.",
+    )
+    items: list[ReadinessItem] = Field(default_factory=list)
+    summary: str = Field(description="Veredicto en una frase honesta.")
+
+
 class QualityReviewOut(BaseModel):
     """Una evaluación persistida, con su estado de revisión."""
 

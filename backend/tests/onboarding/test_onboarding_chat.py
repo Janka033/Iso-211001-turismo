@@ -390,6 +390,54 @@ def test_giving_value_reactivates_absent_field(client, make_token, wire):
     assert "certified_guides" not in body["data"].get("absent_fields", [])
 
 
+def test_data_warning_on_malformed_nit(client, make_token, wire):
+    """Un NIT con muy pocos dígitos genera un aviso (no bloquea)."""
+    wire(
+        ai_output={
+            "extracted": {"nit": "123"},
+            "next_field_key": "rnt_status",
+            "next_question": "¿Su RNT está vigente?",
+            "completed": False,
+        },
+        stored={"activities": ["rafting"], "main_region": "Quindío"},
+    )
+    resp = client.post(
+        "/onboarding/chat", json={"message": "el nit es 123"}, headers=_auth(make_token)
+    )
+    body = resp.json()
+    assert body["data"]["nit"] == "123"  # se guarda igual (no bloquea)
+    assert any("NIT" in w for w in body["data_warnings"])
+
+
+def test_no_warning_when_nit_is_well_formed():
+    from app.modules.onboarding import service
+
+    assert service._data_warnings({"nit": "901.234.567-8"}, {"nit"}) == []
+
+
+def test_data_warning_on_guides_vs_org_mismatch():
+    from app.modules.onboarding import service
+
+    data = {"certified_guides": "7", "staff_roles": {"guia": "4", "gerente": "1"}}
+    warns = service._data_warnings(data, {"certified_guides"})
+    assert len(warns) == 1
+    assert "7" in warns[0] and "4" in warns[0]
+
+
+def test_no_guides_warning_when_congruent():
+    from app.modules.onboarding import service
+
+    data = {"certified_guides": "4", "staff_roles": {"guías": "4"}}
+    assert service._data_warnings(data, {"staff_roles"}) == []
+
+
+def test_warnings_only_for_touched_fields():
+    """Un NIT raro ya guardado no re-avisa si no se tocó este turno."""
+    from app.modules.onboarding import service
+
+    assert service._data_warnings({"nit": "123"}, set()) == []
+
+
 def test_compliant_answer_is_not_blocked(client, make_token, wire):
     # compliant por defecto (o true) => flujo normal, sin bloqueo.
     wire(

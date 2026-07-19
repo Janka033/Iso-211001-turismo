@@ -500,3 +500,10 @@ class OnboardingChatResponse(BaseModel):
         default_factory=list,
         description="document_types con datos completos y sin documento generado.",
     )
+    # Validación proactiva (determinista): avisos sobre datos que parecen mal
+    # puestos o incongruentes (NIT/RNT con formato raro, nº de guías que no
+    # cuadra con el organigrama). No bloquean; invitan a confirmar o corregir.
+    data_warnings: list[str] = Field(
+        default_factory=list,
+        description="Avisos de datos sospechosos o incongruentes de ESTE turno.",
+    )

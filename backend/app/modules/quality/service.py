@@ -45,8 +45,10 @@ from app.modules.generation.schemas import GenerateRequest
 from app.modules.onboarding import service as onboarding_service
 from app.modules.quality import repository
 from app.modules.quality.schemas import (
+    AuditReadiness,
     QualityEvaluation,
     QualityReviewOut,
+    ReadinessItem,
     RemediationOut,
     RemediationRequest,
     ReviewDecisionOut,
@@ -57,12 +59,105 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
+# Score mínimo del Auditor para considerar un documento "presentable". Coincide
+# con el corte de 3 estrellas de la ruta y evita el rango rojo (<60) y el
+# amarillo bajo: un documento por debajo aún tiene observaciones que un auditor
+# real señalaría.
+_READINESS_THRESHOLD = 80.0
+
 # La decisión del revisor se refleja en document_status (estados de 0018).
 _DECISION_TO_DOC_STATUS = {
     "approved": "approved",
     "rejected": "rejected",
     "needs_correction": "needs_correction",
 }
+
+
+def _readiness_of_step(step: object) -> tuple[str, str]:
+    """(estado, detalle legible) de un paso frente al umbral de auditoría.
+
+    Se apoya SOLO en el estado derivado del roadmap (status + completeness +
+    last_score): la fuente de verdad sigue siendo el motor, esto solo lo lee.
+    """
+    status = step.status  # type: ignore[attr-defined]
+    if status == "pendiente":
+        return "missing", "Falta generarlo."
+    if status == "approved":
+        return "ok", "Aprobado por el revisor."
+    if status in ("rejected", "needs_correction"):
+        return "below_threshold", "El revisor pidió corregirlo."
+    # Generado sin decisión del revisor: mira pendientes y score del Auditor.
+    completeness = step.completeness  # type: ignore[attr-defined]
+    if completeness is not None and completeness < 100:
+        return "incomplete", "Tiene campos pendientes ([PENDIENTE]) por completar."
+    score = step.last_score  # type: ignore[attr-defined]
+    if score is None:
+        return "unevaluated", "Falta evaluarlo en Calidad para confirmar que cumple."
+    if score < _READINESS_THRESHOLD:
+        return (
+            "below_threshold",
+            f"Score del Auditor {score:.0f}; súbelo a ≥{int(_READINESS_THRESHOLD)} "
+            "resolviendo sus observaciones en Calidad.",
+        )
+    return "ok", "Listo."
+
+
+async def get_readiness(tenant_id: str, token: str) -> AuditReadiness:
+    """Veredicto de PREPARACIÓN DOCUMENTAL: agrega los documentos de la ruta y
+    dice si el expediente está listo para presentar, con lo que aún bloquea.
+
+    NO afirma que la empresa "pasa la certificación" (esa la da un organismo
+    acreditado sobre evidencia operativa real): afirma que los documentos
+    están completos, coherentes y sin pendientes según el Auditor.
+    """
+    roadmap = await onboarding_service.get_roadmap(tenant_id, token)
+
+    # Solo cuentan los documentos que el motor ya sabe generar. Un paso
+    # "próximamente" (generator_ready=False) no es algo que el cliente pueda
+    # preparar hoy, así que no bloquea el veredicto ni infla el total —
+    # afirmar lo contrario haría 'ready' inalcanzable y sería deshonesto.
+    actionable = [s for s in roadmap.steps if s.generator_ready]
+
+    items: list[ReadinessItem] = []
+    blockers: list[str] = []
+    ready_count = 0
+    for step in actionable:
+        state, detail = _readiness_of_step(step)
+        items.append(
+            ReadinessItem(
+                document_type=step.document_type,
+                title=step.title,
+                numeral=step.numeral,
+                state=state,
+                detail=detail,
+                score=step.last_score,
+            )
+        )
+        if state == "ok":
+            ready_count += 1
+        else:
+            blockers.append(f"{step.title} (numeral {step.numeral}): {detail}")
+
+    total = len(actionable)
+    ready = total > 0 and ready_count == total
+    summary = (
+        "Tu expediente documental está completo, coherente y sin pendientes: "
+        "listo para presentarlo a la auditoría."
+        if ready
+        else (
+            f"Aún no está listo: {total - ready_count} de {total} documentos "
+            "por resolver antes de presentarlo."
+        )
+    )
+    return AuditReadiness(
+        ready=ready,
+        total=total,
+        ready_count=ready_count,
+        threshold=_READINESS_THRESHOLD,
+        blockers=blockers,
+        items=items,
+        summary=summary,
+    )
 
 
 async def _run(fn: Callable[..., T], *args: object, **kwargs: object) -> T:

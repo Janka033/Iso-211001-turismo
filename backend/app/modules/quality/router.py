@@ -16,6 +16,7 @@ from app.core.security import (
 )
 from app.modules.quality import service
 from app.modules.quality.schemas import (
+    AuditReadiness,
     QualityReviewOut,
     RemediationOut,
     RemediationRequest,
@@ -24,6 +25,17 @@ from app.modules.quality.schemas import (
 )
 
 router = APIRouter(prefix="/quality", tags=["quality"])
+
+
+@router.get("/readiness", response_model=AuditReadiness)
+async def audit_readiness(
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),  # 401 si el JWT no trae el claim
+) -> AuditReadiness:
+    """Veredicto de preparación documental: ¿está el expediente listo para
+    presentar a la auditoría? Agrega los documentos de la ruta y lista lo que
+    aún falta. No garantiza la certificación (esa la da un organismo acreditado)."""
+    return await service.get_readiness(tenant_id, user.token)
 
 
 @router.post(

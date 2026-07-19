@@ -125,6 +125,9 @@ interface ChatResponse {
   // completos listos para generar. null/[] cuando la ruta no está sembrada.
   current_step?: CurrentStep | null;
   ready_to_generate?: string[];
+  // Validación proactiva: avisos de datos que parecen mal puestos o
+  // incongruentes (no bloquean; invitan a confirmar o corregir).
+  data_warnings?: string[];
 }
 
 interface Bubble {
@@ -257,19 +260,27 @@ export function OnboardingChat() {
     setCompleted(resp.completed);
     setCurrentStep(resp.current_step ?? null);
     setReadyDocs(resp.ready_to_generate ?? []);
-    setHistory((h) => [
-      ...h,
-      {
-        role: "ai",
-        // Si el interceptor rechazó la respuesta, se marca como advertencia y el
-        // texto es la explicación del requisito ISO + cómo replantear.
-        tone: resp.blocked ? "warning" : undefined,
-        text:
-          resp.safety_note ??
-          resp.next_question ??
-          "¡Listo! Con esto puedo preparar tus documentos. Lo que falte lo marcaré como [PENDIENTE] para que lo completes.",
-      },
-    ]);
+    setHistory((h) => {
+      const next: Bubble[] = [
+        ...h,
+        {
+          role: "ai",
+          // Si el interceptor rechazó la respuesta, se marca como advertencia y
+          // el texto es la explicación del requisito ISO + cómo replantear.
+          tone: resp.blocked ? "warning" : undefined,
+          text:
+            resp.safety_note ??
+            resp.next_question ??
+            "¡Listo! Con esto puedo preparar tus documentos. Lo que falte lo marcaré como [PENDIENTE] para que lo completes.",
+        },
+      ];
+      // Avisos de validación: cada dato dudoso como burbuja ámbar, para que el
+      // cliente confirme o corrija sin perder el hilo.
+      for (const warning of resp.data_warnings ?? []) {
+        next.push({ role: "ai", tone: "warning", text: warning });
+      }
+      return next;
+    });
   }
 
   // Confirma la selección de actividades: las PERSISTE (el turno inicial guarda

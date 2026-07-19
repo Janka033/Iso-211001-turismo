@@ -1,3 +1,4 @@
+import { AuditReadinessCard } from "@/components/dashboard/audit-readiness";
 import { RouteMap } from "@/components/dashboard/route-map";
 
 /**
@@ -15,6 +16,9 @@ export default function RutaPage() {
         Un paso a la vez: responde las preguntas de cada documento en el chat y
         genéralo cuando esté listo. Tres estrellas = aprobado por el Auditor.
       </p>
+      <div className="mt-6">
+        <AuditReadinessCard />
+      </div>
       <RouteMap />
     </main>
   );
