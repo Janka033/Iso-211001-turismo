@@ -417,18 +417,21 @@ def _doc_of_field(field: dict) -> str | None:
 
 
 def _doc_field_universe(doc: str, data: dict, checklist: list[dict]) -> tuple[int, int]:
-    """(respondidos, total) de los campos obligatorios que alimentan un doc."""
+    """(respondidos, total) de los campos obligatorios que alimentan un doc.
+    'No aplica' cuenta como respondido."""
     activity_fields = data.get("activity_fields") or {}
+    absent = _absent_set(data)
     total = done = 0
     for key in _DOC_UNIVERSAL_KEYS.get(doc, ()):
         total += 1
-        done += 1 if _has_value(data.get(key)) else 0
+        done += 1 if _is_resolved(data, key) else 0
     for row in checklist:
         if not row.get("required", True):
             continue
-        if _ACTIVITY_CAT_DOC.get(_category_of(row["field_key"])) == doc:
+        key = row["field_key"]
+        if _ACTIVITY_CAT_DOC.get(_category_of(key)) == doc:
             total += 1
-            done += 1 if activity_fields.get(row["field_key"]) else 0
+            done += 1 if (activity_fields.get(key) or key in absent) else 0
     return done, total
 
 
@@ -489,7 +492,7 @@ def _route_view(
 
     first = ordered[0]
     if first["field_key"] in _IDENTITY_KEYS:
-        done = sum(1 for k in _IDENTITY_KEYS if _has_value(data.get(k)))
+        done = sum(1 for k in _IDENTITY_KEYS if _is_resolved(data, k))
         step_info = {
             "step_order": 0,
             "total": total_steps,
@@ -546,6 +549,48 @@ def _has_value(value: object) -> bool:
     if isinstance(value, (list, dict, str)):
         return len(value) > 0
     return True
+
+
+def _absent_set(data: dict) -> set[str]:
+    """field_key que el cliente declaró NO tener/aplicar (respuesta negativa)."""
+    return {k for k in (data.get("absent_fields") or []) if isinstance(k, str)}
+
+
+def _is_resolved(data: dict, key: str) -> bool:
+    """Un campo está RESUELTO si tiene valor O el cliente declaró no tenerlo.
+    'No tengo' es una respuesta válida, no un vacío: no debe quedar pendiente."""
+    return _has_value(data.get(key)) or key in _absent_set(data)
+
+
+def _clear_field(data: dict, key: str, activity_keys: set[str]) -> None:
+    """Vacía un campo a su default (para 'ya no tengo X' sobre un dato ya dado)."""
+    if key in (data.get("activity_fields") or {}):
+        data["activity_fields"].pop(key, None)
+    elif key == "staff_roles":
+        data["staff_roles"] = {}
+    elif key in _LIST_FIELDS:
+        data[key] = []
+    elif key in _UNIVERSAL_KEYS or key in activity_keys:
+        data[key] = None
+
+
+def _apply_absent(data: dict, fields: list[str], activity_keys: set[str]) -> list[str]:
+    """Marca como declarados ausentes los field_key válidos: los añade a
+    ``absent_fields``, vacía su valor previo y devuelve los efectivamente
+    marcados. Solo acepta claves reales (universales, staff_roles o de las
+    actividades elegidas); descarta inventadas."""
+    valid = set(_UNIVERSAL_KEYS) | {"staff_roles"} | activity_keys
+    absent = _absent_set(data)
+    marked: list[str] = []
+    for key in fields:
+        if key not in valid or key in absent:
+            continue
+        _clear_field(data, key, activity_keys)
+        absent.add(key)
+        marked.append(key)
+    if marked:
+        data["absent_fields"] = sorted(absent)
+    return marked
 
 
 def _to_list(value: str) -> list[str]:
@@ -631,8 +676,9 @@ def _pending_fields(data: dict, checklist: list[dict]) -> list[dict]:
     (required=false) NUNCA entran aquí: no alargan el camino obligatorio (ver
     ``_optional_unanswered``). Cada item: field_key, activity, prompt."""
     pending: list[dict] = []
+    absent = _absent_set(data)
     for key, question in _UNIVERSAL_QUESTIONS:
-        if not _has_value(data.get(key)):
+        if not _has_value(data.get(key)) and key not in absent:
             pending.append({"field_key": key, "activity": None, "prompt": question})
 
     activity_fields = data.get("activity_fields") or {}
@@ -645,7 +691,7 @@ def _pending_fields(data: dict, checklist: list[dict]) -> list[dict]:
     for row in sorted(checklist, key=rank):
         if not row.get("required", True):
             continue
-        if not activity_fields.get(row["field_key"]):
+        if not activity_fields.get(row["field_key"]) and row["field_key"] not in absent:
             cat = _category_of(row["field_key"])
             template = _ACTIVITY_QUESTION_TEMPLATES.get(cat, "Para {act}: {desc}")
             prompt = template.format(
@@ -687,15 +733,18 @@ def _measure_dynamic(data: dict, checklist: list[dict]) -> tuple[float, bool]:
     Los campos OPCIONALES (required=false) solo entran al cálculo si el
     cliente los dio: suman completitud al responderse, pero su ausencia no
     baja el % ni bloquea ``completed``."""
+    absent = _absent_set(data)
     total = len(_UNIVERSAL_KEYS)
-    filled = sum(1 for k in _UNIVERSAL_KEYS if _has_value(data.get(k)))
+    filled = sum(1 for k in _UNIVERSAL_KEYS if _has_value(data.get(k)) or k in absent)
     activity_fields = data.get("activity_fields") or {}
     for row in checklist:
-        has_value = bool(activity_fields.get(row["field_key"]))
-        if not row.get("required", True) and not has_value:
+        key = row["field_key"]
+        # 'No aplica' cuenta como resuelto (el cliente respondió, negativamente).
+        resolved = bool(activity_fields.get(key)) or key in absent
+        if not row.get("required", True) and not resolved:
             continue
         total += 1
-        if has_value:
+        if resolved:
             filled += 1
     pct = round(filled / total * 100, 2) if total else 0.0
     return pct, filled == total
@@ -931,6 +980,7 @@ async def chat(
     rejected = False  # el interceptor de seguridad rechazó la respuesta
     ai_degraded = False  # la IA falló y el turno se capturó en modo determinista
     roles_changed = False  # el turno corrigió el organigrama (staff_roles)
+    absent_changed = False  # el turno marcó campos como "no aplica"
 
     # Solo llamamos a la IA si hay una respuesta del cliente que interpretar.
     if payload.message and payload.message.strip():
@@ -1014,6 +1064,23 @@ async def chat(
                     }
                     roles_changed = True
 
+                # "No tengo / no aplica": el cliente declaró no tener un dato (o
+                # pidió quitarlo). Se marca resuelto y se avanza — antes esto
+                # dejaba el campo pendiente y el backend lo repreguntaba en bucle.
+                absent_now = _apply_absent(
+                    data, ai_out.not_applicable_fields, activity_keys
+                )
+                absent_changed = bool(absent_now)
+                # Reactivar: si el cliente ahora SÍ dio un dato que antes declaró
+                # ausente, ese campo deja de ser "no aplica".
+                given = set(extracted)
+                if data.get("staff_roles"):
+                    given.add("staff_roles")
+                if data.get("absent_fields") and given:
+                    data["absent_fields"] = [
+                        k for k in data["absent_fields"] if k not in given
+                    ]
+
     # El alcance es derivado, no una pregunta: se compone de las actividades +
     # ubicaciones + región que el cliente ya dio, y se mantiene fresco en cada
     # turno (p. ej. si agrega una actividad).
@@ -1066,14 +1133,14 @@ async def chat(
     # valor sospechoso): sin este acuse la respuesta salía vacía y el cliente no
     # sabía si su corrección se aplicó. Se usa la confirmación de la IA si la
     # dio; si no, un acuse determinista con los campos tocados.
-    if next_question is None and (extracted or roles_changed):
+    if next_question is None and (extracted or roles_changed or absent_changed):
         touched = sorted(extracted)
         if roles_changed:
             touched.append("staff_roles")
+        detail = f" ({', '.join(touched)})" if touched else ""
         next_question = (
-            "Listo, quedó actualizado: " + ", ".join(touched) + ". "
-            "Tu onboarding sigue completo; si necesitas corregir otro dato, "
-            "escríbelo y lo ajusto."
+            f"Listo, lo tuve en cuenta{detail}. Tu onboarding sigue completo; "
+            "si necesitas corregir o agregar otro dato, escríbelo y lo ajusto."
         )
     # Turno capturado en modo determinista: se le dice al cliente con claridad
     # profesional que su respuesta quedó registrada tal cual (nada se perdió).

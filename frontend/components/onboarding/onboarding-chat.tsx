@@ -96,6 +96,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 interface OnboardingData {
   activities?: string[];
   activity_fields?: Record<string, string>;
+  absent_fields?: string[];
   [key: string]: unknown;
 }
 
@@ -587,8 +588,14 @@ export function OnboardingChat() {
 }
 
 function ExtractedPanel({ data, activities }: { data: OnboardingData; activities: string[] }) {
+  // Campos que el cliente declaró no tener: se muestran como "No aplica" (una
+  // respuesta válida), no se ocultan como si faltaran.
+  const absent = new Set(data.absent_fields ?? []);
   const universalEntries = Object.entries(UNIVERSAL_LABELS)
-    .map(([key, label]) => [label, formatValue(data[key])] as const)
+    .map(([key, label]) => {
+      const value = absent.has(key) ? "No aplica" : formatValue(data[key]);
+      return [label, value] as const;
+    })
     .filter(([, value]) => value !== null);
 
   const activityFields = data.activity_fields ?? {};

@@ -294,6 +294,13 @@ class OnboardingPayload(BaseModel):
         default_factory=dict,
         description="Respuestas de subsanación indexadas por field_key de la corrección.",
     )
+    # Campos que el cliente declaró NO tener o que NO aplican ("no tengo",
+    # "no aplica"). Es dato del cliente (una respuesta negativa, no un vacío):
+    # el flujo los trata como resueltos y no los repregunta.
+    absent_fields: list[str] = Field(
+        default_factory=list,
+        description="field_key que el cliente declaró no tener o no aplicables.",
+    )
 
 
 class OnboardingState(BaseModel):
@@ -384,6 +391,14 @@ class OnboardingExtraction(BaseModel):
     staff_roles: dict[str, str] = Field(
         default_factory=dict,
         description="Cargo -> nº de personas; solo si el cliente lo menciona. No inventar.",
+    )
+    not_applicable_fields: list[str] = Field(
+        default_factory=list,
+        description=(
+            "field_key que el cliente declaró NO tener o que NO aplican ('no "
+            "tengo', 'no aplica', 'ninguno', 'quítalo'). El backend los marca "
+            "resueltos y avanza; NO se vuelven a preguntar."
+        ),
     )
     next_field_key: str | None = Field(
         default=None, description="field_key que la IA propone preguntar (de la lista pendiente)."

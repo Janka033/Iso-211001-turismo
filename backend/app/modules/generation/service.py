@@ -374,6 +374,7 @@ def _assemble_prompt(
         onboarding, inventory
     )
     remediation_block = _render_remediation(onboarding_for_prompt)
+    absent_block = _render_absent(onboarding_for_prompt)
 
     company_json = json.dumps(
         {"company": company, "onboarding_data": onboarding_for_prompt},
@@ -381,7 +382,8 @@ def _assemble_prompt(
         indent=2,
     )
     company_context = (
-        f"{remediation_block}{inventory_block}\n\n{onboarding_note}{company_json}"
+        f"{remediation_block}{absent_block}{inventory_block}"
+        f"\n\n{onboarding_note}{company_json}"
     )
 
     if chunks:
@@ -487,6 +489,26 @@ def _render_remediation(onboarding: dict) -> str:
         lines.append(f"- {key}: {value}")
     lines.append("")
     return "\n".join(lines) + "\n"
+
+
+def _render_absent(onboarding: dict) -> str:
+    """Campos que el cliente declaró NO tener/aplicar, como bloque explícito.
+
+    ``onboarding_data.absent_fields`` recoge las respuestas 'no tengo / no
+    aplica'. Sin esta nota, un campo así saldría como [PENDIENTE] (engañoso:
+    el cliente SÍ respondió, negativamente). Con ella la IA redacta 'No
+    aplica'. Devuelve "" si no hay campos declarados ausentes.
+    """
+    absent = [k for k in (onboarding.get("absent_fields") or []) if isinstance(k, str)]
+    if not absent:
+        return ""
+    return (
+        "=== CAMPOS QUE EL CLIENTE DECLARÓ NO TENER / NO APLICAR ===\n"
+        "Para estos campos el cliente indicó que NO los tiene o que NO le "
+        "aplican: " + ", ".join(absent) + ". Cuando alguno alimente una "
+        "variable del documento, escribe 'No aplica' (o 'La organización no "
+        "cuenta con ello'); NUNCA lo trates como faltante ni inventes un dato.\n\n"
+    )
 
 
 def _apply_inventory_precedence(

@@ -309,6 +309,87 @@ def test_safety_interceptor_blocks_and_saves_nothing(client, make_token, wire):
     assert body["next_field"]["field_key"] == "main_region"
 
 
+def test_not_applicable_advances_instead_of_looping(client, make_token, wire):
+    """'No tengo' declara el campo ausente y AVANZA (antes: bucle infinito)."""
+    wire(
+        ai_output={
+            "extracted": {},
+            "not_applicable_fields": ["staff_roles"],
+            "next_field_key": "legal_representative",
+            "next_question": "¿Quién es el representante legal?",
+            "completed": False,
+        },
+        stored={
+            "activities": ["rafting"],
+            "main_region": "Quindío",
+            "locations": ["Salento"],
+            "certified_guides": "7",
+        },
+    )
+    resp = client.post(
+        "/onboarding/chat",
+        json={"message": "no tengo"},
+        headers=_auth(make_token),
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    # staff_roles quedó declarado ausente y NO se vuelve a preguntar.
+    assert "staff_roles" in body["data"]["absent_fields"]
+    assert body["next_field"]["field_key"] != "staff_roles"
+    assert body["next_field"]["field_key"] == "legal_representative"
+
+
+def test_not_applicable_empties_a_previously_given_value(client, make_token, wire):
+    """'Ya no tengo' sobre un dato ya dado lo vacía y lo marca ausente."""
+    wire(
+        ai_output={
+            "extracted": {},
+            "not_applicable_fields": ["certified_guides"],
+            "next_field_key": "staff_roles",
+            "next_question": "¿Qué cargos tiene tu equipo?",
+            "completed": False,
+        },
+        stored={
+            "activities": ["rafting"],
+            "main_region": "Quindío",
+            "certified_guides": "7",  # dato que el cliente ahora retira
+        },
+    )
+    resp = client.post(
+        "/onboarding/chat",
+        json={"message": "en realidad no tengo guías certificados"},
+        headers=_auth(make_token),
+    )
+    body = resp.json()
+    assert body["data"]["certified_guides"] in (None, "")
+    assert "certified_guides" in body["data"]["absent_fields"]
+
+
+def test_giving_value_reactivates_absent_field(client, make_token, wire):
+    """Si el cliente da un dato que antes declaró ausente, deja de ser 'no aplica'."""
+    wire(
+        ai_output={
+            "extracted": {"certified_guides": "3"},
+            "next_field_key": "staff_roles",
+            "next_question": "¿Qué cargos tiene tu equipo?",
+            "completed": False,
+        },
+        stored={
+            "activities": ["rafting"],
+            "main_region": "Quindío",
+            "absent_fields": ["certified_guides"],
+        },
+    )
+    resp = client.post(
+        "/onboarding/chat",
+        json={"message": "ah, sí tengo 3 guías certificados"},
+        headers=_auth(make_token),
+    )
+    body = resp.json()
+    assert body["data"]["certified_guides"] == "3"
+    assert "certified_guides" not in body["data"].get("absent_fields", [])
+
+
 def test_compliant_answer_is_not_blocked(client, make_token, wire):
     # compliant por defecto (o true) => flujo normal, sin bloqueo.
     wire(
@@ -508,7 +589,7 @@ def test_late_correction_gets_deterministic_ack_when_ai_says_nothing(
     assert body["completed"] is True
     assert body["data"]["staff_roles"]["guia"] == "6"
     assert "staff_roles" in body["next_question"]
-    assert "actualizado" in body["next_question"]
+    assert "sigue completo" in body["next_question"]
 
 
 # ---------------------------------------------------------------------------
