@@ -43,8 +43,14 @@ from app.modules.generation.generators.objetivos_seguridad import (
 from app.modules.generation.generators.partes_interesadas import (
     PartesInteresadasGenerator,
 )
+from app.modules.generation.generators.procedimiento_requisitos_legales import (
+    RequisitosLegalesProcedimientoGenerator,
+)
 from app.modules.generation.generators.procedimiento_riesgos import (
     ProcedimientoRiesgosGenerator,
+)
+from app.modules.generation.generators.procedimiento_seleccion_personal import (
+    SeleccionPersonalGenerator,
 )
 from app.modules.generation.generators.profiles_manual import ProfilesManualGenerator
 from app.modules.generation.generators.requisitos_legales import (
@@ -70,7 +76,9 @@ from app.modules.generation.schemas import (
     MatrizObjetivosVariables,
     MatrizPartesInteresadasVariables,
     MatrizRequisitosLegalesVariables,
+    ProcedimientoRequisitosLegalesVariables,
     ProcedimientoRiesgosVariables,
+    ProcedimientoSeleccionPersonalVariables,
     ProfilesManualVariables,
     RevisionDireccionVariables,
     RiskMatrixVariables,
@@ -172,6 +180,23 @@ _REGISTRY: dict[str, DocumentSpec] = {
         numeral="6.1.3",
         variables_model=MatrizRequisitosLegalesVariables,
         generator=RequisitosLegalesGenerator(),
+    ),
+    "procedimiento_requisitos_legales": DocumentSpec(
+        document_type="procedimiento_requisitos_legales",
+        title="Procedimiento de requisitos legales",
+        numeral="6.1.3",
+        variables_model=ProcedimientoRequisitosLegalesVariables,
+        generator=RequisitosLegalesProcedimientoGenerator(),
+    ),
+    "procedimiento_seleccion_personal": DocumentSpec(
+        document_type="procedimiento_seleccion_personal",
+        title="Procedimiento de identificación y selección de personal",
+        numeral="5.3",
+        variables_model=ProcedimientoSeleccionPersonalVariables,
+        generator=SeleccionPersonalGenerator(),
+        # 7.2: competencia, formación y toma de conciencia del personal, base
+        # del procedimiento de selección.
+        extra_rag_numerales=("7.2",),
     ),
     "matriz_objetivos_seguridad": DocumentSpec(
         document_type="matriz_objetivos_seguridad",

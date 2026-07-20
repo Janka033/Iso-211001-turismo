@@ -66,8 +66,10 @@ export const ROUTE_TITLES: Record<string, string> = {
   acta_compromiso: "Acta de compromiso",
   politica_seguridad: "Política de seguridad",
   manual_perfiles_cargos: "Manual de perfiles y cargos",
+  procedimiento_seleccion_personal: "Procedimiento de selección de personal",
   procedimiento_riesgos_oportunidades: "Procedimiento de riesgos y oportunidades",
   matriz_riesgos: "Matriz de riesgos y oportunidades",
+  procedimiento_requisitos_legales: "Procedimiento de requisitos legales",
   matriz_requisitos_legales: "Matriz de requisitos legales",
   matriz_objetivos_seguridad: "Matriz de objetivos de seguridad",
   comunicacion_participacion_consulta: "Comunicación, participación y consulta",
@@ -76,6 +78,10 @@ export const ROUTE_TITLES: Record<string, string> = {
   control_operacional: "Planificación y control operacional",
   plan_emergencias: "Plan de respuesta a emergencias",
   gestion_incidentes: "Gestión de incidentes",
+  matriz_indicadores: "Matriz de indicadores de desempeño",
+  auditoria_interna: "Procedimiento de auditoría interna",
+  revision_direccion: "Revisión por la dirección",
+  acciones_correctivas_mejora: "Acciones correctivas y de mejora",
 };
 
 export function chapterOf(numeral: string): string {
