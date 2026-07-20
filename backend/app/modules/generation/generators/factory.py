@@ -13,6 +13,9 @@ from pydantic import BaseModel
 
 from app.modules.generation.generators.acta_compromiso import ActaCompromisoGenerator
 from app.modules.generation.generators.alcance import AlcanceGenerator
+from app.modules.generation.generators.auditoria_interna import (
+    AuditoriaInternaGenerator,
+)
 from app.modules.generation.generators.base import DocumentGenerator
 from app.modules.generation.generators.communication_procedure import (
     CommunicationProcedureGenerator,
@@ -46,6 +49,7 @@ from app.modules.generation.generators.security_policy import SecurityPolicyGene
 from app.modules.generation.schemas import (
     ActaCompromisoVariables,
     AlcanceVariables,
+    AuditoriaInternaVariables,
     CommunicationProcedureVariables,
     ControlDocumentalVariables,
     ControlOperacionalVariables,
@@ -79,6 +83,13 @@ class DocumentSpec:
 
 
 _REGISTRY: dict[str, DocumentSpec] = {
+    "auditoria_interna": DocumentSpec(
+        document_type="auditoria_interna",
+        title="Procedimiento de auditoría interna",
+        numeral="9.2",
+        variables_model=AuditoriaInternaVariables,
+        generator=AuditoriaInternaGenerator(),
+    ),
     "alcance_sgsta": DocumentSpec(
         document_type="alcance_sgsta",
         title="Alcance del SGSTA",

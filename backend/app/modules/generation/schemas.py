@@ -995,6 +995,40 @@ class ControlDocumentalVariables(AIVariablesModel):
     )
 
 
+class AuditoriaInternaVariables(AIVariablesModel):
+    """Variables del Procedimiento de auditoría interna (9.2).
+
+    Toda la metodología del molde MinCIT (objetivo, alcance, las 20
+    definiciones GTC-ISO 19011/NTC-ISO 21101, las aclaraciones —incluido el
+    perfil del auditor y la frecuencia mínima anual— y las 11 actividades) es
+    contenido FIJO de la plantilla. La IA solo aporta identidad, el cargo
+    responsable del sistema de gestión y los datos de aprobación.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    responsible_role: str | None = Field(
+        default=None,
+        description=(
+            "Cargo responsable del sistema de gestión de seguridad de turismo "
+            "de aventura, que programa y aprueba las auditorías internas. "
+            "DERÍVALO del organigrama del cliente (p. ej. Gerente); escríbelo "
+            "con inicial mayúscula."
+        ),
+    )
+    legal_representative: str | None = Field(
+        default=None, description="Representante legal que aprueba el procedimiento."
+    )
+    approval_date: str | None = Field(
+        default=None,
+        description=(
+            "Fecha de aprobación de ESTE documento (YYYY-MM-DD), SOLO si el "
+            "cliente la indicó explícitamente; nunca derivada de otras fechas."
+        ),
+    )
+
+
 class OperationalControlEntry(AIVariablesModel):
     """Una fila de la planificación de control operacional (una actividad)."""
 
