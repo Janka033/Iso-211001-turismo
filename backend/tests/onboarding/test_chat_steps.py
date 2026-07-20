@@ -37,6 +37,7 @@ _IDENTITY_DONE = {
     "main_region": "Santander",
     "locations": ["río Fonce"],
     "scope": "Rafting en San Gil",
+    "company_purpose": "Ofrecer rafting seguro en el río Fonce",
     "certified_guides": "4",
     "staff_roles": {"gerente": "1", "guia": "4"},
     "legal_representative": "Ana Ruiz",
@@ -56,8 +57,9 @@ def test_identity_phase_is_step_zero(client, make_token, wire):
     assert step["step_order"] == 0
     assert step["document_type"] is None
     assert step["total"] == 3
-    # Identidad = 8 campos (scope salió: es derivado, no una pregunta).
-    assert step["fields_total"] == 8
+    # Identidad = 9 campos (scope salió: es derivado; company_purpose entró como
+    # dato fundacional que la IA no debe inventar).
+    assert step["fields_total"] == 9
 
 
 def test_after_identity_asks_active_step_fields_only(client, make_token, wire):

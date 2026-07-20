@@ -111,6 +111,7 @@ def test_extracts_multiple_universal_fields(client, make_token, wire):
             "extracted": {
                 "main_region": "Santander",
                 "locations": "río Suárez",
+                "company_purpose": "Rafting seguro en el río Suárez",
                 "certified_guides": "8",
             },
             "next_field_key": "staff_roles",
@@ -323,6 +324,7 @@ def test_not_applicable_advances_instead_of_looping(client, make_token, wire):
             "activities": ["rafting"],
             "main_region": "Quindío",
             "locations": ["Salento"],
+            "company_purpose": "Turismo de aventura en Salento",
             "certified_guides": "7",
         },
     )
@@ -500,6 +502,7 @@ _ALL_UNIVERSAL = {
     "main_region": "Santander",
     "locations": ["río Suárez"],
     "scope": "Rafting y parapente en Santander",
+    "company_purpose": "Ofrecer turismo de aventura seguro en Santander",
     "certified_guides": "8",
     "staff_roles": {"gerente": "1", "guia": "5"},
     "legal_representative": "María Gómez",
@@ -534,8 +537,10 @@ _ALL_UNIVERSAL = {
     "equipment_maintenance": "Balsas: inspección visual diaria y técnica mensual",
     "communication_matrix": "Briefing — clientes — verbal — antes de cada salida",
     "participation_consultation": "Reunión semanal de seguridad con los guías",
+    "communication_representation": "Vocero de los guías; el gerente es el responsable",
     "incident_classification": ["Incidente: sin lesión", "Accidente: con lesión"],
     "incident_report_fields": ["Fecha", "Lugar", "Descripción", "Atención brindada"],
+    "incident_followup": "Acciones correctivas en comité; registros 5 años; revisión anual",
 }
 
 

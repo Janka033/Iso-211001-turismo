@@ -53,6 +53,14 @@ _UNIVERSAL_QUESTIONS: tuple[tuple[str, str], ...] = (
     # `scope` NO se pregunta: era redundante con las actividades (chips) + región
     # + ubicaciones que el cliente ya dio. Se DERIVA de esos tres (ver
     # _derive_scope) y alimenta la sección "Alcance" de los documentos.
+    # Propósito/misión: dato fundacional que ANTES nadie preguntaba y la IA
+    # tenía que inventar-o-dejar-vago. Alimenta la "apropiación del propósito"
+    # de la política (5.2.a) y enriquece el contexto de objetivos y alcance.
+    (
+        "company_purpose",
+        "¿Cuál es el propósito o la misión de su empresa: a qué se dedican y qué "
+        "buscan lograr con su operación de turismo de aventura?",
+    ),
     ("certified_guides", "¿Cuántos guías certificados tiene su operación?"),
     ("staff_roles", "¿Qué cargos tiene su equipo y cuántas personas hay en cada uno?"),
     ("legal_representative", "¿Quién es el representante legal de la empresa?"),
@@ -170,6 +178,14 @@ _UNIVERSAL_QUESTIONS: tuple[tuple[str, str], ...] = (
         "consultado en temas de seguridad (reuniones periódicas, comité, buzón "
         "de sugerencias, evaluación de simulacros)?",
     ),
+    # Cierra los campos derivados del PR-07 (representación 4.4 + responsable del
+    # proceso), que antes la IA tenía que inferir.
+    (
+        "communication_representation",
+        "¿Cómo se representa al personal en temas de seguridad (comité paritario, "
+        "vocero o delegado) y quién es el responsable del proceso de "
+        "comunicación, participación y consulta?",
+    ),
     # Alcance del SGSTA (4.3) — completan el taller del kit MinCIT; los
     # servicios y ubicaciones del alcance ya se capturan en identidad.
     (
@@ -231,10 +247,18 @@ _UNIVERSAL_QUESTIONS: tuple[tuple[str, str], ...] = (
         "lugar, actividad, personas involucradas, descripción, atención "
         "brindada, causa probable)?",
     ),
+    # Cierra los campos derivados del 8.3 (acciones correctivas, retención de
+    # registros, responsable y frecuencia de revisión), que antes se inferían.
+    (
+        "incident_followup",
+        "Cuando cierran un incidente o accidente: ¿cómo definen las acciones "
+        "correctivas, cuánto tiempo conservan los registros, quién es el "
+        "responsable de la gestión y cada cuánto revisan el procedimiento?",
+    ),
 )
 
-# Todos los campos universales que cuentan para la completitud (19: las 18
-# preguntas + `activities`).
+# Todos los campos universales que cuentan para la completitud: las preguntas
+# de `_UNIVERSAL_QUESTIONS` + `activities`.
 _UNIVERSAL_KEYS: tuple[str, ...] = ("activities",) + tuple(k for k, _ in _UNIVERSAL_QUESTIONS)
 
 # Campos universales de tipo lista (para coercionar el valor extraído por la IA).
@@ -308,6 +332,7 @@ _KEY_FIELDS: tuple[str, ...] = (
 _IDENTITY_KEYS: tuple[str, ...] = (
     "main_region",
     "locations",
+    "company_purpose",
     "certified_guides",
     "staff_roles",
     "legal_representative",
@@ -375,8 +400,13 @@ _DOC_UNIVERSAL_KEYS: dict[str, tuple[str, ...]] = {
     "comunicacion_participacion_consulta": (
         "communication_matrix",
         "participation_consultation",
+        "communication_representation",
     ),
-    "gestion_incidentes": ("incident_classification", "incident_report_fields"),
+    "gestion_incidentes": (
+        "incident_classification",
+        "incident_report_fields",
+        "incident_followup",
+    ),
     "manual_perfiles_cargos": (),  # su insumo (staff_roles) es de identidad
     # Su insumo (safety_objectives + management_commitment) se captura en el
     # paso de la política: el paso de la matriz no pregunta nada propio.
@@ -791,7 +821,7 @@ def _measure(data: dict) -> tuple[float, bool]:
 
 
 def _measure_dynamic(data: dict, checklist: list[dict]) -> tuple[float, bool]:
-    """% de campos esperados con dato: 19 universales + los Parte B de las
+    """% de campos esperados con dato: los universales + los Parte B de las
     actividades elegidas. Es la completitud del onboarding conversacional.
 
     Los campos OPCIONALES (required=false) solo entran al cálculo si el

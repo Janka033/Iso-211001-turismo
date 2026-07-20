@@ -122,13 +122,16 @@ export const FIELD_LABELS: Record<string, string> = {
   inspection_type: "Tipo de inspección",
 
   // — Micro-preguntas de granularidad del onboarding (por documento) —
+  company_purpose: "Propósito o misión de la empresa",
   communication_channels: "Canales de divulgación",
   activity_step_breakdown: "Actividad paso a paso (peligro/riesgo)",
   risk_factors: "Riesgos por factor",
   business_risks: "Riesgos del negocio",
   equipment_maintenance: "Mantenimiento por equipo",
   participation_consultation: "Participación y consulta",
+  communication_representation: "Representación y responsable de comunicación",
   incident_report_fields: "Campos del reporte de incidentes",
+  incident_followup: "Cierre y seguimiento de incidentes",
 
   // — Alcance del SGSTA (4.3) —
   scope_statement: "Declaración del alcance",

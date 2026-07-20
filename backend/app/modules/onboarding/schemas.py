@@ -31,6 +31,15 @@ class OnboardingPayload(BaseModel):
     scope: str | None = Field(
         default=None, max_length=4000, description="Alcance operativo del cliente."
     )
+    company_purpose: str | None = Field(
+        default=None,
+        max_length=2000,
+        description=(
+            "Propósito o misión de la empresa: a qué se dedica y qué busca lograr "
+            "con su operación. Alimenta la apropiación del propósito de la política "
+            "(5.2.a); dato fundacional que la IA no debe inventar."
+        ),
+    )
     certified_guides: str | None = Field(
         default=None,
         max_length=300,
@@ -133,6 +142,15 @@ class OnboardingPayload(BaseModel):
         max_length=4000,
         description="Mecanismos formales de participación y consulta del personal.",
     )
+    communication_representation: str | None = Field(
+        default=None,
+        max_length=2000,
+        description=(
+            "Cómo se representa al personal en seguridad (comité paritario, vocero "
+            "o delegado) y quién es el responsable del proceso de comunicación, "
+            "participación y consulta (representación 4.4 + responsable, PR-07)."
+        ),
+    )
     # Gestión de incidentes (8.3)
     incident_classification: list[str] = Field(
         default_factory=list,
@@ -143,6 +161,15 @@ class OnboardingPayload(BaseModel):
         default_factory=list,
         max_length=40,
         description="Campos que registran en el reporte de un incidente.",
+    )
+    incident_followup: str | None = Field(
+        default=None,
+        max_length=2000,
+        description=(
+            "Cierre de incidentes/accidentes: cómo definen acciones correctivas, "
+            "tiempo de retención de registros, responsable de la gestión y "
+            "frecuencia de revisión del procedimiento (8.3)."
+        ),
     )
     # Preparación y respuesta ante emergencias (PL-01, 8.2). Fuente: cuestionario
     # "Caracterización para el Plan de Respuesta a Emergencias" (Calidad
