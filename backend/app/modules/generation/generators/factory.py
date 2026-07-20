@@ -34,6 +34,9 @@ from app.modules.generation.generators.equipment_manual import EquipmentManualGe
 from app.modules.generation.generators.incident_management import (
     IncidentManagementGenerator,
 )
+from app.modules.generation.generators.matriz_indicadores import (
+    MatrizIndicadoresGenerator,
+)
 from app.modules.generation.generators.objetivos_seguridad import (
     ObjetivosSeguridadGenerator,
 )
@@ -63,6 +66,7 @@ from app.modules.generation.schemas import (
     EmergencyPlanVariables,
     EquipmentManualVariables,
     IncidentManagementVariables,
+    MatrizIndicadoresVariables,
     MatrizObjetivosVariables,
     MatrizPartesInteresadasVariables,
     MatrizRequisitosLegalesVariables,
@@ -107,6 +111,15 @@ _REGISTRY: dict[str, DocumentSpec] = {
         numeral="9.2",
         variables_model=AuditoriaInternaVariables,
         generator=AuditoriaInternaGenerator(),
+    ),
+    "matriz_indicadores": DocumentSpec(
+        document_type="matriz_indicadores",
+        title="Matriz de indicadores de desempeño",
+        numeral="9.1",
+        variables_model=MatrizIndicadoresVariables,
+        generator=MatrizIndicadoresGenerator(),
+        # 6.2: los objetivos de seguridad son la fuente de los indicadores.
+        extra_rag_numerales=("6.2",),
     ),
     "revision_direccion": DocumentSpec(
         document_type="revision_direccion",

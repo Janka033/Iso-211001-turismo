@@ -916,6 +916,30 @@ class MatrizObjetivosVariables(AIVariablesModel):
     )
 
 
+class MatrizIndicadoresVariables(AIVariablesModel):
+    """Variables de la Matriz de indicadores de desempeño (numeral 9.1).
+
+    Reutiliza los MISMOS indicadores que el cliente ya declaró en sus objetivos
+    de seguridad (6.2): un indicador por objetivo (nombre, fórmula, meta,
+    frecuencia, responsable). El aporte propio del 9.1 es la ficha de
+    SEGUIMIENTO del indicador (período → resultado → estado → análisis), que es
+    plantilla FIJA. La IA no inventa indicadores: los deriva de safety_objectives.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    indicators: list[ObjectiveEntry] = Field(
+        default_factory=list,
+        description=(
+            "Un indicador por cada objetivo de seguridad real del cliente "
+            "(safety_objectives / 6.2): nombre del indicador, objetivo que "
+            "mide, fórmula, meta, frecuencia y responsable. NUNCA inventes "
+            "indicadores que el cliente no haya declarado."
+        ),
+    )
+
+
 class ProcedimientoRiesgosVariables(AIVariablesModel):
     """Variables del Procedimiento de gestión de riesgos y oportunidades (6.1.1).
 
