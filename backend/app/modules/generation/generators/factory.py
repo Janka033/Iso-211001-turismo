@@ -47,6 +47,9 @@ from app.modules.generation.generators.profiles_manual import ProfilesManualGene
 from app.modules.generation.generators.requisitos_legales import (
     RequisitosLegalesGenerator,
 )
+from app.modules.generation.generators.revision_direccion import (
+    RevisionDireccionGenerator,
+)
 from app.modules.generation.generators.risk_matrix import RiskMatrixGenerator
 from app.modules.generation.generators.security_policy import SecurityPolicyGenerator
 from app.modules.generation.schemas import (
@@ -65,6 +68,7 @@ from app.modules.generation.schemas import (
     MatrizRequisitosLegalesVariables,
     ProcedimientoRiesgosVariables,
     ProfilesManualVariables,
+    RevisionDireccionVariables,
     RiskMatrixVariables,
     SecurityPolicyVariables,
 )
@@ -103,6 +107,16 @@ _REGISTRY: dict[str, DocumentSpec] = {
         numeral="9.2",
         variables_model=AuditoriaInternaVariables,
         generator=AuditoriaInternaGenerator(),
+    ),
+    "revision_direccion": DocumentSpec(
+        document_type="revision_direccion",
+        title="Procedimiento de revisión por la dirección",
+        numeral="9.3",
+        variables_model=RevisionDireccionVariables,
+        generator=RevisionDireccionGenerator(),
+        # 9.1/9.2/10.1: indicadores, auditoría y acciones son las entradas que
+        # la revisión por la dirección analiza.
+        extra_rag_numerales=("9.1", "9.2"),
     ),
     "alcance_sgsta": DocumentSpec(
         document_type="alcance_sgsta",

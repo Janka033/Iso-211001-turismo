@@ -1029,6 +1029,39 @@ class AuditoriaInternaVariables(AIVariablesModel):
     )
 
 
+class RevisionDireccionVariables(AIVariablesModel):
+    """Variables del Procedimiento de revisión por la dirección (9.3).
+
+    Toda la metodología del molde MinCIT (objetivo, alcance, definiciones y las
+    6 actividades: programación → preparación → análisis de entradas →
+    resultados y decisiones → conclusiones → comunicación) es contenido FIJO.
+    La alta dirección lidera la revisión; la IA solo aporta identidad, el cargo
+    responsable del sistema que la prepara y la aprobación.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    responsible_role: str | None = Field(
+        default=None,
+        description=(
+            "Cargo responsable del sistema de gestión que prepara la revisión "
+            "por la dirección y recopila las entradas. DERÍVALO del organigrama "
+            "del cliente (p. ej. Gerente); escríbelo con inicial mayúscula."
+        ),
+    )
+    legal_representative: str | None = Field(
+        default=None, description="Representante legal que aprueba el procedimiento."
+    )
+    approval_date: str | None = Field(
+        default=None,
+        description=(
+            "Fecha de aprobación de ESTE documento (YYYY-MM-DD), SOLO si el "
+            "cliente la indicó explícitamente; nunca derivada de otras fechas."
+        ),
+    )
+
+
 class AccionesCorrectivasVariables(AIVariablesModel):
     """Variables del Procedimiento de acciones correctivas y de mejora (10.1).
 
