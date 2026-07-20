@@ -1029,6 +1029,40 @@ class AuditoriaInternaVariables(AIVariablesModel):
     )
 
 
+class AccionesCorrectivasVariables(AIVariablesModel):
+    """Variables del Procedimiento de acciones correctivas y de mejora (10.1).
+
+    Toda la metodología del molde MinCIT (objetivo, alcance, definiciones,
+    aclaraciones —fuentes de no conformidad/oportunidad de mejora— y las 6
+    actividades: identificar → registrar → analizar causas → plan de acción →
+    seguimiento → evaluar eficacia y cierre) es contenido FIJO. La IA solo
+    aporta identidad, el cargo responsable del sistema y la aprobación.
+    """
+
+    company_name: str | None = Field(
+        default=None, description="Razón social de la empresa."
+    )
+    responsible_role: str | None = Field(
+        default=None,
+        description=(
+            "Cargo responsable del sistema de gestión de seguridad de turismo "
+            "de aventura, que gestiona las acciones correctivas y de mejora. "
+            "DERÍVALO del organigrama del cliente (p. ej. Gerente); escríbelo "
+            "con inicial mayúscula."
+        ),
+    )
+    legal_representative: str | None = Field(
+        default=None, description="Representante legal que aprueba el procedimiento."
+    )
+    approval_date: str | None = Field(
+        default=None,
+        description=(
+            "Fecha de aprobación de ESTE documento (YYYY-MM-DD), SOLO si el "
+            "cliente la indicó explícitamente; nunca derivada de otras fechas."
+        ),
+    )
+
+
 class OperationalControlEntry(AIVariablesModel):
     """Una fila de la planificación de control operacional (una actividad)."""
 

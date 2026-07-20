@@ -11,6 +11,9 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 
+from app.modules.generation.generators.acciones_correctivas import (
+    AccionesCorrectivasGenerator,
+)
 from app.modules.generation.generators.acta_compromiso import ActaCompromisoGenerator
 from app.modules.generation.generators.alcance import AlcanceGenerator
 from app.modules.generation.generators.auditoria_interna import (
@@ -47,6 +50,7 @@ from app.modules.generation.generators.requisitos_legales import (
 from app.modules.generation.generators.risk_matrix import RiskMatrixGenerator
 from app.modules.generation.generators.security_policy import SecurityPolicyGenerator
 from app.modules.generation.schemas import (
+    AccionesCorrectivasVariables,
     ActaCompromisoVariables,
     AlcanceVariables,
     AuditoriaInternaVariables,
@@ -83,6 +87,16 @@ class DocumentSpec:
 
 
 _REGISTRY: dict[str, DocumentSpec] = {
+    "acciones_correctivas_mejora": DocumentSpec(
+        document_type="acciones_correctivas_mejora",
+        title="Procedimiento de acciones correctivas y de mejora",
+        numeral="10.1",
+        variables_model=AccionesCorrectivasVariables,
+        generator=AccionesCorrectivasGenerator(),
+        # 9.2/9.3: auditoría interna y revisión por la dirección son las
+        # fuentes principales de no conformidades que este procedimiento cierra.
+        extra_rag_numerales=("9.2",),
+    ),
     "auditoria_interna": DocumentSpec(
         document_type="auditoria_interna",
         title="Procedimiento de auditoría interna",
