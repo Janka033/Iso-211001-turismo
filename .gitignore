@@ -55,6 +55,9 @@ Thumbs.db
 # Config local de Claude Code (permisos por máquina, no compartir)
 .claude/settings.local.json
 
+# Memoria de trabajo del asistente (notas locales, no son parte del producto)
+memory/
+
 # Documento de práctica empresarial (sustentación académica personal;
 # el repo es un producto confidencial, no se comparte con la universidad)
 practica/

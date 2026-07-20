@@ -78,8 +78,10 @@ def test_after_identity_asks_active_step_fields_only(client, make_token, wire):
 
 
 def test_completed_step_reports_ready_to_generate(client, make_token, wire):
-    # Política con todos sus campos => aparece en ready_to_generate (no tiene
-    # documento generado) y el paso activo avanza a la matriz.
+    # Política con todos sus campos y SIN documento generado => es el PASO ACTIVO
+    # y aparece en ready_to_generate. SECUENCIA ESTRICTA: la ruta NO avanza a la
+    # matriz hasta que la política se genere (antes avanzaba con solo tener los
+    # datos, lo que permitía generar fuera de orden).
     stored = dict(
         _IDENTITY_DONE,
         management_commitment="La dirección prioriza la seguridad",
@@ -90,11 +92,11 @@ def test_completed_step_reports_ready_to_generate(client, make_token, wire):
     wire(stored=stored, roadmap=_ROUTE)
     resp = client.post("/onboarding/chat", json={}, headers=_auth(make_token))
     body = resp.json()
-    assert "politica_seguridad" in body["ready_to_generate"]
+    assert body["ready_to_generate"] == ["politica_seguridad"]
     step = body["current_step"]
-    assert step["step_order"] == 7
-    assert step["document_type"] == "matriz_riesgos"
-    assert body["next_field"]["field_key"] == "existing_controls"
+    assert step["step_order"] == 4
+    assert step["document_type"] == "politica_seguridad"
+    assert body["next_field"] is None  # sin más preguntas: se invita a generar
 
 
 def test_generated_document_leaves_ready_list(client, make_token, wire):
@@ -116,8 +118,9 @@ def test_generated_document_leaves_ready_list(client, make_token, wire):
 
 
 def test_activity_fields_belong_to_their_step(client, make_token, wire):
-    # Con identidad y política completas, los campos por actividad de la
-    # matriz (riesgos_rafting) van en el paso de la matriz, no antes.
+    # Con la política ya GENERADA (secuencia), el paso activo avanza a la matriz;
+    # sus campos por actividad (riesgos_rafting) se preguntan en ese paso, no
+    # antes.
     stored = dict(
         _IDENTITY_DONE,
         management_commitment="ok",
@@ -130,7 +133,11 @@ def test_activity_fields_belong_to_their_step(client, make_token, wire):
         business_risks=["Clima"],
         opportunities=["Certificación"],
     )
-    wire(stored=stored, roadmap=_ROUTE)
+    wire(
+        stored=stored,
+        roadmap=_ROUTE,
+        statuses=[{"document_type": "politica_seguridad", "status": "generated"}],
+    )
     resp = client.post("/onboarding/chat", json={}, headers=_auth(make_token))
     body = resp.json()
     # Matriz: quedan sus campos de actividad (riesgos/edades/restricciones no
@@ -162,8 +169,9 @@ def test_alcance_step_asks_its_fields_first(client, make_token, wire):
     assert step["document_type"] == "alcance_sgsta"
     assert step["fields_total"] == 2
 
-    # Con el taller respondido, el alcance queda listo para generar y el paso
-    # activo avanza a la política.
+    # Con el taller respondido, el alcance queda listo para generar. SECUENCIA
+    # ESTRICTA: el paso activo NO avanza a la política hasta que el alcance se
+    # genere.
     stored = dict(
         _IDENTITY_DONE,
         site_characteristics="Zona rural, ribera del río Fonce",
@@ -173,7 +181,8 @@ def test_alcance_step_asks_its_fields_first(client, make_token, wire):
     resp = client.post("/onboarding/chat", json={}, headers=_auth(make_token))
     body = resp.json()
     assert body["ready_to_generate"] == ["alcance_sgsta"]
-    assert body["current_step"]["document_type"] == "politica_seguridad"
+    assert body["current_step"]["document_type"] == "alcance_sgsta"
+    assert body["next_field"] is None
 
 
 def test_step_without_own_fields_waits_for_its_inputs(client, make_token, wire):
@@ -195,15 +204,23 @@ def test_step_without_own_fields_waits_for_its_inputs(client, make_token, wire):
     resp = client.post("/onboarding/chat", json={}, headers=_auth(make_token))
     assert "matriz_objetivos_seguridad" not in resp.json()["ready_to_generate"]
 
-    # Con los datos de la política capturados, SÍ está lista.
+    # Con los pasos previos GENERADOS (secuencia) y los insumos de la política
+    # capturados, la matriz de objetivos —que no tiene preguntas propias— SÍ
+    # queda lista para generar.
     stored = dict(
         _IDENTITY_DONE,
         management_commitment="La dirección prioriza la seguridad",
         safety_objectives=["Reducir incidentes 20% a dic 2026"],
-        approval_date="15/01/2026",
-        communication_channels=["Briefing"],
     )
-    wire(stored=stored, roadmap=route)
+    wire(
+        stored=stored,
+        roadmap=route,
+        statuses=[
+            {"document_type": "politica_seguridad", "status": "generated"},
+            {"document_type": "matriz_riesgos", "status": "generated"},
+            {"document_type": "plan_emergencias", "status": "generated"},
+        ],
+    )
     resp = client.post("/onboarding/chat", json={}, headers=_auth(make_token))
     assert "matriz_objetivos_seguridad" in resp.json()["ready_to_generate"]
 

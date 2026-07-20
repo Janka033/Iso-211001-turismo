@@ -34,6 +34,7 @@ from app.modules.generation.schemas import (
     GenerateRequest,
 )
 from app.modules.inventory import service as inventory_service
+from app.modules.onboarding import service as onboarding_service
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,15 @@ async def generate(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Tipo de documento no soportado: {document_type}",
         )
+
+    # Gate de SECUENCIA (defensa en profundidad): no se genera un documento
+    # fuera de orden ni con datos insuficientes, aunque se llame directo a la
+    # API. La autoridad de la ruta vive en onboarding (service→service).
+    ok, reason = await onboarding_service.check_generatable(
+        document_type, tenant_id, token
+    )
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=reason)
 
     prompt_row = await _run(repository.get_active_prompt, document_type, token)
     if prompt_row is None:

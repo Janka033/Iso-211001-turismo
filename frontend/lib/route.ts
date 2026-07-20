@@ -13,6 +13,9 @@ export interface RoadmapStep {
   status: string; // 'pendiente' | 'generated' | 'approved' | …
   completeness: number | null;
   last_score: number | null;
+  // Generado Y en orden (prefijo contiguo desde el inicio). Un doc generado
+  // fuera de secuencia NO es `complete`: en el mapa sale bloqueado, no "Generado".
+  complete: boolean;
 }
 
 export interface RoadmapResponse {
@@ -83,8 +86,10 @@ export function chapterOf(numeral: string): string {
 export type NodeState = "locked" | "soon" | "current" | "done" | "crown";
 
 export function nodeState(step: RoadmapStep, currentStep: number | null): NodeState {
-  const generated = step.status !== "pendiente";
-  if (generated) {
+  // "Hecho" exige estar COMPLETO (generado y en orden). Un doc generado fuera de
+  // secuencia no es `complete` => cae a "locked", no a "done" (era el bug del
+  // paso adelantado que aparecía "Generado" con los previos bloqueados).
+  if (step.complete) {
     return step.last_score !== null && step.last_score >= 80 ? "crown" : "done";
   }
   if (!step.generator_ready) return "soon";

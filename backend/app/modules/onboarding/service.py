@@ -29,6 +29,7 @@ from fastapi import HTTPException, status
 from app.core.ai.factory import get_ai_provider
 from app.modules.onboarding import repository
 from app.modules.onboarding.schemas import (
+    ChatMessage,
     CurrentStepInfo,
     OnboardingChatRequest,
     OnboardingChatResponse,
@@ -466,6 +467,37 @@ def _doc_field_universe(doc: str, data: dict, checklist: list[dict]) -> tuple[in
     return done, total
 
 
+def _identity_complete(data: dict) -> bool:
+    """La identidad (paso 0) está completa si TODOS sus campos están resueltos
+    (con dato o declarados 'no aplica'). Es la precondición para entrar a los
+    documentos de la ruta."""
+    return all(_is_resolved(data, k) for k in _IDENTITY_KEYS)
+
+
+def _doc_data_sufficient(doc: str, data: dict, checklist: list[dict]) -> bool:
+    """Un documento tiene DATOS SUFICIENTES para generarse sin [PENDIENTE]
+    críticos cuando todos sus campos obligatorios están resueltos y sus insumos
+    de otros pasos (``_DOC_READY_KEYS``) tienen valor. Los pasos sin campos
+    propios (p. ej. requisitos legales 6.1.3, o el cierre PDCA 9-10) dan (0,0):
+    su suficiencia recae en la SECUENCIA (pasos previos generados)."""
+    done, total = _doc_field_universe(doc, data, checklist)
+    if done != total:
+        return False
+    return all(_has_value(data.get(k)) for k in _DOC_READY_KEYS.get(doc, ()))
+
+
+def _active_step(route_steps: list[dict], statuses: dict[str, dict]) -> dict | None:
+    """Paso ACTIVO = el primer paso de la ruta cuyo documento aún NO está
+    generado. Autoridad ÚNICA de la secuencia: la comparten el chat, el tablero
+    y el gate de generación. None si todos los pasos ya tienen documento."""
+    for step in route_steps:
+        status_row = statuses.get(step["document_type"])
+        generated = status_row is not None and status_row.get("status") != "pending"
+        if not generated:
+            return step
+    return None
+
+
 def _route_view(
     pending: list[dict],
     route_steps: list[dict],
@@ -473,56 +505,26 @@ def _route_view(
     data: dict,
     checklist: list[dict],
 ) -> tuple[list[dict], dict | None, list[str]]:
-    """Reordena los pendientes por la ruta y calcula el paso activo.
+    """SECUENCIA ESTRICTA: el chat trabaja UN paso a la vez.
 
-    Devuelve (pendientes ordenados, info del paso activo o None, documentos
-    listos para generar). Sin ruta configurada (lista vacía) el orden queda
-    intacto: modo lineal de siempre.
+    Devuelve (pendientes del paso activo, info del paso activo o None, docs
+    listos para generar). Reglas:
+    - Identidad incompleta ⇒ paso 0: solo se preguntan campos de identidad.
+    - Identidad completa ⇒ el paso activo es el PRIMERO sin documento generado
+      (``_active_step``); solo se preguntan SUS campos y solo ÉL puede aparecer
+      en ``ready_to_generate`` —y únicamente cuando sus datos son suficientes—.
+      Nunca se ofrece generar un paso posterior (era el bug de generación
+      prematura/fuera de orden).
+    Sin ruta configurada (lista vacía) se conserva el flujo lineal de siempre.
     """
     if not route_steps:
         return pending, None, []
 
-    identity = [f for f in pending if f["field_key"] in _IDENTITY_KEYS]
-    by_doc: dict[str, list[dict]] = {}
-    rest: list[dict] = []
-    for field in pending:
-        if field["field_key"] in _IDENTITY_KEYS:
-            continue
-        doc = _doc_of_field(field)
-        if doc is None:
-            rest.append(field)
-        else:
-            by_doc.setdefault(doc, []).append(field)
-
-    ordered = list(identity)
-    ready: list[str] = []
-    # "Listo para generar" exige: identidad completa (paso 0 cerrado), los
-    # campos del paso respondidos, los insumos de otros pasos que el documento
-    # consume (_DOC_READY_KEYS) con dato, y que no exista ya un documento.
-    identity_done = not identity
-    for step in route_steps:
-        doc = step["document_type"]
-        doc_pending = by_doc.pop(doc, [])
-        ordered.extend(doc_pending)
-        status_row = statuses.get(doc)
-        already_generated = (
-            status_row is not None and status_row.get("status") != "pending"
-        )
-        inputs_ready = all(
-            _has_value(data.get(k)) for k in _DOC_READY_KEYS.get(doc, ())
-        )
-        if identity_done and not doc_pending and inputs_ready and not already_generated:
-            ready.append(doc)
-    for leftover in by_doc.values():  # docs fuera de la ruta habilitada
-        ordered.extend(leftover)
-    ordered.extend(rest)
-
     total_steps = len(route_steps)
-    if not ordered:
-        return ordered, None, ready
 
-    first = ordered[0]
-    if first["field_key"] in _IDENTITY_KEYS:
+    # Paso 0 — identidad: hasta cerrarla no se entra a ningún documento.
+    if not _identity_complete(data):
+        identity = [f for f in pending if f["field_key"] in _IDENTITY_KEYS]
         done = sum(1 for k in _IDENTITY_KEYS if _is_resolved(data, k))
         step_info = {
             "step_order": 0,
@@ -533,22 +535,27 @@ def _route_view(
             "fields_done": done,
             "fields_total": len(_IDENTITY_KEYS),
         }
-    else:
-        doc = _doc_of_field(first)
-        step_row = next((s for s in route_steps if s["document_type"] == doc), None)
-        if step_row is None:
-            return ordered, None, ready
-        done, total = _doc_field_universe(doc, data, checklist)
-        step_info = {
-            "step_order": step_row["step_order"],
-            "total": total_steps,
-            "document_type": doc,
-            "title": step_row["title"],
-            "numeral": step_row.get("numeral"),
-            "fields_done": done,
-            "fields_total": total,
-        }
-    return ordered, step_info, ready
+        return identity, step_info, []
+
+    active = _active_step(route_steps, statuses)
+    if active is None:  # todos los pasos ya tienen documento: ruta completa.
+        return [], None, []
+
+    active_doc = active["document_type"]
+    active_pending = [f for f in pending if _doc_of_field(f) == active_doc]
+    done, total = _doc_field_universe(active_doc, data, checklist)
+    step_info = {
+        "step_order": active["step_order"],
+        "total": total_steps,
+        "document_type": active_doc,
+        "title": active["title"],
+        "numeral": active.get("numeral"),
+        "fields_done": done,
+        "fields_total": total,
+    }
+    # Solo el paso activo, y solo con datos suficientes, se ofrece para generar.
+    ready = [active_doc] if _doc_data_sufficient(active_doc, data, checklist) else []
+    return active_pending, step_info, ready
 
 
 def _current_step_text(step_info: dict | None) -> str:
@@ -673,6 +680,23 @@ def _data_warnings(data: dict, touched: set[str]) -> list[str]:
             warnings.append(
                 f"El número de RNT (“{rnt}”) no parece numérico. ¿Lo confirmas "
                 "o lo corriges?"
+            )
+
+    # Guardrail legal (no bloquea): el RNT vigente es requisito para operar
+    # turismo en Colombia (Ley 300 de 1996 y Ley 1558 de 2012). Si el cliente
+    # indica que NO está vigente (por renovar / en trámite / no lo tiene), se
+    # captura igual pero se avisa que quedará como [PENDIENTE] en los documentos.
+    if "rnt_status" in touched:
+        rnt_status = str(data.get("rnt_status") or "").strip().lower()
+        vigente = any(
+            tok in rnt_status for tok in ("vigente", "al día", "al dia", "activo")
+        )
+        if rnt_status and not vigente:
+            warnings.append(
+                "Ten presente que el RNT vigente es un requisito legal para operar "
+                "turismo en Colombia (Ley 300 de 1996 y Ley 1558 de 2012). Registro "
+                "el estado que indicaste; mientras no esté vigente, quedará marcado "
+                "como pendiente en tus documentos."
             )
 
     if touched & {"certified_guides", "staff_roles"}:
@@ -949,32 +973,91 @@ async def get_roadmap(tenant_id: str, token: str) -> RoadmapResponse:
 
     steps: list[RoadmapStep] = []
     current_step: int | None = None
+    # `in_prefix`: seguimos dentro del prefijo CONTIGUO de pasos ya generados
+    # desde el inicio de la ruta. Un doc generado fuera de orden (con pasos
+    # accionables previos sin generar) rompe el prefijo y NO cuenta como
+    # completo: en el tablero sale bloqueado, no "Generado" (era el bug de QA).
+    in_prefix = True
     for row in steps_rows:
         doc_type = row["document_type"]
         status_row = statuses.get(doc_type)
+        generated = status_row is not None and status_row.get("status") != "pending"
+        ready = bool(row.get("generator_ready", False))
+        complete = ready and generated and in_prefix
         steps.append(
             RoadmapStep(
                 step_order=row["step_order"],
                 document_type=doc_type,
                 title=row["title"],
                 numeral=row["numeral"],
-                generator_ready=row.get("generator_ready", False),
+                generator_ready=ready,
                 status=(status_row or {}).get("status") or "pendiente",
                 completeness=(status_row or {}).get("completeness"),
                 last_score=scores.get(doc_type),
+                complete=complete,
             )
         )
-        # El paso actual es el primero SIN documento cuyo generador ya existe:
-        # un paso "próximamente" (generator_ready=false) no puede ser el
-        # activo — el chat tampoco lo pregunta y el mapa quedaría sin nodo
-        # accionable.
-        if (
-            current_step is None
-            and status_row is None
-            and row.get("generator_ready")
-        ):
-            current_step = row["step_order"]
+        # El paso actual es el primero accionable (generator_ready) SIN documento:
+        # un paso "próximamente" no puede ser el activo, y rompe el prefijo el
+        # primer paso accionable sin generar (todo lo posterior queda bloqueado).
+        if ready and not generated:
+            in_prefix = False
+            if current_step is None:
+                current_step = row["step_order"]
     return RoadmapResponse(steps=steps, current_step=current_step, total=len(steps))
+
+
+async def check_generatable(
+    document_type: str, tenant_id: str, token: str
+) -> tuple[bool, str]:
+    """Gate de SECUENCIA para la generación (defensa en profundidad; lo llama
+    ``generation.service`` service→service). Un documento solo se puede generar
+    si respeta la ruta:
+
+    - Ya generado ⇒ permitido (regeneración/refresh/subsanación).
+    - Documento fuera del ``document_roadmap`` ⇒ permitido (sin secuencia).
+    - Si no, exige: identidad completa, ser el PASO ACTIVO (los pasos anteriores
+      ya generados) y tener DATOS SUFICIENTES. Devuelve ``(ok, motivo)``.
+    """
+    roadmap_rows = await _run(repository.get_roadmap, token)
+    route_steps = [r for r in roadmap_rows if r.get("generator_ready")]
+    if not any(r["document_type"] == document_type for r in route_steps):
+        return True, ""  # documento sin paso en la ruta: no se le aplica secuencia
+
+    statuses = {
+        row["document_type"]: row
+        for row in await _run(repository.get_document_statuses, tenant_id, token)
+    }
+    status_row = statuses.get(document_type)
+    if status_row is not None and status_row.get("status") != "pending":
+        return True, ""  # ya existe: regenerar/re-render/subsanar es válido
+
+    data = dict(await _run(repository.get_onboarding, tenant_id, token) or {})
+    if not _identity_complete(data):
+        return False, (
+            "Completa primero los datos generales de tu empresa (paso 0) antes de "
+            "generar documentos."
+        )
+
+    active = _active_step(route_steps, statuses)
+    if active is None or active["document_type"] != document_type:
+        return False, (
+            "Debes generar los documentos de los pasos anteriores antes de este. "
+            "Sigue tu ruta en orden, un paso a la vez."
+        )
+
+    activities = data.get("activities") or []
+    checklist = _dedupe_checklist(
+        await _run(repository.get_activity_checklist, activities, token)
+        if activities
+        else []
+    )
+    if not _doc_data_sufficient(document_type, data, checklist):
+        return False, (
+            "Aún faltan datos obligatorios de este paso. Complétalos en el chat "
+            "antes de generar el documento."
+        )
+    return True, ""
 
 
 # ---------------------------------------------------------------------------
@@ -1031,6 +1114,60 @@ async def apply_remediation(
 # ---------------------------------------------------------------------------
 # Onboarding conversacional (POST /onboarding/chat)
 # ---------------------------------------------------------------------------
+
+
+async def get_chat_history(tenant_id: str, token: str) -> list[ChatMessage]:
+    """Transcript persistido del chat de onboarding, en orden, para rehidratar
+    la conversación al recargar. Solo ``user``/``assistant`` (el saludo es del
+    frontend); descarta filas ``system`` o vacías."""
+    rows = await _run(repository.get_chat_messages, tenant_id, token)
+    return [
+        ChatMessage(role=row["role"], content=row["content"])
+        for row in rows
+        if row.get("role") in ("user", "assistant") and row.get("content")
+    ]
+
+
+async def _persist_turn(
+    tenant_id: str,
+    user_message: str | None,
+    assistant_text: str | None,
+    activities: list[str],
+    token: str,
+) -> None:
+    """Guarda el turno en ``chat_messages`` para poder REHIDRATAR el hilo al
+    recargar (hoy la conversación previa se perdía en un F5).
+
+    Reglas:
+    - Turno real (el cliente escribió) con respuesta del asistente: guarda ambos.
+    - Turno de arranque (sin mensaje: elegir actividades o rehidratar): SIEMBRA
+      la primera pregunta UNA sola vez —solo si ya hay actividades y aún no hay
+      historial—, para que la reconstrucción no empiece con una respuesta sin su
+      pregunta. En recargas posteriores ya existe historial y no se duplica; en
+      tenants antiguos sin transcript, siembra su pregunta pendiente actual.
+
+    Es best-effort: el dato del cliente ya vive en ``onboarding_data`` (fuente de
+    verdad), así que un fallo al persistir el transcript nunca tumba el turno.
+    """
+    user_message = (user_message or "").strip()
+    assistant_text = (assistant_text or "").strip()
+    try:
+        rows: list[dict] = []
+        if user_message and assistant_text:
+            rows = [
+                {"role": "user", "content": user_message},
+                {"role": "assistant", "content": assistant_text},
+            ]
+        elif not user_message and assistant_text and activities:
+            existing = await _run(repository.get_chat_messages, tenant_id, token)
+            if not existing:
+                rows = [{"role": "assistant", "content": assistant_text}]
+        if rows:
+            await _run(repository.save_chat_messages, tenant_id, rows, token)
+    except Exception:  # noqa: BLE001 - persistir el transcript es best-effort
+        logger.warning(
+            "No se pudo persistir el turno del chat de onboarding", exc_info=True
+        )
 
 
 async def chat(
@@ -1192,7 +1329,10 @@ async def chat(
     pending_after, step_after, ready_docs = _route_view(
         _pending_fields(data, checklist), route_steps, statuses, data, checklist
     )
-    pct, completed = _measure_dynamic(data, checklist)
+    pct, measure_completed = _measure_dynamic(data, checklist)
+    # Con ruta configurada, "completo" = TODOS los pasos tienen documento
+    # (``step_after`` None). El % de campos sigue alimentando la barra de avance.
+    completed = (step_after is None) if route_steps else measure_completed
     current_step = CurrentStepInfo(**step_after) if step_after else None
 
     # Validación proactiva determinista sobre lo tocado este turno (NIT/RNT con
@@ -1216,6 +1356,7 @@ async def chat(
     # "pregunta" pasa a ser la explicación del requisito ISO + cómo replantear.
     if rejected and ai_out is not None:
         safety_note = _safety_message(ai_out)
+        await _persist_turn(tenant_id, payload.message, safety_note, activities, token)
         return OnboardingChatResponse(
             next_question=safety_note,
             next_field=next_field,
@@ -1230,11 +1371,34 @@ async def chat(
         )
 
     next_question = _resolve_question(next_field_row, ai_out)
-    # Onboarding ya completo pero el turno SÍ cambió datos (corrección tardía o
-    # valor sospechoso): sin este acuse la respuesta salía vacía y el cliente no
-    # sabía si su corrección se aplicó. Se usa la confirmación de la IA si la
-    # dio; si no, un acuse determinista con los campos tocados.
-    if next_question is None and (extracted or roles_changed or absent_changed):
+    # SECUENCIA ESTRICTA: si el paso activo ya no tiene preguntas propias, no se
+    # cierra como "onboarding completo" ni se salta a otro paso; se invita a
+    # GENERAR el documento del paso activo (o se cierra la ruta si ya no quedan).
+    if route_steps and next_field_row is None:
+        if ready_docs and step_after is not None:
+            next_question = (
+                f"¡Listo! Ya tienes los datos para generar «{step_after['title']}». "
+                "Genéralo aquí abajo para avanzar al siguiente paso."
+            )
+        elif completed:
+            ack = (
+                "Listo, lo tuve en cuenta. "
+                if (extracted or roles_changed or absent_changed)
+                else ""
+            )
+            next_question = (
+                f"{ack}🎉 ¡Generaste todos los documentos de tu ruta! Revísalos y "
+                "descárgalos desde «Tu ruta»."
+            )
+        else:
+            # Defensivo: paso activo sin preguntas y aún no listo (faltaría un
+            # insumo de un paso previo). No debería ocurrir en el flujo estricto.
+            next_question = (
+                "Revisemos: para continuar con este paso necesito que los pasos "
+                "anteriores tengan todos sus datos."
+            )
+    # Flujo lineal (sin ruta): acuse de corrección tardía cuando ya está completo.
+    elif next_question is None and (extracted or roles_changed or absent_changed):
         touched = sorted(extracted)
         if roles_changed:
             touched.append("staff_roles")
@@ -1252,6 +1416,7 @@ async def chat(
             "final)."
         )
         next_question = f"{ack} {next_question}" if next_question else ack
+    await _persist_turn(tenant_id, payload.message, next_question, activities, token)
     return OnboardingChatResponse(
         next_question=next_question,
         next_field=next_field,

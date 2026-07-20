@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends
 from app.core.security import CurrentUser, get_current_user, get_tenant_id
 from app.modules.onboarding import service
 from app.modules.onboarding.schemas import (
+    ChatMessage,
     OnboardingChatRequest,
     OnboardingChatResponse,
     OnboardingPayload,
@@ -54,3 +55,13 @@ async def onboarding_chat(
     """Un turno del onboarding conversacional: la IA extrae lo que dijo el
     cliente y redacta la siguiente pregunta; el backend decide el flujo."""
     return await service.chat(payload, tenant_id, user.token)
+
+
+@router.get("/chat/history", response_model=list[ChatMessage])
+async def onboarding_chat_history(
+    user: CurrentUser = Depends(get_current_user),
+    tenant_id: str = Depends(get_tenant_id),  # 401 si el JWT no trae el claim
+) -> list[ChatMessage]:
+    """Transcript persistido del chat de onboarding, para rehidratar el hilo al
+    recargar la página (el saludo lo repone el frontend)."""
+    return await service.get_chat_history(tenant_id, user.token)

@@ -440,6 +440,21 @@ def test_warnings_only_for_touched_fields():
     assert service._data_warnings({"nit": "123"}, set()) == []
 
 
+def test_rnt_not_vigente_warns_about_legal_requirement():
+    """RNT no vigente => aviso legal (Ley 300/1558), no bloquea."""
+    from app.modules.onboarding import service
+
+    warns = service._data_warnings({"rnt_status": "por renovar"}, {"rnt_status"})
+    assert len(warns) == 1
+    assert "Ley 300" in warns[0] and "Ley 1558" in warns[0]
+
+
+def test_rnt_vigente_does_not_warn():
+    from app.modules.onboarding import service
+
+    assert service._data_warnings({"rnt_status": "Vigente"}, {"rnt_status"}) == []
+
+
 def test_compliant_answer_is_not_blocked(client, make_token, wire):
     # compliant por defecto (o true) => flujo normal, sin bloqueo.
     wire(

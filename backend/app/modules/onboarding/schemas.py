@@ -461,6 +461,14 @@ class RoadmapStep(BaseModel):
     last_score: float | None = Field(
         default=None, description="Score de la evaluación de calidad más reciente (0-100)."
     )
+    complete: bool = Field(
+        default=False,
+        description=(
+            "El paso está GENERADO y en orden (prefijo contiguo desde el inicio). "
+            "Un doc generado fuera de secuencia NO es complete: en el tablero sale "
+            "bloqueado, no 'Generado'."
+        ),
+    )
 
 
 class RoadmapResponse(BaseModel):
@@ -488,6 +496,18 @@ class CurrentStepInfo(BaseModel):
     numeral: str | None = None
     fields_done: int
     fields_total: int
+
+
+class ChatMessage(BaseModel):
+    """Un mensaje persistido del chat de onboarding (para rehidratar al recargar).
+
+    Solo ``user`` y ``assistant`` viajan al frontend: el saludo es una constante
+    del cliente y los avisos (``data_warnings``) son efímeros por diseño, así que
+    ninguno se guarda. El transcript reconstruye el hilo de preguntas y respuestas.
+    """
+
+    role: str = Field(description="Autor del mensaje: 'user' o 'assistant'.")
+    content: str = Field(description="Texto del mensaje tal como se mostró.")
 
 
 class OnboardingChatResponse(BaseModel):

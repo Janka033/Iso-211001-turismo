@@ -87,6 +87,19 @@ def wire(monkeypatch):
             return data
 
         monkeypatch.setattr(repository, "save_onboarding", fake_save)
+
+        # Transcript del chat (chat_messages): historial en memoria + captura de
+        # lo que persiste cada turno, para poder afirmar sobre la rehidratación.
+        messages: list[dict] = []
+        captured["messages"] = messages
+        monkeypatch.setattr(
+            repository, "get_chat_messages", lambda tid, token: list(messages)
+        )
+        monkeypatch.setattr(
+            repository,
+            "save_chat_messages",
+            lambda tid, rows, token: messages.extend(rows),
+        )
         return captured
 
     return setup

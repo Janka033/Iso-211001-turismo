@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { apiBase } from "@/lib/api";
+import { fieldLabel } from "@/lib/field-labels";
 import { ROUTE_TITLES } from "@/lib/route";
 import { createClient } from "@/lib/supabase/client";
 
@@ -39,39 +40,19 @@ const ACTIVITY_LABEL: Record<string, string> = Object.fromEntries(
   ACTIVITIES.map((a) => [a.slug, a.label]),
 );
 
-const UNIVERSAL_LABELS: Record<string, string> = {
-  activities: "Actividades",
-  main_region: "Región principal",
-  locations: "Ubicaciones",
-  scope: "Alcance",
-  certified_guides: "Guías certificados",
-  legal_representative: "Representante legal",
-  nit: "NIT",
-  rnt_status: "Estado del RNT",
-  rnt_number: "Número de RNT",
-  emergency_contacts: "Contactos de emergencia",
-  brigada_emergencias: "Brigada de emergencias",
-  capacitaciones_personal_emergencias: "Capacitaciones en emergencias",
-  equipos_emergencia: "Equipos de emergencia",
-  organismos_apoyo: "Organismos de apoyo",
-  hospital_cercano: "Hospital más cercano",
-  vehiculos_evacuacion: "Vehículos de evacuación",
-  existing_controls: "Controles actuales",
-  management_commitment: "Compromiso de la dirección",
-  // Micro-preguntas de granularidad por documento (NTC-ISO 21101).
-  safety_objectives: "Objetivos de seguridad (SMART)",
-  approval_date: "Fecha de aprobación de la política",
-  communication_channels: "Canales de divulgación",
-  activity_step_breakdown: "Actividad paso a paso (peligro/riesgo)",
-  risk_factors: "Riesgos por factor",
-  business_risks: "Riesgos del negocio",
-  opportunities: "Oportunidades de mejora",
-  equipment_maintenance: "Mantenimiento por equipo",
-  communication_matrix: "Matriz de comunicación",
-  participation_consultation: "Participación y consulta",
-  incident_classification: "Clasificación de incidentes",
-  incident_report_fields: "Campos del reporte de incidentes",
-};
+// Claves de `onboarding_data` que NO son campos universales a mostrar como fila:
+// estructuras internas (dicts anidados) o metadatos del flujo. El resto de las
+// claves presentes se muestran con su etiqueta de `field-labels.ts` — así un
+// campo nuevo capturado por el backend aparece SOLO en el panel sin tener que
+// mantener aquí una lista paralela (era la causa de que `company_purpose` y
+// otros campos guardados no se vieran).
+const PANEL_SKIP_KEYS = new Set<string>([
+  "activity_fields",
+  "absent_fields",
+  "staff_roles",
+  "document_codes",
+  "remediation_fields",
+]);
 
 // Prefijo del field_key por actividad (`<prefijo>_<slug>`) -> etiqueta.
 // Incluye los campos del cuestionario "Información Técnica de Actividades".
@@ -136,6 +117,27 @@ interface Bubble {
   tone?: "warning";
 }
 
+// Transcript persistido (GET /onboarding/chat/history) para rehidratar el hilo
+// al recargar. Solo user/assistant: el saludo lo repone el frontend.
+interface StoredMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+// Best-effort: si el transcript no está disponible, se cae al saludo + la
+// pregunta pendiente (comportamiento previo), nunca rompe el arranque.
+async function fetchHistory(token: string): Promise<StoredMessage[]> {
+  try {
+    const res = await fetch(`${apiBase()}/onboarding/chat/history`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    return (await res.json()) as StoredMessage[];
+  } catch {
+    return [];
+  }
+}
+
 const GREETING =
   "¡Hola! Soy tu asistente de cumplimiento. Con base en tus actividades te haré unas preguntas para preparar tus documentos de seguridad. Nunca invento datos: lo que falte quedará como [PENDIENTE].";
 
@@ -194,16 +196,27 @@ export function OnboardingChat() {
         const resp = (await res.json()) as ChatResponse;
         const acts = resp.data.activities ?? [];
         if (!alive || acts.length === 0) return;
-        // Retoma el chat con lo persistido (la conversación previa no se guarda;
-        // se re-muestra el saludo + la pregunta pendiente actual).
         setSelected(acts);
         setData(resp.data);
         setCompleteness(resp.completeness);
         setCompleted(resp.completed);
         setCurrentStep(resp.current_step ?? null);
         setReadyDocs(resp.ready_to_generate ?? []);
+        // Rehidrata la conversación previa desde `chat_messages`. El POST de
+        // arriba ya sembró la primera pregunta si hacía falta, por eso el
+        // transcript se pide DESPUÉS. El saludo es constante del cliente; si no
+        // hay transcript (degradado o tenant nuevo), se cae a la pregunta
+        // pendiente actual — el comportamiento de siempre.
+        const past = await fetchHistory(session.access_token);
+        if (!alive) return;
         const bubbles: Bubble[] = [{ role: "ai", text: GREETING }];
-        if (resp.next_question) bubbles.push({ role: "ai", text: resp.next_question });
+        if (past.length > 0) {
+          for (const m of past) {
+            bubbles.push({ role: m.role === "user" ? "user" : "ai", text: m.content });
+          }
+        } else if (resp.next_question) {
+          bubbles.push({ role: "ai", text: resp.next_question });
+        }
         setHistory(bubbles);
         setPhase("chat");
       } catch {
@@ -341,7 +354,20 @@ export function OnboardingChat() {
         },
         body: JSON.stringify({}),
       });
-      if (!res.ok) throw new Error(String(res.status));
+      if (!res.ok) {
+        // 409 = fuera de secuencia o datos insuficientes: el backend explica el
+        // motivo (secuencia estricta). Se muestra tal cual al cliente.
+        let detail =
+          "No se pudo generar el documento. Intenta de nuevo o hazlo desde el panel.";
+        try {
+          const body = (await res.json()) as { detail?: string };
+          if (body?.detail) detail = body.detail;
+        } catch {
+          /* respuesta sin cuerpo JSON */
+        }
+        setGenerateError(detail);
+        return;
+      }
       setGeneratedNow((g) => [...g, docType]);
       setHistory((h) => [
         ...h,
@@ -350,6 +376,11 @@ export function OnboardingChat() {
           text: `🎉 ¡Generé tu ${ROUTE_TITLES[docType] ?? docType}! Puedes verlo en tu ruta o descargarlo desde Documentos. Sigamos con el siguiente paso.`,
         },
       ]);
+      // Sincronización en tiempo real: al generar, el paso activo avanza. Se
+      // re-pide el estado (sin mensaje, sin IA) para refrescar la barra, el paso
+      // actual y el siguiente documento a generar, y mostrar su primera pregunta.
+      const resp = await postChat({ message: null });
+      if (resp) applyResponse(resp);
     } catch {
       setGenerateError(
         "No se pudo generar el documento. Intenta de nuevo o hazlo desde el panel.",
@@ -602,10 +633,18 @@ function ExtractedPanel({ data, activities }: { data: OnboardingData; activities
   // Campos que el cliente declaró no tener: se muestran como "No aplica" (una
   // respuesta válida), no se ocultan como si faltaran.
   const absent = new Set(data.absent_fields ?? []);
-  const universalEntries = Object.entries(UNIVERSAL_LABELS)
-    .map(([key, label]) => {
+  // Se recorren las claves REALMENTE presentes en el estado (no una lista fija):
+  // se descartan las estructurales y los dicts anidados, y cada una se etiqueta
+  // con `field-labels.ts`. El orden lo fija el backend (identidad primero).
+  const universalEntries = Object.keys(data)
+    .filter((key) => !PANEL_SKIP_KEYS.has(key))
+    .filter((key) => {
+      const v = data[key];
+      return !(v !== null && typeof v === "object" && !Array.isArray(v));
+    })
+    .map((key) => {
       const value = absent.has(key) ? "No aplica" : formatValue(data[key]);
-      return [label, value] as const;
+      return [fieldLabel(key), value] as const;
     })
     .filter(([, value]) => value !== null);
 

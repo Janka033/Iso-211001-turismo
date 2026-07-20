@@ -115,5 +115,37 @@ def test_roadmap_current_step_advances_past_generated(client, make_token, wire_r
     assert body["current_step"] == 7  # los pasos 1 y 4 ya tienen documento
 
 
+def test_in_order_generated_step_is_complete(client, make_token, wire_roadmap):
+    # La política (paso 4) generada, sin pasos accionables previos sin generar
+    # (el 1 es "próximamente"): cuenta como completo.
+    wire_roadmap(
+        statuses=[
+            {"document_type": "politica_seguridad", "status": "generated", "completeness": 100.0}
+        ]
+    )
+    resp = client.get("/onboarding/roadmap", headers=_auth(make_token))
+    by_type = {s["document_type"]: s for s in resp.json()["steps"]}
+    assert by_type["politica_seguridad"]["complete"] is True
+    assert by_type["matriz_riesgos"]["complete"] is False
+
+
+def test_out_of_order_generated_step_is_not_complete(client, make_token, wire_roadmap):
+    # La matriz (paso 7) generada PERO la política (paso 4) sin generar: la
+    # matriz NO es completa (en el tablero saldrá bloqueada, no "Generado") y el
+    # paso actual sigue siendo el 4. Este era el bug: paso 8 "Generado" con 1-7
+    # bloqueados.
+    wire_roadmap(
+        statuses=[
+            {"document_type": "matriz_riesgos", "status": "generated", "completeness": 90.0}
+        ]
+    )
+    resp = client.get("/onboarding/roadmap", headers=_auth(make_token))
+    body = resp.json()
+    by_type = {s["document_type"]: s for s in body["steps"]}
+    assert by_type["matriz_riesgos"]["status"] == "generated"
+    assert by_type["matriz_riesgos"]["complete"] is False  # fuera de orden
+    assert body["current_step"] == 4
+
+
 def test_roadmap_requires_auth(client):
     assert client.get("/onboarding/roadmap").status_code in (401, 403)

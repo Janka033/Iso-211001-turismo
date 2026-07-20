@@ -68,9 +68,11 @@ export function RouteMap() {
     );
   }
 
-  const generated = roadmap.steps.filter((s) => s.status !== "pendiente").length;
-  const pct = roadmap.total ? Math.round((generated / roadmap.total) * 100) : 0;
-  const allDone = generated === roadmap.total;
+  // El avance cuenta pasos COMPLETOS (generados y en orden), no cualquier doc
+  // con estado: así el tablero y el chat reflejan el mismo progreso real.
+  const completed = roadmap.steps.filter((s) => s.complete).length;
+  const pct = roadmap.total ? Math.round((completed / roadmap.total) * 100) : 0;
+  const allDone = completed === roadmap.total;
 
   return (
     <div className="mt-6">
@@ -81,7 +83,7 @@ export function RouteMap() {
             Camino a la certificación
           </p>
           <span className="badge bg-marca-50 text-marca-700">
-            {generated} / {roadmap.total} documentos
+            {completed} / {roadmap.total} documentos
           </span>
         </div>
         <div className="mt-3 flex items-center gap-3">
@@ -107,7 +109,7 @@ export function RouteMap() {
             (s) => chapterOf(s.numeral) === unit.chapter,
           );
           if (steps.length === 0) return null;
-          const unitDone = steps.every((s) => s.status !== "pendiente");
+          const unitDone = steps.every((s) => s.complete);
           return (
             <section key={unit.chapter}>
               <div className="flex items-center gap-3">

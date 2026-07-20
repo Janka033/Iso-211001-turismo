@@ -8,7 +8,7 @@ SIEMPRE como parámetro explícito. Mantiene un único registro de
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from app.core.supabase import get_user_client
 
@@ -128,12 +128,64 @@ def get_latest_review_scores(tenant_id: str, token: str) -> list[dict]:
     return res.data or []
 
 
+def get_chat_messages(tenant_id: str, token: str) -> list[dict]:
+    """Historial persistido del chat de onboarding del tenant, en orden.
+
+    ``chat_messages`` ya existe con RLS por tenant (0002/0003). Hoy el
+    onboarding es su ÚNICO escritor, así que se filtra solo por tenant; cuando
+    exista el módulo assistant habrá que añadir una columna ``context`` para no
+    mezclar hilos.
+    """
+    client = get_user_client(token)
+    res = (
+        client.table("chat_messages")
+        .select("role, content, created_at")
+        .eq("tenant_id", tenant_id)
+        .order("created_at")
+        .execute()
+    )
+    return res.data or []
+
+
+def save_chat_messages(tenant_id: str, rows: list[dict], token: str) -> None:
+    """Inserta los mensajes de un turno (user + assistant) en ``chat_messages``.
+
+    Cada fila: ``{"role": "user"|"assistant", "content": str}``. RLS garantiza
+    que solo se escribe en el tenant del JWT.
+
+    ``created_at`` se fija EXPLÍCITO y estrictamente creciente por fila: el
+    default ``now()`` es el timestamp de la transacción —idéntico para todas las
+    filas de un mismo insert—, así que ordenar por él dejaría el orden user↔
+    assistant indefinido y el transcript podría invertirse. El offset por índice
+    garantiza que la pregunta/respuesta conserven su orden al releer.
+    """
+    if not rows:
+        return
+    client = get_user_client(token)
+    now = datetime.now(UTC)
+    payload = [
+        {
+            "tenant_id": tenant_id,
+            "role": row["role"],
+            "content": row["content"],
+            "created_at": (now + timedelta(microseconds=i)).isoformat(),
+        }
+        for i, row in enumerate(rows)
+    ]
+    client.table("chat_messages").insert(payload).execute()
+
+
 def get_onboarding(tenant_id: str, token: str) -> dict:
+    # `order` por updated_at desc: si por una carrera hubiera más de una fila
+    # para el tenant (sin constraint único), SIEMPRE se lee la más reciente. Sin
+    # el orden, `limit(1)` devolvía una fila arbitraria y una corrección podía
+    # "no pegarse" (se leía una copia vieja distinta a la que se escribió).
     client = get_user_client(token)
     res = (
         client.table("onboarding_data")
         .select("data")
         .eq("tenant_id", tenant_id)
+        .order("updated_at", desc=True)
         .limit(1)
         .execute()
     )
@@ -143,30 +195,24 @@ def get_onboarding(tenant_id: str, token: str) -> dict:
 def save_onboarding(tenant_id: str, data: dict, token: str) -> dict:
     """Upsert del registro único de onboarding del tenant.
 
-    Sin constraint único en ``tenant_id``: buscamos la fila y hacemos UPDATE,
-    o INSERT si no existe. RLS garantiza que solo se toca la fila del tenant.
+    Con el constraint único en ``tenant_id`` (migración 0064) se usa
+    ``upsert(on_conflict="tenant_id")``: idempotente y SIN carrera —dos
+    peticiones concurrentes (p. ej. el doble montaje de React en dev) ya no
+    crean filas duplicadas, la segunda ACTUALIZA en vez de insertar—. En el
+    conflicto conserva ``id``/``created_at`` y refresca ``data``/``updated_at``.
+    RLS garantiza que solo se toca la fila del tenant del JWT.
     """
     client = get_user_client(token)
-    existing = (
+    res = (
         client.table("onboarding_data")
-        .select("id")
-        .eq("tenant_id", tenant_id)
-        .limit(1)
+        .upsert(
+            {
+                "tenant_id": tenant_id,
+                "data": data,
+                "updated_at": datetime.now(UTC).isoformat(),
+            },
+            on_conflict="tenant_id",
+        )
         .execute()
     )
-    if existing.data:
-        res = (
-            client.table("onboarding_data")
-            .update(
-                {"data": data, "updated_at": datetime.now(UTC).isoformat()}
-            )
-            .eq("id", existing.data[0]["id"])
-            .execute()
-        )
-    else:
-        res = (
-            client.table("onboarding_data")
-            .insert({"tenant_id": tenant_id, "data": data})
-            .execute()
-        )
     return res.data[0]["data"] if res.data else data
